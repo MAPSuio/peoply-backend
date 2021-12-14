@@ -12,7 +12,4 @@ services:
             max-file: "3"
         ports:
           - '5432:5432'
-        volumes: 
-          - ./create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
-          - ./fill_tables.sql:/docker-entrypoint-initdb.d/fill_tables.sql
           
