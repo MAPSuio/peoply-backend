@@ -45,6 +45,22 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Running the database in development
+
+Do the following steps to start the db in your local environment:
+
+- Start the db with `npm run start:dev-db`.
+- Create a `.env` file containing `DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"`
+- Run the Prisma migration with `npx prisma migrate dev`, this will also run the seed script.
+
+When you modify the schema, you must create a new migration:
+
+- Modify `schema.prisma` with desired changes, then run `npx prisma format`.
+- Run `npx prisma migrade dev --name what_you_have_changed`, to generate SQL and apply them to the DB.
+- Run `npx prisma generate` to update the Prisma client code that we use in the app.
+
+If you make changes to the `seed.ts` script, you run the scipt manually: `npx prisma db seed`.
+
 ## Test
 
 ```bash
