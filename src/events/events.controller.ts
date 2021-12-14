@@ -2,6 +2,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
 // import { UpdateEventDto } from './dto/update-event.dto';
 
 @Controller('events')
@@ -9,7 +10,7 @@ export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Post()
-  create(@Body() createEventDto: CreateEventDto) {
+  async create(@Body() createEventDto: CreateEventDto) {
     return this.eventsService.create(createEventDto);
   }
 
@@ -23,9 +24,21 @@ export class EventsController {
   //   return this.eventsService.findOne(+id);
   // }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
-  //   return this.eventsService.update(+id, updateEventDto);
+  @Patch(':id')
+  async tester(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
+    // avoid the case wher a post message is sendt with event_id defined.
+    if (updateEventDto.event_id !== undefined) {
+      updateEventDto.event_id = parseInt(id);
+    }
+    
+    return this.eventsService.update(parseInt(id), updateEventDto);
+  }
+
+  // @Patch(':event_id')
+  // async update(
+  //   @Param('id') id : string, 
+  //   @Body() updateEventDto: UpdateEventDto) {
+  //   return this.eventsService.update(parseInt(id), updateEventDto);
   // }
 
   // @Delete(':id')

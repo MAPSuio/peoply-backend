@@ -16,7 +16,6 @@ export class CreateEventDto {
   @MinLength(3, { message: "title too short" }) // custom message when broken
   title: string;
 
-  @IsEmail()
   @IsString()
   @IsNotEmpty()
   description: string;
