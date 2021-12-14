@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { validate } from "class-validator";
 import { PrismaService } from "src/prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 // import { UpdateEventDto } from "./dto/update-event.dto";
@@ -8,8 +9,19 @@ export class EventsService {
   constructor(private readonly prismaService: PrismaService) {}
 
   create(createEventDto: CreateEventDto) {
-    return this.prismaService.events.create({
+    const update = this.prismaService.events.create({
       data: createEventDto,
+    });
+
+    console.log("creating update");
+
+    validate(update).then((errors) => {
+      if (errors.length > 0) {
+        console.log("creation failed: ", errors);
+      } else {
+        console.log("creation succeeded");
+        return update;
+      }
     });
   }
 
