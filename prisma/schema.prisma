@@ -1,0 +1,99 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model organizations {
+  organization_id    String                    @id @default(uuid())
+  arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id])
+  arranger_id        String                    @unique
+  name               String
+  org_nr             String                    @db.VarChar(9)
+  image              String?                   @db.VarChar(100)
+  organization_roles user_organization_roles[]
+}
+
+model users {
+  user_id            String                    @id @default(uuid())
+  arranger           arrangers?                @relation(fields: [arranger_id], references: [arranger_id])
+  arranger_id        String?                   @unique
+  phone              BigInt
+  first_name         String                    @db.VarChar(100)
+  last_name          String?
+  email              String                    @unique
+  image              String?
+  birth_date         DateTime?
+  organization_roles user_organization_roles[]
+  registrations      registrations[]
+}
+
+model user_organization_roles {
+  organization_id String
+  user_id         String
+  organization    organizations      @relation(fields: [organization_id], references: [organization_id])
+  user            users              @relation(fields: [user_id], references: [user_id])
+  role            organization_roles
+
+  @@id([organization_id, user_id])
+}
+
+enum organization_roles {
+  ADMIN
+}
+
+model arrangers {
+  arranger_id     String            @id @default(uuid())
+  is_business     Boolean
+  organization    organizations?
+  user            users?
+  event_arrangers event_arrangers[]
+}
+
+model events {
+  event_id        Int               @id @default(autoincrement())
+  start_date      DateTime
+  end_date        DateTime
+  title           String            @db.VarChar(150)
+  description     String
+  capacity        Int?
+  private         Boolean           @default(false)
+  event_arrangers event_arrangers[]
+  registrations   registrations[]
+}
+
+model event_arrangers {
+  event_id    Int                  @id
+  event       events               @relation(fields: [event_id], references: [event_id])
+  arranger_id String
+  arranger    arrangers            @relation(fields: [arranger_id], references: [arranger_id])
+  role        event_arranger_roles
+}
+
+enum event_arranger_roles {
+  ADMIN
+  COLLABORATOR
+}
+
+model registrations {
+  event_id   Int
+  event      events     @relation(fields: [event_id], references: [event_id])
+  user_id    String
+  user       users      @relation(fields: [user_id], references: [user_id])
+  reg_date   DateTime
+  reg_status reg_status
+  attendance Boolean
+
+  @@id([event_id, user_id])
+}
+
+enum reg_status {
+  PENDING
+  COMPLETE
+}
