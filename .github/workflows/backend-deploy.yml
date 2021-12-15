@@ -4,7 +4,7 @@ name: deployment
 on:
   push:
     branches:
-      - master
+    - master
 
 env:
   AZURE_WEBAPP_NAME: peoply   # set this to your application's name
@@ -17,6 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
+    # - name: Use Node.js ${{ env.NODE_VERSION }}
+    #   uses: actions/setup-node@v1
+    #   with:
+    #     node-version: ${{ env.NODE_VERSION }}
+    # - name: npm install, build, and test
+    #   run: |
+    #     # Build and test the project, then
+    #     # deploy to Azure Web App.
+    #     npm install
+    #     npm run build --if-present
+    #     npm run test --if-present
+    #   working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: 'Deploy to Azure WebApp'
       uses: azure/webapps-deploy@v2
       with:
