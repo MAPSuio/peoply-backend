@@ -6,3 +6,8 @@
     "capacity": 100,
     "private": false
 }
+
+{
+    "event_id": 1,
+    "title": "Party at escape"
+}
