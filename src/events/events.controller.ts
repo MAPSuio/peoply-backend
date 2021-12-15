@@ -14,19 +14,19 @@ export class EventsController {
     return this.eventsService.create(createEventDto);
   }
 
-  // @Get()
-  // findAll() {
-  //   return this.eventsService.findAll();
-  // }
+  @Get()
+  findAll() {
+    return this.eventsService.findAll();
+  }
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.eventsService.findOne(+id);
-  // }
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.eventsService.findOne(+id);
+  }
 
   @Patch(':id')
   async tester(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
-    // avoid the case wher a post message is sendt with event_id defined.
+    // avoid the case wher a post message is sendt with event_id defined as an attack.
     if (updateEventDto.event_id !== undefined) {
       updateEventDto.event_id = parseInt(id);
     }
@@ -34,12 +34,6 @@ export class EventsController {
     return this.eventsService.update(parseInt(id), updateEventDto);
   }
 
-  // @Patch(':event_id')
-  // async update(
-  //   @Param('id') id : string, 
-  //   @Body() updateEventDto: UpdateEventDto) {
-  //   return this.eventsService.update(parseInt(id), updateEventDto);
-  // }
 
   // @Delete(':id')
   // remove(@Param('id') id: string) {

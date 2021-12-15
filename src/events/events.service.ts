@@ -16,13 +16,21 @@ export class EventsService {
     return update;
   }
 
-  // findAll() {
-  //   return `This action returns all events`;
-  // }
+  async findAll() {
+    return this.prismaService.events.findMany();
+  }
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} event`;
-  // }
+  async findOne(id: number) {
+    const event = await this.prismaService.events.findUnique({
+      where: { event_id: id },
+    });
+
+    if (!event) {
+      throw new EventNotFoundException(id);
+    } else {
+      return event;
+    }
+  }
 
   async update(id: number, updateEventDto: UpdateEventDto) {
     try {
