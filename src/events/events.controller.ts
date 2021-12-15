@@ -35,8 +35,8 @@ export class EventsController {
   }
 
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.eventsService.remove(+id);
-  // }
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.eventsService.remove(+id);
+  }
 }

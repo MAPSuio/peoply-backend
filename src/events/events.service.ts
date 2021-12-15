@@ -43,7 +43,13 @@ export class EventsService {
     }
   }
 
-  // remove(id: number) {
-  //   return `This action removes a #${id} event`;
-  // }
+  async remove(id: number) {
+    try {
+      return await this.prismaService.events.delete({
+        where: { event_id: id },
+      });
+    } catch (error) {
+      throw new EventNotFoundException(id);
+    }
+  }
 }
