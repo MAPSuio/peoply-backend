@@ -13,7 +13,7 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
   // { whitelist : true } this strips any atributes in a dto that has no decorator.
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.listen(PORT, "0.0.0.0");
 }
 bootstrap();

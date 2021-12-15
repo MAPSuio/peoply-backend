@@ -26,20 +26,20 @@ export class EventsController {
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.eventsService.findOne(+id);
+  findOne(@Param("id") id: number) {
+    return this.eventsService.findOne(id);
   }
 
   @Patch(":id")
   async tester(
-    @Param("id") id: string,
+    @Param("id") id: number,
     @Body() updateEventDto: UpdateEventDto,
   ) {
-    return this.eventsService.update(parseInt(id), updateEventDto);
+    return this.eventsService.update(id, updateEventDto);
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.eventsService.remove(+id);
+  remove(@Param("id") id: number) {
+    return this.eventsService.remove(id);
   }
 }
