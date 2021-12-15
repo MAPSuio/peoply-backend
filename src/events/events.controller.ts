@@ -21,17 +21,17 @@ export class EventsController {
   }
 
   @Get()
-  findAll() {
+  async findAll() {
     return this.eventsService.findAll();
   }
 
   @Get(":id")
-  findOne(@Param("id") id: number) {
+  async findOne(@Param("id") id: number) {
     return this.eventsService.findOne(id);
   }
 
   @Patch(":id")
-  async tester(
+  async update(
     @Param("id") id: number,
     @Body() updateEventDto: UpdateEventDto,
   ) {
