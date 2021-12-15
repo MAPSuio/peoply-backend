@@ -3,7 +3,6 @@ import { PrismaService } from "src/prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
 import { EventNotFoundException } from "./exceptions/eventNotFound.exception";
-// import { UpdateEventDto } from "./dto/update-event.dto";
 
 @Injectable()
 export class EventsService {
