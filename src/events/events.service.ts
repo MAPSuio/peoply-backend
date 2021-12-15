@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "src/prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
@@ -38,7 +39,15 @@ export class EventsService {
         data: { ...updateEventDto },
       });
     } catch (error) {
-      throw new EventNotFoundException(id);
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        //errorcode 'P2025' event not found in database
+        throw new EventNotFoundException(id);
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -48,7 +57,15 @@ export class EventsService {
         where: { event_id: id },
       });
     } catch (error) {
-      throw new EventNotFoundException(id);
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        //errorcode 'P2025' event not found in database
+        throw new EventNotFoundException(id);
+      } else {
+        throw error;
+      }
     }
   }
 }
