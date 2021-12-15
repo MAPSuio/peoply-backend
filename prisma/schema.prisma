@@ -24,7 +24,7 @@ model users {
   user_id            String                    @id @default(uuid())
   arranger           arrangers?                @relation(fields: [arranger_id], references: [arranger_id])
   arranger_id        String?                   @unique
-  phone              BigInt
+  phone              String                    @unique
   first_name         String                    @db.VarChar(100)
   last_name          String?
   email              String                    @unique
