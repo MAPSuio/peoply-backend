@@ -1,10 +1,10 @@
 # File: .github/workflows/workflow.yml
-name: JavaScript CI
+name: deployment
 
 on:
   push:
     branches:
-    - master
+      - master
 
 env:
   AZURE_WEBAPP_NAME: peoply   # set this to your application's name
