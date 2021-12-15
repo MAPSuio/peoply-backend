@@ -4,11 +4,17 @@ import {
   MinLength,
   IsNumber,
   IsBoolean,
-  IsEmail,
+  IsOptional,
+  IsDateString,
 } from "class-validator";
 
 export class CreateEventDto {
+  @IsNotEmpty()
+  @IsDateString()
   start_date: Date;
+
+  @IsNotEmpty()
+  @IsDateString()
   end_date: Date;
 
   @IsString()
@@ -20,6 +26,7 @@ export class CreateEventDto {
   @IsNotEmpty()
   description: string;
 
+  @IsOptional()
   @IsNumber()
   capacity: number;
 

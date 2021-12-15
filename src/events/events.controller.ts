@@ -25,15 +25,9 @@ export class EventsController {
   }
 
   @Patch(':id')
-  async tester(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
-    // avoid the case wher a post message is sendt with event_id defined as an attack.
-    if (updateEventDto.event_id !== undefined) {
-      updateEventDto.event_id = parseInt(id);
-    }
-    
+  async tester(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {    
     return this.eventsService.update(parseInt(id), updateEventDto);
   }
-
 
   @Delete(':id')
   remove(@Param('id') id: string) {

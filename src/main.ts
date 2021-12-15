@@ -12,7 +12,8 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter(),
   );
-  app.useGlobalPipes(new ValidationPipe());
+  // { whitelist : true } this strips any atributes in a dto that has no decorator.
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   await app.listen(PORT, "0.0.0.0");
 }
 bootstrap();
