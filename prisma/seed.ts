@@ -121,11 +121,10 @@ async function main() {
 
     const testEvents = await prisma.events.upsert({
       where: {
-        event_id: i,
+        event_id: i + 1,
       },
       update: {},
       create: {
-        event_id: i,
         start_date: startDates[i],
         end_date: endDates[i],
         title: eventNames[i],
@@ -137,11 +136,11 @@ async function main() {
 
     const testEventArrangers = await prisma.event_arrangers.upsert({
       where: {
-        event_id: i,
+        event_id: i + 1,
       },
       update: {},
       create: {
-        event_id: i,
+        event_id: i + 1,
         arranger_id: arrangerIDs[i],
         role: event_arranger_roles.ADMIN,
       },
@@ -165,11 +164,11 @@ async function main() {
 
     const testRegistrations1 = await prisma.registrations.upsert({
       where: {
-        event_id_user_id: { event_id: i, user_id: userIDs[i + 10] },
+        event_id_user_id: { event_id: i + 1, user_id: userIDs[i + 10] },
       },
       update: {},
       create: {
-        event_id: i,
+        event_id: i + 1,
         user_id: userIDs[i + 10],
         reg_date: regDates[i],
         reg_status: reg_status.COMPLETE,
@@ -179,11 +178,11 @@ async function main() {
 
     const testRegistrations2 = await prisma.registrations.upsert({
       where: {
-        event_id_user_id: { event_id: i, user_id: userIDs[i + 20] },
+        event_id_user_id: { event_id: i + 1, user_id: userIDs[i + 20] },
       },
       update: {},
       create: {
-        event_id: i,
+        event_id: i + 1,
         user_id: userIDs[i + 20],
         reg_date: regDates[i],
         reg_status: reg_status.PENDING,
