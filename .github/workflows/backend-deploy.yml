@@ -26,6 +26,7 @@ jobs:
         # Build and test the project, then
         # deploy to Azure Web App.
         npm install
+        npm run prisma:deploy
         npm run build --if-present
         npm run test --if-present
       working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
