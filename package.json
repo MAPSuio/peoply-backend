@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start:dev": "npm run stop:dev-db && npm run start:dev-db && sleep 3 && npx prisma migrate dev && npx prisma db seed && nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start": "npx prisma migrate deploy && node dist/src/main",
+    "start": "node dist/src/main",
     "start:dev-db": "cd dev-db && sudo make start",
     "stop:dev-db": "cd dev-db && sudo make stop",
     "restart:dev-db": "cd dev-db && sudo make restart",
