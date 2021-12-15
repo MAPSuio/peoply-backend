@@ -16,7 +16,7 @@ export class EventsService {
   }
 
   async findAll() {
-    return this.prismaService.events.findMany();
+    return await this.prismaService.events.findMany();
   }
 
   async findOne(id: number) {
