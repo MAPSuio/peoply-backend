@@ -20,15 +20,15 @@ export class RegistrationsController {
     return this.registrationsService.create(createRegistrationDto);
   }
 
-  // @Get()
-  // findAll() {
-  //   return this.registrationsService.findAll();
-  // }
+  @Get()
+  findAll() {
+    return this.registrationsService.findAll();
+  }
 
-  // @Get(":id")
-  // findOne(@Param("id") id: string) {
-  //   return this.registrationsService.findOne(+id);
-  // }
+  @Get(":event_id")
+  findOne(@Param("event_id") event_id: number) {
+    return this.registrationsService.findOne(event_id);
+  }
 
   @Patch(":event_id")
   update(
@@ -51,8 +51,10 @@ export class RegistrationsController {
     );
   }
 
-  // @Delete(":id")
-  // remove(@Param("id") id: string) {
-  //   return this.registrationsService.remove(+id);
-  // }
+  @Delete(":event_id")
+  remove(@Param("event_id") event_id: number) {
+    const user_id = "e6b816e9-0131-4200-949b-b7ea908c9daf"; //hardcoded for testing purposes.
+    // we should get this from the auth
+    return this.registrationsService.remove(event_id, user_id);
+  }
 }

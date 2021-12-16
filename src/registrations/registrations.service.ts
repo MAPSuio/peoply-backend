@@ -3,8 +3,7 @@ import { CreateRegistrationDto } from "./dto/create-registration.dto";
 import { UpdateRegistrationDto } from "./dto/update-registration.dto";
 import { PrismaService } from "src/prisma.service";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { EventNotFoundException } from "src/events/exceptions/eventNotFound.exception";
-import { RegistrationsNotFoundException } from "./exceptions/registrationsNotFound.exception";
+import { RegistrationNotFoundException } from "./exceptions/registrationNotFound.exception";
 
 @Injectable()
 export class RegistrationsService {
@@ -20,13 +19,28 @@ export class RegistrationsService {
     return reg;
   }
 
-  // findAll() {
-  //   return `This action returns all registrations`;
-  // }
+  async findAll() {
+    const user_id = "5e7ed477-229d-43b2-ae0a-a7694ff44ac0"; //hardcoded for testing purposes.
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} registration`;
-  // }
+    //If a user has no registrations an empty list is returned
+    return await this.prismaService.registrations.findMany({
+      where: { user_id: user_id },
+    });
+  }
+
+  async findOne(event_id: number) {
+    const user_id = "5e7ed477-229d-43b2-ae0a-a7694ff44ac0"; //hardcoded for testing purposes.
+
+    const registration = await this.prismaService.registrations.findUnique({
+      where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
+    });
+
+    if (!registration) {
+      throw new RegistrationNotFoundException(event_id, user_id);
+    } else {
+      return registration;
+    }
+  }
 
   async update(
     event_id: number,
@@ -44,14 +58,27 @@ export class RegistrationsService {
         error.code === "P2025"
       ) {
         //errorcode 'P2025' event not found in database
-        throw new RegistrationsNotFoundException(event_id, user_id);
+        throw new RegistrationNotFoundException(event_id, user_id);
       } else {
         throw error;
       }
     }
   }
 
-  // remove(id: number) {
-  //   return `This action removes a #${id} registration`;
-  // }
+  async remove(event_id: number, user_id: string) {
+    try {
+      return await this.prismaService.registrations.delete({
+        where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new RegistrationNotFoundException(event_id, user_id);
+      } else {
+        throw error;
+      }
+    }
+  }
 }
