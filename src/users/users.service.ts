@@ -1,14 +1,20 @@
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { CreateArrangerDto } from "./../arrangers/dto/create-arranger.dto";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UserAlreadyExistsException } from "./exceptions/userAlreadyExists.exception";
 import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
+import { v4 as uuidv4 } from "uuid";
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  /* This will fail if uuid is a duplicate.
+     Must be handled by the caller!
+  */
   async create(createUserDto: CreateUserDto) {
     const { phone, email } = createUserDto;
 
@@ -38,7 +44,36 @@ export class UsersService {
     if (emailExists || phoneExists) {
       throw new UserAlreadyExistsException(errors);
     } else {
-      return this.prisma.users.create({ data: createUserDto });
+      const createArranger = new CreateArrangerDto();
+      createArranger.is_business = false;
+
+      const arrangerID = uuidv4();
+
+      createArranger.arranger_id = arrangerID;
+      createUserDto.arranger_id = arrangerID;
+
+      try {
+        const [newArranger, newUser] = await this.prisma.$transaction([
+          this.prisma.arrangers.create({
+            data: createArranger,
+          }),
+          this.prisma.users.create({ data: createUserDto }),
+        ]);
+
+        return newUser;
+      } catch (error) {
+        console.log(error);
+        if (
+          error instanceof PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          //unique value duplicated in DB
+
+          throw error;
+        } else {
+          throw error;
+        }
+      }
     }
   }
 
