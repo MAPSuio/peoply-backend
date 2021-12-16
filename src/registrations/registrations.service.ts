@@ -29,13 +29,13 @@ export class RegistrationsService {
   // }
 
   async update(
-    e_id: number,
-    u_id: string,
+    event_id: number,
+    user_id: string,
     updateRegistrationDto: UpdateRegistrationDto,
   ) {
     try {
       return await this.prismaService.registrations.update({
-        where: { event_id_user_id: { event_id: e_id, user_id: u_id } },
+        where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
         data: { ...updateRegistrationDto },
       });
     } catch (error) {
@@ -44,7 +44,7 @@ export class RegistrationsService {
         error.code === "P2025"
       ) {
         //errorcode 'P2025' event not found in database
-        throw new RegistrationsNotFoundException(e_id, u_id);
+        throw new RegistrationsNotFoundException(event_id, user_id);
       } else {
         throw error;
       }

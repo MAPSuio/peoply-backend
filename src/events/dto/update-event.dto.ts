@@ -15,6 +15,9 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   event_id: number;
 
   @IsNotEmpty()
+  user_id: string;
+
+  @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" })
   title: string;

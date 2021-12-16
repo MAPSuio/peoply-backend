@@ -30,13 +30,26 @@ export class RegistrationsController {
   //   return this.registrationsService.findOne(+id);
   // }
 
-  // @Patch(":id")
-  // update(
-  //   @Param("id") id: string,
-  //   @Body() updateRegistrationDto: UpdateRegistrationDto,
-  // ) {
-  //   return this.registrationsService.update(+id, updateRegistrationDto);
-  // }
+  @Patch(":event_id")
+  update(
+    @Param("event_id") event_id: number,
+    @Body() updateRegistrationDto: UpdateRegistrationDto,
+  ) {
+    // TODO: get user_id from auth token when implemented
+    let user_id = "5e7ed477-229d-43b2-ae0a-a7694ff44ac0";
+    if (updateRegistrationDto.user_id !== undefined) {
+      user_id = updateRegistrationDto.user_id;
+    } else {
+      throw new Error("Could not find user_id in the patch body, TESTING ONLY");
+    }
+    // TODO above when auth token is implemented
+
+    return this.registrationsService.update(
+      event_id,
+      user_id,
+      updateRegistrationDto,
+    );
+  }
 
   // @Delete(":id")
   // remove(@Param("id") id: string) {
