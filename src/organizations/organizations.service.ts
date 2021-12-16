@@ -68,7 +68,11 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      throw new OrganizationDoesNotExistException(id);
+      if (error.code === "P2001") {
+        throw new OrganizationDoesNotExistException(id);
+      }
+
+      throw error;
     }
   }
 
@@ -79,7 +83,11 @@ export class OrganizationsService {
         data: updateOrganizationDto,
       });
     } catch (error) {
-      throw new OrganizationDoesNotExistException(id);
+      if (error.code === "P2001") {
+        throw new OrganizationDoesNotExistException(id);
+      }
+
+      throw error;
     }
   }
 
@@ -91,7 +99,11 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      throw new OrganizationDoesNotExistException(id);
+      if (error.code === "P2001") {
+        throw new OrganizationDoesNotExistException(id);
+      }
+
+      throw error;
     }
   }
 }
