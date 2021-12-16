@@ -21,7 +21,6 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
 
   @IsNotEmpty()
   @IsString()
-  @IsNotEmpty()
   description: string;
 
   @IsNumber()
