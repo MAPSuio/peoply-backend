@@ -10,10 +10,7 @@ import { OrganizationDoesNotExistException } from "./exceptions/organizationDoes
 
 @Injectable()
 export class OrganizationsService {
-  constructor(
-    private readonly prismaService: PrismaService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createOrganizationDto: CreateOrganizationDto) {
     const { org_nr } = createOrganizationDto;
