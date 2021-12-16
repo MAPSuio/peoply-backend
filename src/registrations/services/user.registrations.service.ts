@@ -1,15 +1,18 @@
 import { Injectable } from "@nestjs/common";
 import { CreateRegistrationDto } from "../dto/create-registration.dto";
-import { UpdateRegistrationDto } from "../dto/update-registration.dto";
+import { UserUpdateRegistrationDto } from "../dto/user-update-registration.dto";
 import { PrismaService } from "src/prisma.service";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
 import { DuplicateRegistrationException } from "../exceptions/duplicateRegistration.exception";
 import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
+import { NonPrivilegedRegService } from "./nonprivileged.registration.service";
 
 @Injectable()
-export class UserRegService {
-  constructor(private readonly prismaService: PrismaService) {}
+export class UserRegService extends NonPrivilegedRegService {
+  constructor(protected readonly prismaService: PrismaService) {
+    super(prismaService);
+  }
 
   async create(createRegistrationDto: CreateRegistrationDto) {
     //TODO: should be done by default in the database, not here in the backend.
@@ -47,27 +50,15 @@ export class UserRegService {
     });
   }
 
-  async findOne(event_id: number, user_id: string) {
-    const registration = await this.prismaService.registrations.findUnique({
-      where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
-    });
-
-    if (!registration) {
-      throw new RegistrationNotFoundException(event_id, user_id);
-    } else {
-      return registration;
-    }
-  }
-
   async update(
     event_id: number,
     user_id: string,
-    updateRegistrationDto: UpdateRegistrationDto,
+    UserUpdateRegistrationDto: UserUpdateRegistrationDto,
   ) {
     try {
       return await this.prismaService.registrations.update({
         where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
-        data: { ...updateRegistrationDto },
+        data: { ...UserUpdateRegistrationDto },
       });
     } catch (error) {
       if (
@@ -75,23 +66,6 @@ export class UserRegService {
         error.code === "P2025"
       ) {
         //errorcode 'P2025' event not found in database
-        throw new RegistrationNotFoundException(event_id, user_id);
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  async remove(event_id: number, user_id: string) {
-    try {
-      return await this.prismaService.registrations.delete({
-        where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
         throw new RegistrationNotFoundException(event_id, user_id);
       } else {
         throw error;
