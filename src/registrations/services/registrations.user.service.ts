@@ -22,9 +22,6 @@ export class UserRegService {
       });
       return registration;
     } catch (error) {
-      console.log(error.meta);
-      console.log(error);
-
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === "P2002") {
           throw new DuplicateRegistrationException(

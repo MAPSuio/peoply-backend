@@ -7,10 +7,11 @@ import {
   Param,
   Delete,
 } from "@nestjs/common";
-import { UserRegService } from "./services/registrations.service";
+import { UserRegService } from "./services/registrations.user.service";
 import { CreateRegistrationDto } from "./dto/create-registration.dto";
 import { UpdateRegistrationDto } from "./dto/update-registration.dto";
 
+// This endpoint is for testing only.
 @Controller("registrations")
 export class RegistrationsController {
   constructor(private readonly UserRegService: UserRegService) {}
