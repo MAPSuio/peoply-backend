@@ -53,7 +53,7 @@ export class UsersService {
       createUserDto.arranger_id = arrangerID;
 
       try {
-        const [newArranger, newUser] = await this.prisma.$transaction([
+        const [, newUser] = await this.prisma.$transaction([
           this.prisma.arrangers.create({
             data: createArranger,
           }),
@@ -62,7 +62,6 @@ export class UsersService {
 
         return newUser;
       } catch (error) {
-        console.log(error);
         if (
           error instanceof PrismaClientKnownRequestError &&
           error.code === "P2002"
