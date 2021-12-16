@@ -15,7 +15,7 @@ model organizations {
   arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id])
   arranger_id        String                    @unique
   name               String
-  org_nr             String                    @db.VarChar(9)
+  org_nr             String                    @db.VarChar(9) @unique
   image              String?                   @db.VarChar(100)
   organization_roles user_organization_roles[]
 }
