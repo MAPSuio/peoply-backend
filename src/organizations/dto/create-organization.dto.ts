@@ -1,6 +1,8 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateOrganizationDto {
+  arranger_id: string;
+
   @IsNotEmpty()
   @IsString()
   name: string;
@@ -9,6 +11,7 @@ export class CreateOrganizationDto {
   @IsString()
   org_nr: string;
 
+  @IsOptional()
   @IsString()
   image: string;
 }

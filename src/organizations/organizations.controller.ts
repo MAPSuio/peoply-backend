@@ -20,14 +20,9 @@ export class OrganizationsController {
     return this.organizationsService.create(createOrganizationDto);
   }
 
-  @Get()
-  findAll() {
-    return this.organizationsService.findAll();
-  }
-
   @Get(":id")
   findOne(@Param("id") id: string) {
-    return this.organizationsService.findOne(+id);
+    return this.organizationsService.findOne(id);
   }
 
   @Patch(":id")
@@ -35,11 +30,11 @@ export class OrganizationsController {
     @Param("id") id: string,
     @Body() updateOrganizationDto: UpdateOrganizationDto,
   ) {
-    return this.organizationsService.update(+id, updateOrganizationDto);
+    return this.organizationsService.update(id, updateOrganizationDto);
   }
 
   @Delete(":id")
   remove(@Param("id") id: string) {
-    return this.organizationsService.remove(+id);
+    return this.organizationsService.remove(id);
   }
 }
