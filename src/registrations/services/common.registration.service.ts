@@ -4,7 +4,7 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
 
 @Injectable()
-export class NonPrivilegedRegService {
+export class CommonRegistrationService {
   constructor(protected readonly prismaService: PrismaService) {}
 
   async findOne(event_id: number, user_id: string) {
