@@ -10,10 +10,14 @@ import {
 import { EventsService } from "./events.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
+import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
 
 @Controller("events")
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly userRegistrationService: UserRegistrationService,
+  ) {}
 
   @Post()
   async create(@Body() createEventDto: CreateEventDto) {
@@ -28,6 +32,11 @@ export class EventsController {
   @Get(":id")
   async findOne(@Param("id") id: number) {
     return this.eventsService.findOne(id);
+  }
+
+  @Get("/users/:user_id")
+  async findAllEventsRegistered(@Param("user_id") user_id: string) {
+    return this.userRegistrationService.findAll(user_id);
   }
 
   @Patch(":id")
