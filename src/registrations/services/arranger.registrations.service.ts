@@ -3,10 +3,13 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "src/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto/arranger-update-registration.dto";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
+import { NonPrivilegedRegService } from "./nonprivileged.registration.service";
 
 @Injectable()
-export class ArrangerRegService {
-  constructor(private readonly prismaService: PrismaService) {}
+export class ArrangerRegService extends NonPrivilegedRegService {
+  constructor(protected readonly prismaService: PrismaService) {
+    super(prismaService);
+  }
 
   async findAll(event_id: number) {
     return await this.prismaService.registrations.findMany({
