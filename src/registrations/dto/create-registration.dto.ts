@@ -1,5 +1,5 @@
 import { reg_status } from "@prisma/client";
-import { IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsNumber, IsString } from "class-validator";
 
 export class CreateRegistrationDto {
   @IsNumber()
@@ -9,11 +9,10 @@ export class CreateRegistrationDto {
   @IsNotEmpty()
   user_id: string;
 
-  // @IsRegStatus() // TODO: make custom decorator
+  @IsEnum(reg_status)
   @IsNotEmpty()
   reg_status: reg_status;
 
   reg_date: Date;
-
   attendance: boolean;
 }

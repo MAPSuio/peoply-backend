@@ -8,8 +8,8 @@ import {
   Delete,
 } from "@nestjs/common";
 
-import { UserRegService } from "./services/user.registrations.service";
-import { ArrangerRegService } from "./services/arranger.registrations.service";
+import { UserRegistrationService } from "./services/user.registrations.service";
+import { ArrangerRegistrationService } from "./services/arranger.registrations.service";
 import { CreateRegistrationDto } from "./dto/create-registration.dto";
 import { UserUpdateRegistrationDto } from "./dto/user-update-registration.dto";
 import { ArrangerUpdateRegistrationDto } from "./dto/arranger-update-registration.dto";
@@ -18,25 +18,24 @@ import { ArrangerUpdateRegistrationDto } from "./dto/arranger-update-registratio
 @Controller("registrations")
 export class RegistrationsController {
   constructor(
-    private readonly UserRegService: UserRegService,
-    private readonly ArrangerRegService: ArrangerRegService,
+    private readonly userRegistrationService: UserRegistrationService,
+    private readonly arrangerRegistrationService: ArrangerRegistrationService,
   ) {}
 
   @Post()
   create(@Body() createRegistrationDto: CreateRegistrationDto) {
-    return this.UserRegService.create(createRegistrationDto);
+    return this.userRegistrationService.create(createRegistrationDto);
   }
 
   @Get()
   findAll() {
-    const user_id = "a791b4dc-300e-44d9-b856-2d2c61457399"; //hardcoded for testing purposes.
-    return this.ArrangerRegService.findAll(3);
+    return this.arrangerRegistrationService.findAll(3);
   }
 
   @Get(":event_id")
   findOne(@Param("event_id") event_id: number) {
     const user_id = "a791b4dc-300e-44d9-b856-2d2c61457399"; //hardcoded for testing purposes.
-    return this.UserRegService.findOne(event_id, user_id);
+    return this.userRegistrationService.findOne(event_id, user_id);
   }
 
   // user pacth
@@ -54,7 +53,7 @@ export class RegistrationsController {
   //   }
   //   // TODO above when auth token is implemented
 
-  //   return this.UserRegService.update(
+  //   return this.UserRegistrationService.update(
   //     event_id,
   //     user_id,
   //     UserUpdateRegistrationDto,
@@ -65,13 +64,13 @@ export class RegistrationsController {
   @Patch(":user_id")
   update(
     @Param("user_id") user_id: string,
-    @Body() ArrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
+    @Body() arrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
   ) {
     const event_id = 1;
-    return this.ArrangerRegService.update(
+    return this.arrangerRegistrationService.update(
       event_id,
       user_id,
-      ArrangerUpdateRegistrationDto,
+      arrangerUpdateRegistrationDto,
     );
   }
 
@@ -79,6 +78,6 @@ export class RegistrationsController {
   remove(@Param("event_id") event_id: number) {
     const user_id = "e6b816e9-0131-4200-949b-b7ea908c9daf"; //hardcoded for testing purposes.
     // we should get this from the auth
-    return this.ArrangerRegService.remove(event_id, user_id);
+    return this.arrangerRegistrationService.remove(event_id, user_id);
   }
 }

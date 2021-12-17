@@ -6,10 +6,10 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
 import { DuplicateRegistrationException } from "../exceptions/duplicateRegistration.exception";
 import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
-import { NonPrivilegedRegService } from "./nonprivileged.registration.service";
+import { CommonRegistrationService } from "./common.registration.service";
 
 @Injectable()
-export class UserRegService extends NonPrivilegedRegService {
+export class UserRegistrationService extends CommonRegistrationService {
   constructor(protected readonly prismaService: PrismaService) {
     super(prismaService);
   }

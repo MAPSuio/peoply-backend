@@ -3,10 +3,10 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "src/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto/arranger-update-registration.dto";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
-import { NonPrivilegedRegService } from "./nonprivileged.registration.service";
+import { CommonRegistrationService } from "./common.registration.service";
 
 @Injectable()
-export class ArrangerRegService extends NonPrivilegedRegService {
+export class ArrangerRegistrationService extends CommonRegistrationService {
   constructor(protected readonly prismaService: PrismaService) {
     super(prismaService);
   }

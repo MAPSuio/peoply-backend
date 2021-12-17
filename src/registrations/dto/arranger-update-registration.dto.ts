@@ -8,7 +8,6 @@ export class ArrangerUpdateRegistrationDto extends PartialType(
   //event is without tags so it will be filtered out if specified by the user.
   event_id: number;
 
-  // @IsRegStatus() // TODO: make custom decorator
   @IsBoolean()
   attendance: boolean;
 }
