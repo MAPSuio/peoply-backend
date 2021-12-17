@@ -1,7 +1,7 @@
-import { PrismaService } from "../prisma.service";
+import { PrismaService } from "../../../prisma.service";
 import { Test, TestingModule } from "@nestjs/testing";
-import { EventsService } from "./events.service";
-import { prismaMock } from "../prismaTestFiles/prismaTestSingleton";
+import { EventsService } from "../../events.service";
+import { prismaMock } from "../../../prismaTestFiles/prismaTestSingleton";
 // import { createTestEvent } from "./prismaTestFunctions";
 
 describe("EventsService", () => {
