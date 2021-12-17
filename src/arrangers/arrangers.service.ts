@@ -1,5 +1,5 @@
 import { ArrangerNotFoundException } from "./exceptions/arrangerNotFound.exception";
-import { PrismaService } from "src/prisma.service";
+import { PrismaService } from "../prisma.service";
 import { Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 
