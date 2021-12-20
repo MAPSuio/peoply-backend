@@ -1,12 +1,13 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { CreateArrangerDto } from "./../arrangers/dto/create-arranger.dto";
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UserAlreadyExistsException } from "./exceptions/userAlreadyExists.exception";
 import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
 import { v4 as uuidv4 } from "uuid";
+import { users } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
@@ -76,7 +77,7 @@ export class UsersService {
     }
   }
 
-  async findOne(id: string) {
+  async findById(id: string) {
     const user = await this.prisma.users.findUnique({
       where: {
         user_id: id,
@@ -85,6 +86,27 @@ export class UsersService {
 
     if (!user) {
       throw new UserDoesNotExistException(id);
+    } else {
+      return user;
+    }
+  }
+
+  async findByEmailOrPhone(email?: string, phone?: string) {
+    if (!(phone || email)) {
+      throw new HttpException("Wrong args provided", HttpStatus.BAD_REQUEST);
+    }
+
+    let user: users | null;
+    if (email) {
+      user = await this.prisma.users.findUnique({ where: { email } });
+    } else if (phone) {
+      user = await this.prisma.users.findUnique({ where: { phone } });
+    } else {
+      user = null;
+    }
+
+    if (!user) {
+      throw new UserDoesNotExistException();
     } else {
       return user;
     }

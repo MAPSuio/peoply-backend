@@ -29,7 +29,7 @@ model users {
   last_name          String?
   email              String                    @unique
   image              String?
-  birth_date         DateTime?
+  birth_date         DateTime?                 @db.Date
   organization_roles user_organization_roles[]
   registrations      registrations[]
 }

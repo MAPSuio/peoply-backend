@@ -22,7 +22,7 @@ export class UsersController {
 
   @Get(":id")
   async findOne(@Param("id") id: string) {
-    return this.usersService.findOne(id);
+    return this.usersService.findById(id);
   }
 
   @Patch(":id")

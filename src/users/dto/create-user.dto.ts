@@ -18,7 +18,7 @@ export class CreateUserDto {
   email: string;
 
   // Needs to be without decorator because it should be filtered.
-  arranger_id: string;
+  arranger_id?: string;
 
   @IsNotEmpty()
   @IsString()
