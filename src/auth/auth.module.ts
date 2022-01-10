@@ -35,7 +35,9 @@ const OidcStrategyFactory = {
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>("JWT_ACCESS_TOKEN_SECRET"),
         signOptions: {
-          expiresIn: configService.get<string>("JWT_ACCESS_TOKEN_EXP_TIME"),
+          expiresIn: `${configService.get<number>(
+            "JWT_ACCESS_TOKEN_EXP_TIME",
+          )}s`,
         },
       }),
       inject: [ConfigService],

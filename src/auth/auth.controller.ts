@@ -33,24 +33,30 @@ export class AuthController {
   @UseGuards(LoginGuard)
   @Get("/callback")
   async loginCallback(@Req() req: any, @Res() res: Response) {
-    /* create access and refresh tokens */
+    res.clearCookie("connect.sid"); // no need to send this
+
+    /* create access and refresh tokens + cookie options */
     const accessToken = this.authService.getAccessToken(req.user);
-    const refreshCookie = this.authService.getRefreshTokenCookie(req.user);
+    const refreshToken = this.authService.getRefreshToken(req.user);
+    const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
     /* set headers related to token and cookie */
-    res.set("Set-Cookie", refreshCookie);
+    res.cookie("refresh", refreshToken, refreshCookieOptions);
+    res.cookie("access", accessToken, accessCookieOptions);
+
+    /* headers telling the browser to save the cookies */
     res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Access-Control-Expose-Headers", "Set-Cookie");
     res.set("Credentials", "true");
-    res.set("x-token", accessToken);
 
     // TODO: redirect to user origin
-    return res.redirect("/");
+    return res.redirect("http://localhost:3001");
   }
 
   @Get("/logout")
   async logout(@Req() req: any, @Res() res: Response) {
-    res.clearCookie("Refresh");
+    res.clearCookie("refresh");
+    res.clearCookie("access");
     return res.sendStatus(200);
   }
 }
