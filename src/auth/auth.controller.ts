@@ -19,9 +19,13 @@ export class AuthController {
   @UseGuards(RefreshGuard)
   @Get("/refresh")
   refresh(@Req() req: any, @Res() res: any) {
-    /* create new access token */
+    /* create new access token cookie */
     const newAccessToken = this.authService.getAccessToken(req.user);
-    res.send(newAccessToken);
+    const accessCookieOptions = this.authService.getAccessCookieOptions();
+
+    return res
+      .cookie("access", newAccessToken, accessCookieOptions)
+      .sendStatus(200);
   }
 
   @UseGuards(AccessGuard)
