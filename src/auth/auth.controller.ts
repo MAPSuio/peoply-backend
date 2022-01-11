@@ -59,8 +59,12 @@ export class AuthController {
 
   @Get("/logout")
   async logout(@Req() req: any, @Res() res: Response) {
-    res.clearCookie("refresh");
-    res.clearCookie("access");
+    /* cookie options should also be sent to make sure that cookie is cleared */
+    const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
+
+    res.clearCookie("refresh", refreshCookieOptions);
+    res.clearCookie("access", accessCookieOptions);
     return res.sendStatus(200);
   }
 }
