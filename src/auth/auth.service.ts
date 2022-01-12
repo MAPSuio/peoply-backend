@@ -11,7 +11,16 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  private baseCookieOptions = { sameSite: true, httpOnly: true, secure: true };
+  // Should be sameSite: true, but temp fix
+  private baseCookieOptions: {
+    sameSite: "none";
+    httpOnly: boolean;
+    secure: boolean;
+  } = {
+    sameSite: "none",
+    httpOnly: true,
+    secure: true,
+  };
 
   getAccessToken(user: users) {
     const payload = { sub: user.user_id };
