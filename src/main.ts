@@ -25,7 +25,10 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  app.enableCors({ origin: "http://localhost:3001", credentials: true });
+  app.enableCors({
+    origin: ["http://localhost:3001", "https://peoply-frontend.vercel.app"],
+    credentials: true,
+  });
 
   await app.listen(PORT);
 }
