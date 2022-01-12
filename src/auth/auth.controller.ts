@@ -6,10 +6,14 @@ import { LoginGuard } from "./guards/login.guard";
 import { AuthService } from "./auth.service";
 import { AccessGuard } from "./guards/access.guard";
 import RefreshGuard from "./guards/refresh.guard";
+import { ConfigService } from "@nestjs/config";
 
 @Controller("auth")
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private configService: ConfigService,
+  ) {}
 
   @UseGuards(LoginGuard)
   @Get("/login")
@@ -53,8 +57,11 @@ export class AuthController {
     res.set("Access-Control-Allow-Credentials", "true");
     res.set("Credentials", "true");
 
-    // TODO: redirect to user origin
-    return res.redirect("http://localhost:3001");
+    const redirectURI = this.configService.get<string>(
+      "VIPPS_OIDC_POST_LOGIN_REDIRECT_URI",
+    );
+
+    return res.redirect(redirectURI ? redirectURI : "");
   }
 
   @Get("/logout")
