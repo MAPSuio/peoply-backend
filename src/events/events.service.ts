@@ -16,14 +16,22 @@ export class EventsService {
     return update;
   }
 
-  async findAll(searchProps: SearchEventDto = {}, skip = 0, take = 10) {
+  async findAll(
+    searchProps: SearchEventDto = {},
+    skip = 0,
+    take = 10,
+    orderBy = "start_date",
+    orderDirection = "asc",
+  ) {
     return await this.prismaService.events.findMany({
       skip,
       take,
       where: {
         event_id: searchProps.event_id,
-        // start_date: searchProps.start_date,
-        // end_date: searchProps.end_date,
+        start_date: {
+          gte: searchProps.afterDate,
+          lte: searchProps.beforeDate,
+        },
         title: searchProps.title ? { search: searchProps.title } : undefined,
         description: searchProps.description
           ? { search: searchProps.description }
@@ -53,6 +61,9 @@ export class EventsService {
                 },
               }
             : undefined,
+      },
+      orderBy: {
+        [orderBy]: orderDirection,
       },
     });
   }

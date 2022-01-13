@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsInt, IsOptional, IsString } from "class-validator";
+import { IsDateString, IsInt, IsOptional, IsString } from "class-validator";
 
 export class SearchEventDto {
   @IsOptional()
@@ -7,13 +7,13 @@ export class SearchEventDto {
   @Type(() => Number)
   event_id?: number;
 
-  // @IsOptional()
-  // @IsDateString()
-  // start_date?: Date;
+  @IsOptional()
+  @IsDateString()
+  afterDate?: Date;
 
-  // @IsOptional()
-  // @IsDateString()
-  // end_date?: Date;
+  @IsOptional()
+  @IsDateString()
+  beforeDate?: Date;
 
   @IsOptional()
   @IsString()
@@ -54,4 +54,12 @@ export class SearchEventDto {
   @IsInt()
   @Type(() => Number)
   take?: number;
+
+  @IsOptional()
+  @IsString()
+  orderBy?: string;
+
+  @IsOptional()
+  @IsString()
+  orderDirection?: string;
 }

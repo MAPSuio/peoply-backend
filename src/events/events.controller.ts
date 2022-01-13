@@ -24,7 +24,13 @@ export class EventsController {
 
   @Get()
   async findAll(@Query() query: SearchEventDto) {
-    return this.eventsService.findAll(query, query.skip, query.take);
+    return this.eventsService.findAll(
+      query,
+      query.skip,
+      query.take,
+      query.orderBy,
+      query.orderDirection,
+    );
   }
 
   @Get(":id")
