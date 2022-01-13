@@ -25,11 +25,19 @@ export class AuthController {
   refresh(@Req() req: any, @Res() res: any) {
     /* create new access token cookie */
     const newAccessToken = this.authService.getAccessToken(req.user);
+    const newRefreshToken = this.authService.getRefreshToken(req.user);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
-    return res
-      .cookie("access", newAccessToken, accessCookieOptions)
-      .sendStatus(200);
+    /* set headers related to token and cookie */
+    res.cookie("refresh", newRefreshToken, refreshCookieOptions);
+    res.cookie("access", newAccessToken, accessCookieOptions);
+
+    /* headers telling the browser to save the cookies */
+    res.set("Access-Control-Allow-Credentials", "true");
+    res.set("Credentials", "true");
+
+    return res.sendStatus(200);
   }
 
   @UseGuards(AccessGuard)
