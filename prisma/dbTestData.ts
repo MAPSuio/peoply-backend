@@ -102,6 +102,19 @@ export const organisationIDs = [
   "18a35502-3cd5-45d8-a91c-23881b13174d",
 ];
 
+export const eventIDs = [
+  "a657bb68-1585-49b7-b3dc-d068fb2177f1",
+  "152f7d84-6d64-4518-a46b-70bd49a4f598",
+  "9df6e490-07e1-4ddc-9b3d-48829cd43088",
+  "3630e0aa-db9a-46b2-9efc-3138956a1a45",
+  "a3a38db9-a298-4b9e-a587-f929bededc6e",
+  "4e5b6327-9342-4eff-a6c7-17175e18db7b",
+  "bb6a759d-2b9b-4a67-b0e0-88dc8747c3e3",
+  "ac423220-243c-4516-b9b0-990ba88b8d43",
+  "d0815af4-17eb-42d4-ab66-d1a66e153626",
+  "6e9521c0-e08d-4a14-b0fc-93ba16119c66",
+];
+
 // ORGANISATION NUMBERS
 
 export const organisationNumbers = [

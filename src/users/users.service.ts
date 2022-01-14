@@ -1,5 +1,4 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { CreateArrangerDto } from "./../arrangers/dto/create-arranger.dto";
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
@@ -45,20 +44,16 @@ export class UsersService {
     if (emailExists || phoneExists) {
       throw new UserAlreadyExistsException(errors);
     } else {
-      const createArranger = new CreateArrangerDto();
-      createArranger.is_business = false;
-
       const arrangerID = uuidv4();
-
-      createArranger.arranger_id = arrangerID;
-      createUserDto.arranger_id = arrangerID;
 
       try {
         const [, newUser] = await this.prisma.$transaction([
           this.prisma.arrangers.create({
-            data: createArranger,
+            data: { arranger_id: arrangerID, is_business: false },
           }),
-          this.prisma.users.create({ data: createUserDto }),
+          this.prisma.users.create({
+            data: { ...createUserDto, arranger_id: arrangerID },
+          }),
         ]);
 
         return newUser;

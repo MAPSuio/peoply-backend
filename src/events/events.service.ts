@@ -1,19 +1,41 @@
 import { Injectable } from "@nestjs/common";
+import { ArrangersService } from "src/arrangers/arrangers.service";
+import { ArrangerNotFoundException } from "src/arrangers/exceptions/arrangerNotFound.exception";
 import { PrismaService } from "../prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { SearchEventDto } from "./dto/search-event-dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
 import { EventNotFoundException } from "./exceptions/eventNotFound.exception";
+import { v4 as uuidv4 } from "uuid";
+import { event_arranger_roles } from "@prisma/client";
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly arrangersService: ArrangersService,
+  ) {}
 
-  async create(createEventDto: CreateEventDto) {
-    const update = await this.prismaService.events.create({
-      data: createEventDto,
-    });
-    return update;
+  async create(createEventDto: CreateEventDto, arranger_id: string) {
+    const arranger = await this.arrangersService.findOne(arranger_id);
+    if (!arranger) {
+      throw new ArrangerNotFoundException(arranger_id);
+    }
+
+    const eventId = uuidv4();
+    const [event] = await this.prismaService.$transaction([
+      this.prismaService.events.create({
+        data: { event_id: eventId, ...createEventDto },
+      }),
+      this.prismaService.event_arrangers.create({
+        data: {
+          role: event_arranger_roles.ADMIN,
+          arranger_id,
+          event_id: eventId,
+        },
+      }),
+    ]);
+    return event;
   }
 
   async findAll(
@@ -27,7 +49,7 @@ export class EventsService {
       skip,
       take,
       where: {
-        event_id: searchProps.event_id,
+        event_numeric_id: searchProps.event_id,
         start_date: {
           gte: searchProps.afterDate,
           lte: searchProps.beforeDate,
@@ -70,7 +92,22 @@ export class EventsService {
 
   async findOne(id: number) {
     const event = await this.prismaService.events.findUnique({
-      where: { event_id: id },
+      where: { event_numeric_id: id },
+    });
+
+    if (!event) {
+      throw new EventNotFoundException(id);
+    } else {
+      return event;
+    }
+  }
+
+  async findOneWithEventArrangers(id: number) {
+    const event = await this.prismaService.events.findUnique({
+      where: { event_numeric_id: id },
+      include: {
+        event_arrangers: true,
+      },
     });
 
     if (!event) {
@@ -83,7 +120,7 @@ export class EventsService {
   async update(id: number, updateEventDto: UpdateEventDto) {
     try {
       return await this.prismaService.events.update({
-        where: { event_id: id },
+        where: { event_numeric_id: id },
         data: { ...updateEventDto },
       });
     } catch (error) {
@@ -94,7 +131,7 @@ export class EventsService {
   async remove(id: number) {
     try {
       return await this.prismaService.events.delete({
-        where: { event_id: id },
+        where: { event_numeric_id: id },
       });
     } catch (error) {
       throw new EventNotFoundException(id);

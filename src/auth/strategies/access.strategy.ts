@@ -20,6 +20,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, "access_token") {
 
   async validate(payload: any) {
     const user = await this.userService.findById(payload.sub);
-    return { user: user };
+    return user;
   }
 }

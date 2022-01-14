@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearch"]
 }
 
@@ -13,18 +13,18 @@ datasource db {
 
 model organizations {
   organization_id    String                    @id @default(uuid())
-  arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id])
+  arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id], onDelete: Cascade)
   arranger_id        String                    @unique
   name               String
-  org_nr             String                    @db.VarChar(9) @unique
+  org_nr             String                    @unique @db.VarChar(9)
   image              String?                   @db.VarChar(100)
   organization_roles user_organization_roles[]
 }
 
 model users {
   user_id            String                    @id @default(uuid())
-  arranger           arrangers?                @relation(fields: [arranger_id], references: [arranger_id])
-  arranger_id        String?                   @unique
+  arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id], onDelete: Cascade)
+  arranger_id        String                    @unique
   phone              String                    @unique
   first_name         String                    @db.VarChar(100)
   last_name          String?
@@ -38,8 +38,8 @@ model users {
 model user_organization_roles {
   organization_id String
   user_id         String
-  organization    organizations      @relation(fields: [organization_id], references: [organization_id])
-  user            users              @relation(fields: [user_id], references: [user_id])
+  organization    organizations      @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
+  user            users              @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   role            organization_roles
 
   @@id([organization_id, user_id])
@@ -58,23 +58,26 @@ model arrangers {
 }
 
 model events {
-  event_id        Int               @id @default(autoincrement())
-  start_date      DateTime
-  end_date        DateTime
-  title           String            @db.VarChar(150)
-  description     String
-  capacity        Int?
-  private         Boolean           @default(false)
-  event_arrangers event_arrangers[]
-  registrations   registrations[]
+  event_id         String            @id @default(uuid())
+  event_numeric_id Int               @unique @default(autoincrement())
+  start_date       DateTime
+  end_date         DateTime
+  title            String            @db.VarChar(150)
+  description      String
+  capacity         Int?
+  private          Boolean           @default(false)
+  event_arrangers  event_arrangers[]
+  registrations    registrations[]
 }
 
 model event_arrangers {
-  event_id    Int                  @id
-  event       events               @relation(fields: [event_id], references: [event_id])
+  event_id    String
+  event       events               @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
   arranger_id String
-  arranger    arrangers            @relation(fields: [arranger_id], references: [arranger_id])
+  arranger    arrangers            @relation(fields: [arranger_id], references: [arranger_id], onDelete: Cascade)
   role        event_arranger_roles
+
+  @@id([event_id, arranger_id])
 }
 
 enum event_arranger_roles {
@@ -83,10 +86,10 @@ enum event_arranger_roles {
 }
 
 model registrations {
-  event_id   Int
-  event      events     @relation(fields: [event_id], references: [event_id])
+  event_id   String
+  event      events     @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
   user_id    String
-  user       users      @relation(fields: [user_id], references: [user_id])
+  user       users      @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   reg_date   DateTime
   reg_status reg_status
   attendance Boolean

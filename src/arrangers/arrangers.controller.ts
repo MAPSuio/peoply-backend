@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Delete } from "@nestjs/common";
+import { Controller, Get, Param } from "@nestjs/common";
 import { ArrangersService } from "./arrangers.service";
 
 @Controller("arrangers")
@@ -13,10 +13,5 @@ export class ArrangersController {
   @Get(":id")
   async findOne(@Param("id") id: string) {
     return this.arrangersService.findOne(id);
-  }
-
-  @Delete(":id")
-  async remove(@Param("id") id: string) {
-    return this.arrangersService.remove(id);
   }
 }

@@ -1,5 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import { CreateArrangerDto } from "src/arrangers/dto/create-arranger.dto";
 import { PrismaService } from "src/prisma.service";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { UpdateOrganizationDto } from "./dto/update-organization.dto";
@@ -28,20 +27,16 @@ export class OrganizationsService {
       errors.org_nr = "Organization number already exists";
       throw new OrganizationAlreadyExistsException(errors);
     } else {
-      const createArranger = new CreateArrangerDto();
-      createArranger.is_business = true;
-
       const arrangerID = uuidv4();
-
-      createArranger.arranger_id = arrangerID;
-      createOrganizationDto.arranger_id = arrangerID;
 
       try {
         const [, newOrganization] = await this.prisma.$transaction([
           this.prisma.arrangers.create({
-            data: createArranger,
+            data: { arranger_id: arrangerID, is_business: true },
           }),
-          this.prisma.organizations.create({ data: createOrganizationDto }),
+          this.prisma.organizations.create({
+            data: { arranger_id: arrangerID, ...createOrganizationDto },
+          }),
         ]);
 
         return newOrganization;

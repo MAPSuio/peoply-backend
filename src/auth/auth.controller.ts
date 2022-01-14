@@ -22,7 +22,7 @@ export class AuthController {
 
   @UseGuards(RefreshGuard)
   @Get("/refresh")
-  refresh(@Req() req: any, @Res() res: any) {
+  async refresh(@Req() req: any, @Res() res: any) {
     /* create new access token cookie */
     const newAccessToken = this.authService.getAccessToken(req.user);
     const newRefreshToken = this.authService.getRefreshToken(req.user);
@@ -42,8 +42,8 @@ export class AuthController {
 
   @UseGuards(AccessGuard)
   @Get("/user")
-  user(@Req() req: any) {
-    return req.user;
+  async user(@Req() req: any) {
+    return { user: req.user };
   }
 
   @UseGuards(LoginGuard)
