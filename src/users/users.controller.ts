@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Req, UseGuards } from "@nestjs/common";
 import { AccessGuard } from "src/auth/guards/access.guard";
 import { UsersService } from "./users.service";
 // import { UpdateUserDto } from "./dto/update-user.dto";
@@ -12,7 +12,7 @@ export class UsersController {
   ) {}
 
   @Get("/events/:id")
-  async findAllRegisteredForEvent(@Param("id") id: number) {
+  async findAllRegisteredForEvent(@Param("id") id: string) {
     return this.arrangerRegistrationService.findAll(id);
   }
 

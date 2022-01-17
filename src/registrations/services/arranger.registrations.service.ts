@@ -11,14 +11,14 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     super(prismaService);
   }
 
-  async findAll(event_id: number) {
+  async findAll(event_id: string) {
     return await this.prismaService.registrations.findMany({
       where: { event_id: event_id },
     });
   }
 
   async update(
-    event_id: number,
+    event_id: string,
     user_id: string,
     arrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
   ) {

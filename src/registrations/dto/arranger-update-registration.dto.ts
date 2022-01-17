@@ -6,7 +6,7 @@ export class ArrangerUpdateRegistrationDto extends PartialType(
   CreateRegistrationDto,
 ) {
   //event is without tags so it will be filtered out if specified by the user.
-  event_id: number;
+  event_id: string;
 
   @IsBoolean()
   attendance: boolean;

@@ -31,12 +31,6 @@ export class EventsController {
   @Post()
   async create(@Req() req: any, @Body() createEventDto: CreateEventDto) {
     const user: users = req.user;
-
-    if (!user.arranger_id) {
-      throw new BadRequestException(
-        "Something went wrong. You dont seem to have an arranger_id.",
-      );
-    }
     return this.eventsService.create(createEventDto, user.arranger_id);
   }
 

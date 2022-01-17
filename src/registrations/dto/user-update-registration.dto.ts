@@ -7,7 +7,7 @@ export class UserUpdateRegistrationDto extends PartialType(
   CreateRegistrationDto,
 ) {
   //event is without tags so it will be filtered out if specified by the user.
-  event_id: number;
+  event_id: string;
 
   // @IsRegStatus() // TODO: make custom decorator
   @IsNotEmpty()

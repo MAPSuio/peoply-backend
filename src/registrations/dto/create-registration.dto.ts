@@ -3,7 +3,7 @@ import { IsEnum, IsNotEmpty, IsNumber, IsString } from "class-validator";
 
 export class CreateRegistrationDto {
   @IsNumber()
-  event_id: number;
+  event_id: string;
 
   @IsString()
   @IsNotEmpty()
