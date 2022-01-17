@@ -2,7 +2,6 @@ import { PartialType } from "@nestjs/mapped-types";
 import {
   IsBoolean,
   IsDateString,
-  IsEmail,
   IsNotEmpty,
   IsNumber,
   IsString,
@@ -11,9 +10,6 @@ import {
 import { CreateEventDto } from "./create-event.dto";
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {
-  //event is without tags so it will be filtered out if specified by the user.
-  event_id: number;
-
   @IsNotEmpty()
   user_id: string;
 
@@ -24,7 +20,6 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
 
   @IsNotEmpty()
   @IsString()
-  @IsNotEmpty()
   description: string;
 
   @IsNumber()

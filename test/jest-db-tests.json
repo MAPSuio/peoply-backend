@@ -1,0 +1,10 @@
+{
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "../src",
+    "testEnvironment": "node",
+    "testRegex": [".*?/tests/integration/.*?\\.prisma\\.ts$"],
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    }
+  }
+  

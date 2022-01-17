@@ -1,14 +1,20 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "src/prisma.service";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UserAlreadyExistsException } from "./exceptions/userAlreadyExists.exception";
 import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
+import { v4 as uuidv4 } from "uuid";
+import { users } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  /* This will fail if uuid is a duplicate.
+     Must be handled by the caller!
+  */
   async create(createUserDto: CreateUserDto) {
     const { phone, email } = createUserDto;
 
@@ -38,11 +44,35 @@ export class UsersService {
     if (emailExists || phoneExists) {
       throw new UserAlreadyExistsException(errors);
     } else {
-      return this.prisma.users.create({ data: createUserDto });
+      const arrangerID = uuidv4();
+
+      try {
+        const [, newUser] = await this.prisma.$transaction([
+          this.prisma.arrangers.create({
+            data: { arranger_id: arrangerID, is_business: false },
+          }),
+          this.prisma.users.create({
+            data: { ...createUserDto, arranger_id: arrangerID },
+          }),
+        ]);
+
+        return newUser;
+      } catch (error) {
+        if (
+          error instanceof PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          //unique value duplicated in DB
+
+          throw error;
+        } else {
+          throw error;
+        }
+      }
     }
   }
 
-  async findOne(id: string) {
+  async findById(id: string) {
     const user = await this.prisma.users.findUnique({
       where: {
         user_id: id,
@@ -51,6 +81,27 @@ export class UsersService {
 
     if (!user) {
       throw new UserDoesNotExistException(id);
+    } else {
+      return user;
+    }
+  }
+
+  async findByEmailOrPhone(email?: string, phone?: string) {
+    if (!(phone || email)) {
+      throw new HttpException("Wrong args provided", HttpStatus.BAD_REQUEST);
+    }
+
+    let user: users | null;
+    if (email) {
+      user = await this.prisma.users.findUnique({ where: { email } });
+    } else if (phone) {
+      user = await this.prisma.users.findUnique({ where: { phone } });
+    } else {
+      user = null;
+    }
+
+    if (!user) {
+      throw new UserDoesNotExistException();
     } else {
       return user;
     }

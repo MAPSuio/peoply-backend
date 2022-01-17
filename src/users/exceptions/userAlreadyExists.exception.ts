@@ -1,10 +1,7 @@
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { ConflictException } from "@nestjs/common";
 
-export class UserAlreadyExistsException extends HttpException {
+export class UserAlreadyExistsException extends ConflictException {
   constructor(errors: Record<string, string>) {
-    super(
-      { message: "User could not be created", errors },
-      HttpStatus.CONFLICT,
-    );
+    super({ message: "User could not be created", errors });
   }
 }
