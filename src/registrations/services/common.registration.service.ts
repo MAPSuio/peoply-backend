@@ -7,7 +7,7 @@ import { RegistrationNotFoundException } from "../exceptions/registrationNotFoun
 export class CommonRegistrationService {
   constructor(protected readonly prismaService: PrismaService) {}
 
-  async findOne(event_id: number, user_id: string) {
+  async findOne(event_id: string, user_id: string) {
     const registration = await this.prismaService.registrations.findUnique({
       where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
     });
@@ -19,7 +19,7 @@ export class CommonRegistrationService {
     }
   }
 
-  async remove(event_id: number, user_id: string) {
+  async remove(event_id: string, user_id: string) {
     try {
       return await this.prismaService.registrations.delete({
         where: { event_id_user_id: { event_id: event_id, user_id: user_id } },

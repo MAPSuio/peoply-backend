@@ -7,6 +7,7 @@ import { RegistrationNotFoundException } from "../exceptions/registrationNotFoun
 import { DuplicateRegistrationException } from "../exceptions/duplicateRegistration.exception";
 import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
 import { CommonRegistrationService } from "./common.registration.service";
+import { reg_status } from "@prisma/client";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -43,15 +44,33 @@ export class UserRegistrationService extends CommonRegistrationService {
     }
   }
 
-  async findAll(user_id: string) {
-    //If a user has no registrations an empty list is returned
-    return await this.prismaService.registrations.findMany({
-      where: { user_id: user_id },
+  //find all registrations for a given user. The event each registration is reffering to is included in the result.
+  async findAllRegisteredEvents(user_id: string) {
+    return this.prismaService.registrations.findMany({
+      where: {
+        user_id: user_id,
+      },
+      include: {
+        event: true,
+      },
+    });
+  }
+
+  //find all registrations for a given user with a given status. The event each registration is reffering to is included in the result.
+  async findAllWithStatus(user_id: string, status: reg_status) {
+    return this.prismaService.registrations.findMany({
+      where: {
+        user_id: user_id,
+        reg_status: status,
+      },
+      include: {
+        event: true,
+      },
     });
   }
 
   async update(
-    event_id: number,
+    event_id: string,
     user_id: string,
     UserUpdateRegistrationDto: UserUpdateRegistrationDto,
   ) {

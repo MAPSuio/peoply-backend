@@ -1,8 +1,14 @@
 import { reg_status } from "@prisma/client";
-import { IsEnum, IsNotEmpty, IsNumber, IsString } from "class-validator";
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  IsUUID,
+} from "class-validator";
 
 export class CreateRegistrationDto {
-  @IsNumber()
+  @IsUUID()
   event_id: string;
 
   @IsString()

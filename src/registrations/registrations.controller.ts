@@ -27,13 +27,13 @@ export class RegistrationsController {
     return this.userRegistrationService.create(createRegistrationDto);
   }
 
-  @Get()
-  findAll() {
-    return this.arrangerRegistrationService.findAll(3);
-  }
+  // @Get()
+  // findAll() {
+  //   return this.arrangerRegistrationService.findAll(3);
+  // }
 
   @Get(":event_id")
-  findOne(@Param("event_id") event_id: number) {
+  findOne(@Param("event_id") event_id: string) {
     const user_id = "a791b4dc-300e-44d9-b856-2d2c61457399"; //hardcoded for testing purposes.
     return this.userRegistrationService.findOne(event_id, user_id);
   }
@@ -66,7 +66,7 @@ export class RegistrationsController {
     @Param("user_id") user_id: string,
     @Body() arrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
   ) {
-    const event_id = 1;
+    const event_id = "a657bb68-1585-49b7-b3dc-d068fb2177f1";
     return this.arrangerRegistrationService.update(
       event_id,
       user_id,
@@ -75,7 +75,7 @@ export class RegistrationsController {
   }
 
   @Delete(":event_id")
-  remove(@Param("event_id") event_id: number) {
+  remove(@Param("event_id") event_id: string) {
     const user_id = "e6b816e9-0131-4200-949b-b7ea908c9daf"; //hardcoded for testing purposes.
     // we should get this from the auth
     return this.arrangerRegistrationService.remove(event_id, user_id);

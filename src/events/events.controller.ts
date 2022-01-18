@@ -18,7 +18,12 @@ import { UpdateEventDto } from "./dto/update-event.dto";
 import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
 import { SearchEventDto } from "./dto/search-event-dto";
 import { AccessGuard } from "src/auth/guards/access.guard";
-import { event_arranger_roles, users } from "@prisma/client";
+import { event_arranger_roles, reg_status, users } from "@prisma/client";
+import { get } from "http";
+import { query } from "express";
+import { PrismaService } from "src/prisma.service";
+import { number } from "joi";
+import { CreateRegistrationDto } from "src/registrations/dto/create-registration.dto";
 
 @Controller("events")
 export class EventsController {
@@ -30,6 +35,7 @@ export class EventsController {
   @UseGuards(AccessGuard)
   @Post()
   async create(@Req() req: any, @Body() createEventDto: CreateEventDto) {
+    console.log("inne i create");
     const user: users = req.user;
     return this.eventsService.create(createEventDto, user.arranger_id);
   }
@@ -47,16 +53,49 @@ export class EventsController {
     );
   }
 
+  @UseGuards(AccessGuard)
+  @Get("/me")
+  async findMyRegistrations(@Req() req: any) {
+    return this.userRegistrationService.findAllRegisteredEvents(
+      req.user.user_id,
+    );
+  }
+
+  @UseGuards(AccessGuard)
+  @Get("/me/:status")
+  async findMyEventsWithStatus(
+    @Req() req: any,
+    @Param("status") status: reg_status,
+  ) {
+    // TODO: throw a 404 if the status is not a known regstatus
+    return this.userRegistrationService.findAllWithStatus(
+      req.user.user_id,
+      status,
+    );
+  }
+
+  @UseGuards(AccessGuard)
+  @Post("/:id/register")
+  async createRegistration(
+    @Req() req: any,
+    @Param("id") id: number,
+    @Body() registrationDto: CreateRegistrationDto,
+  ) {
+    if (req.user.user_id === registrationDto.user_id) {
+      return this.userRegistrationService.create(registrationDto);
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to register this user",
+      );
+    }
+  }
+
   // Should add a guard that gets the user, but is undefined if not logged in
   // for private events
   @Get(":id")
   async findOne(@Param("id") id: number) {
+    console.log("getting");
     return this.eventsService.findOne(id);
-  }
-
-  @Get("/users/:user_id")
-  async findAllEventsRegistered(@Param("user_id") user_id: string) {
-    return this.userRegistrationService.findAll(user_id);
   }
 
   @UseGuards(AccessGuard)
