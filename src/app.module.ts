@@ -29,6 +29,7 @@ import * as Joi from "joi";
         VIPPS_OIDC_LOGIN_CLIENT_SECRET: Joi.string().required(),
         VIPPS_OIDC_LOGIN_SCOPE: Joi.string().required(),
         VIPPS_OIDC_POST_LOGIN_REDIRECT_URI: Joi.string().required(),
+        CORS_ORIGIN: Joi.string().required(),
       }),
     }),
     AuthModule,
