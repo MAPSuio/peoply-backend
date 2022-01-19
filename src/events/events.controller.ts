@@ -10,7 +10,6 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
-  BadRequestException,
 } from "@nestjs/common";
 import { EventsService } from "./events.service";
 import { CreateEventDto } from "./dto/create-event.dto";
@@ -18,15 +17,9 @@ import { UpdateEventDto } from "./dto/update-event.dto";
 import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
 import { SearchEventDto } from "./dto/search-event-dto";
 import { AccessGuard } from "src/auth/guards/access.guard";
-import { event_arranger_roles, reg_status, users } from "@prisma/client";
-import { get } from "http";
-import { query } from "express";
-import { PrismaService } from "src/prisma.service";
-import { number } from "joi";
-import { CreateRegistrationDto } from "src/registrations/dto/create-registration.dto";
+import { event_arranger_roles, users } from "@prisma/client";
 import { ArrangerRegistrationService } from "src/registrations/services/arranger.registrations.service";
 import { SearchRegistrationDto } from "./dto/search-registration-dto";
-import { skip } from "rxjs";
 
 @Controller("events")
 export class EventsController {

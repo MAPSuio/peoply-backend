@@ -20,8 +20,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     orderBy = "reg_date",
     orderDirection = "asc",
   ) {
-    console.log("inc er ", searchProps.include_users);
-    const user_included = searchProps.include_users == true ? true : false;
+    const user_included = searchProps.include_users === true ? true : false;
 
     return await this.prismaService.registrations.findMany({
       skip,
