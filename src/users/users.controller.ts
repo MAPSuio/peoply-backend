@@ -11,10 +11,10 @@ export class UsersController {
     private readonly arrangerRegistrationService: ArrangerRegistrationService,
   ) {}
 
-  @Get("/events/:id")
-  async findAllRegisteredForEvent(@Param("id") id: string) {
-    return this.arrangerRegistrationService.findAll(id);
-  }
+  // @Get("/events/:id")
+  // async findAllRegisteredForEvent(@Param("id") id: string) {
+  //   return this.arrangerRegistrationService.findAll(id);
+  // }
 
   @UseGuards(AccessGuard)
   @Get("me")
