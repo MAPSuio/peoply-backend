@@ -8,6 +8,7 @@ import { DuplicateRegistrationException } from "../exceptions/duplicateRegistrat
 import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
 import { CommonRegistrationService } from "./common.registration.service";
 import { reg_status } from "@prisma/client";
+import { SearchUserRegistrationDto } from "../dto/searchUserRegistrationDto";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -44,39 +45,45 @@ export class UserRegistrationService extends CommonRegistrationService {
     }
   }
 
-  //find all registrations for a given user. The event each registration is reffering to is included in the result.
-  async findAllRegisteredEvents(user_id: string) {
-    return this.prismaService.registrations.findMany({
-      where: {
-        user_id: user_id,
-      },
-      include: {
-        event: true,
-      },
-    });
-  }
+  async findAll(
+    searchProps: SearchUserRegistrationDto,
+    user_id: string,
+    skip = 0,
+    take = 10,
+    orderBy = "reg_date",
+    orderDirection = "asc",
+  ) {
+    const event_included = searchProps.include_event === true ? true : false;
 
-  //find all registrations for a given user with a given status. The event each registration is reffering to is included in the result.
-  async findAllWithStatus(user_id: string, status: reg_status) {
-    return this.prismaService.registrations.findMany({
+    return await this.prismaService.registrations.findMany({
+      skip,
+      take,
       where: {
         user_id: user_id,
-        reg_status: status,
+        reg_status: searchProps.reg_status,
+        attendance: searchProps.attendance,
       },
       include: {
-        event: true,
+        event: event_included,
+      },
+      orderBy: {
+        [orderBy]: orderDirection,
       },
     });
   }
 
   async update(
-    event_id: string,
     user_id: string,
     UserUpdateRegistrationDto: UserUpdateRegistrationDto,
   ) {
     try {
       return await this.prismaService.registrations.update({
-        where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
+        where: {
+          event_id_user_id: {
+            event_id: UserUpdateRegistrationDto.event_id,
+            user_id: user_id,
+          },
+        },
         data: { ...UserUpdateRegistrationDto },
       });
     } catch (error) {
@@ -85,7 +92,10 @@ export class UserRegistrationService extends CommonRegistrationService {
         error.code === "P2025"
       ) {
         //errorcode 'P2025' event not found in database
-        throw new RegistrationNotFoundException(event_id, user_id);
+        throw new RegistrationNotFoundException(
+          UserUpdateRegistrationDto.event_id,
+          user_id,
+        );
       } else {
         throw error;
       }

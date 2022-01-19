@@ -19,7 +19,7 @@ import { SearchEventDto } from "./dto/search-event-dto";
 import { AccessGuard } from "src/auth/guards/access.guard";
 import { event_arranger_roles, users } from "@prisma/client";
 import { ArrangerRegistrationService } from "src/registrations/services/arranger.registrations.service";
-import { SearchRegistrationDto } from "./dto/search-registration-dto";
+import { SearchEventRegistrationDto } from "./dto/search-event-registration-dto";
 
 @Controller("events")
 export class EventsController {
@@ -95,8 +95,8 @@ export class EventsController {
   }
 
   @Get(":id/registrations")
-  async GetRegistrations(
-    @Query() query: SearchRegistrationDto,
+  async getRegistrations(
+    @Query() query: SearchEventRegistrationDto,
     @Param("id") id: string,
   ) {
     return this.arrangerRegistrationServcice.findAll(query, id);
@@ -117,27 +117,4 @@ export class EventsController {
   //     );
   //   }
   // }
-
-  /*
-  @UseGuards(AccessGuard)
-  @Get("/me")
-  async findMyRegistrations(@Req() req: any) {
-    return this.userRegistrationService.findAllRegisteredEvents(
-      req.user.user_id,
-    );
-  }
-
-  @UseGuards(AccessGuard)
-  @Get("/me/:status")
-  async findMyEventsWithStatus(
-    @Req() req: any,
-    @Param("status") status: reg_status,
-  ) {
-    // TODO: throw a 404 if the status is not a known regstatus
-    return this.userRegistrationService.findAllWithStatus(
-      req.user.user_id,
-      status,
-    );
-  }
-  */
 }

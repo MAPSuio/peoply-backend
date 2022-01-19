@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { SearchRegistrationDto } from "src/events/dto/search-registration-dto";
+import { SearchEventRegistrationDto } from "src/events/dto/search-event-registration-dto";
 import { PrismaService } from "src/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto/arranger-update-registration.dto";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
@@ -13,7 +13,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   }
 
   async findAll(
-    searchProps: SearchRegistrationDto,
+    searchProps: SearchEventRegistrationDto,
     event_id: string,
     skip = 0,
     take = 10,
@@ -28,10 +28,17 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       where: {
         event_id: event_id,
         reg_status: searchProps.reg_status,
-        attendance: searchProps.attendance,
       },
       include: {
-        user: user_included,
+        user: user_included
+          ? {
+              select: {
+                first_name: true,
+                last_name: true,
+                image: true,
+              },
+            }
+          : false,
       },
       orderBy: {
         [orderBy]: orderDirection,
