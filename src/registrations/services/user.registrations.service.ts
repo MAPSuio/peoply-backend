@@ -16,9 +16,6 @@ export class UserRegistrationService extends CommonRegistrationService {
   }
 
   async create(user_id: string, createRegistrationDto: CreateRegistrationDto) {
-    //TODO: should be done by default in the database, not here in the backend.
-    createRegistrationDto.attendance = false;
-    createRegistrationDto.reg_date = new Date("2021-07-08T14:00:00.434Z");
     createRegistrationDto.user_id = user_id;
 
     try {
