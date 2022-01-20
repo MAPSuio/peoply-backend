@@ -34,7 +34,7 @@ export class EventsController {
     return this.eventsService.create(createEventDto, user.arranger_id);
   }
 
-  // Should add a guard that gets the user, but is undefined if not logged in
+  // TODO: Should add a guard that gets the user, but is undefined if not logged in
   // for private events
   @Get()
   async findAll(@Query() query: SearchEventDto) {

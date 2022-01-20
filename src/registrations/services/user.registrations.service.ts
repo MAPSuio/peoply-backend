@@ -31,7 +31,6 @@ export class UserRegistrationService extends CommonRegistrationService {
             createRegistrationDto.user_id,
           );
         } else if (error.code === "P2003") {
-          //TODO: implement requests to find what id that noes not exist
           throw new ForeignKeyNotFoundException(
             createRegistrationDto.event_id,
             createRegistrationDto.user_id,
