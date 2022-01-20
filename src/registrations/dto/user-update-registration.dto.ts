@@ -1,6 +1,6 @@
 import { reg_status } from ".prisma/client";
 import { PartialType } from "@nestjs/mapped-types";
-import { IsEnum, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsEnum, IsNotEmpty, IsUUID } from "class-validator";
 import { CreateRegistrationDto } from "./create-registration.dto";
 
 export class UserUpdateRegistrationDto extends PartialType(
