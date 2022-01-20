@@ -4,7 +4,7 @@ import { ArrangersService } from "src/arrangers/arrangers.service";
 import { ArrangerNotFoundException } from "src/arrangers/exceptions/arrangerNotFound.exception";
 import { PrismaService } from "../prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
-import { SearchEventDto } from "./dto/search-event-dto";
+import { SearchEventDto } from "./dto/search-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
 import { EventNotFoundException } from "./exceptions/eventNotFound.exception";
 import { v4 as uuidv4 } from "uuid";

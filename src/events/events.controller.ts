@@ -14,11 +14,11 @@ import {
 import { EventsService } from "./events.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
-import { SearchEventDto } from "./dto/search-event-dto";
+import { SearchEventDto } from "./dto/search-event.dto";
 import { AccessGuard } from "src/auth/guards/access.guard";
 import { event_arranger_roles, users } from "@prisma/client";
 import { ArrangerRegistrationService } from "src/registrations/services/arranger.registrations.service";
-import { SearchEventRegistrationDto } from "./dto/search-event-registration-dto";
+import { SearchEventRegistrationDto } from "./dto/search-event-registration.dto";
 
 @Controller("events")
 export class EventsController {

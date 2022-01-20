@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { SearchEventRegistrationDto } from "src/events/dto/search-event-registration-dto";
+import { SearchEventRegistrationDto } from "src/events/dto/search-event-registration.dto";
 import { PrismaService } from "src/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto/arranger-update-registration.dto";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
