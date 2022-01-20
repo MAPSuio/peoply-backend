@@ -14,7 +14,6 @@ import {
 import { EventsService } from "./events.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
-import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
 import { SearchEventDto } from "./dto/search-event-dto";
 import { AccessGuard } from "src/auth/guards/access.guard";
 import { event_arranger_roles, users } from "@prisma/client";
@@ -25,7 +24,6 @@ import { SearchEventRegistrationDto } from "./dto/search-event-registration-dto"
 export class EventsController {
   constructor(
     private readonly eventsService: EventsService,
-    private readonly userRegistrationService: UserRegistrationService,
     private readonly arrangerRegistrationServcice: ArrangerRegistrationService,
   ) {}
 
@@ -101,20 +99,4 @@ export class EventsController {
   ) {
     return this.arrangerRegistrationServcice.findAll(query, id);
   }
-
-  // @UseGuards(AccessGuard)
-  // @Post("/:id/register")
-  // async createRegistration(
-  //   @Req() req: any,
-  //   @Param("id") id: number,
-  //   @Body() registrationDto: CreateRegistrationDto,
-  // ) {
-  //   if (req.user.user_id === registrationDto.user_id) {
-  //     return this.userRegistrationService.create(registrationDto);
-  //   } else {
-  //     throw new UnauthorizedException(
-  //       "You are not authorized to register this user",
-  //     );
-  //   }
-  // }
 }

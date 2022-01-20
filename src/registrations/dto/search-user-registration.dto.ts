@@ -1,10 +1,10 @@
 import { reg_status } from "@prisma/client";
-import { IsBoolean, IsOptional } from "class-validator";
+import { IsBoolean, IsEnum, IsOptional } from "class-validator";
 import { ToBoolean } from "validators/string.to.boolean";
 
 export class SearchUserRegistrationDto {
   @IsOptional()
-  //TODO custom IsRegStatus decorator
+  @IsEnum(reg_status)
   reg_status?: reg_status;
 
   @ToBoolean()

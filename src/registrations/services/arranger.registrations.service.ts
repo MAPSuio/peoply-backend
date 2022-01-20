@@ -20,6 +20,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     orderBy = "reg_date",
     orderDirection = "asc",
   ) {
+    //set true = true, false and undefined = false.
     const user_included = searchProps.include_users === true ? true : false;
 
     return await this.prismaService.registrations.findMany({
@@ -28,6 +29,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       where: {
         event_id: event_id,
         reg_status: searchProps.reg_status,
+        attendance: searchProps.attendance,
       },
       include: {
         user: user_included

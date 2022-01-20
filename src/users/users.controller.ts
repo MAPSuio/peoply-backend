@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { AccessGuard } from "src/auth/guards/access.guard";
 import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
-import { SearchUserRegistrationDto } from "src/registrations/dto/searchUserRegistrationDto";
+import { SearchUserRegistrationDto } from "src/registrations/dto/search-user-registration.dto";
 import { UserUpdateRegistrationDto } from "src/registrations/dto/user-update-registration.dto";
 import { CreateRegistrationDto } from "src/registrations/dto/create-registration.dto";
 import { DeleteRegistrationDto } from "src/registrations/dto/delete-registration.dto";

@@ -7,8 +7,7 @@ import { RegistrationNotFoundException } from "../exceptions/registrationNotFoun
 import { DuplicateRegistrationException } from "../exceptions/duplicateRegistration.exception";
 import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
 import { CommonRegistrationService } from "./common.registration.service";
-import { reg_status } from "@prisma/client";
-import { SearchUserRegistrationDto } from "../dto/searchUserRegistrationDto";
+import { SearchUserRegistrationDto } from "../dto/search-user-registration.dto";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {

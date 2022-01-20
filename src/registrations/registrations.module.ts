@@ -7,9 +7,9 @@ import { ArrangerRegistrationService } from "./services/arranger.registrations.s
 @Module({
   controllers: [RegistrationsController],
   providers: [
+    PrismaService,
     UserRegistrationService,
     ArrangerRegistrationService,
-    PrismaService,
   ],
   exports: [UserRegistrationService, ArrangerRegistrationService],
 })

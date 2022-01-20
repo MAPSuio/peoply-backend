@@ -1,4 +1,5 @@
 // this code is from stack overflow: https://stackoverflow.com/questions/59046629/boolean-parameter-in-request-body-is-always-true-in-nestjs-api
+// convert a string [true, on, yes, 1] to boolean value true, [false, off, no 0] to false. Anything else is undefined
 import { Transform } from "class-transformer";
 
 const ToBoolean = () => {
