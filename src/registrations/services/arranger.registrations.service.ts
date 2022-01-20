@@ -61,9 +61,8 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === prismaError.EntityNotFound
       ) {
-        //errorcode 'P2025' event not found in database
         throw new RegistrationNotFoundException(event_id, user_id);
       } else {
         throw error;

@@ -29,7 +29,7 @@ export class ArrangersService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === prismaError.EntityNotFound
       ) {
         throw new ArrangerNotFoundException(id);
       } else {

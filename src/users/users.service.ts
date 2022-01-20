@@ -60,10 +60,8 @@ export class UsersService {
       } catch (error) {
         if (
           error instanceof PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error.code === prismaError.DuplicateUniqueValue
         ) {
-          //unique value duplicated in DB
-
           throw error;
         } else {
           throw error;

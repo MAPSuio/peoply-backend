@@ -43,7 +43,7 @@ export class OrganizationsService {
       } catch (error) {
         if (
           error instanceof PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error.code === prismaError.DuplicateUniqueValue
         ) {
           //unique value duplicated in DB
 
@@ -63,7 +63,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      if (error.code === "P2001") {
+      if (error.code === prismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
       }
 
@@ -78,7 +78,7 @@ export class OrganizationsService {
         data: updateOrganizationDto,
       });
     } catch (error) {
-      if (error.code === "P2001") {
+      if (error.code === prismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
       }
 
@@ -94,7 +94,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      if (error.code === "P2001") {
+      if (error.code === prismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
       }
 

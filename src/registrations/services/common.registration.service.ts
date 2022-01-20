@@ -27,7 +27,7 @@ export class CommonRegistrationService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === prismaError.EntityNotFound
       ) {
         throw new RegistrationNotFoundException(event_id, user_id);
       } else {

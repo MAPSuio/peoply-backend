@@ -127,7 +127,7 @@ export class EventsService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === prismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
         throw new EventNotFoundException(id);
@@ -145,7 +145,7 @@ export class EventsService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === prismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
         throw new EventNotFoundException(id);

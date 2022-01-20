@@ -25,12 +25,12 @@ export class UserRegistrationService extends CommonRegistrationService {
       return registration;
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === "P2002") {
+        if (error.code === prismaError.DuplicateUniqueValue) {
           throw new DuplicateRegistrationException(
             createRegistrationDto.event_id,
             createRegistrationDto.user_id,
           );
-        } else if (error.code === "P2003") {
+        } else if (error.code === prismaError.ForeignKeyFailed) {
           throw new ForeignKeyNotFoundException(
             createRegistrationDto.event_id,
             createRegistrationDto.user_id,
@@ -85,7 +85,7 @@ export class UserRegistrationService extends CommonRegistrationService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === prismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
         throw new RegistrationNotFoundException(
