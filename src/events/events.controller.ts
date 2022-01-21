@@ -10,33 +10,31 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
-  BadRequestException,
 } from "@nestjs/common";
 import { EventsService } from "./events.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
-import { SearchEventDto } from "./dto/search-event-dto";
+import { SearchEventDto } from "./dto/search-event.dto";
 import { AuthenticatedGuard } from "src/auth/guards/authenticated.guard";
 import { event_arranger_roles, users } from "@prisma/client";
+import { ArrangerRegistrationService } from "src/registrations/services/arranger.registrations.service";
+import { SearchEventRegistrationDto } from "./dto/search-event-registration.dto";
 
 @Controller("events")
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly arrangerRegistrationServcice: ArrangerRegistrationService,
+  ) {}
 
   @UseGuards(AuthenticatedGuard)
   @Post()
   async create(@Req() req: any, @Body() createEventDto: CreateEventDto) {
     const user: users = req.user;
-
-    if (!user.arranger_id) {
-      throw new BadRequestException(
-        "Something went wrong. You dont seem to have an arranger_id.",
-      );
-    }
     return this.eventsService.create(createEventDto, user.arranger_id);
   }
 
-  // Should add a guard that gets the user, but is undefined if not logged in
+  // TODO: Should add a guard that gets the user, but is undefined if not logged in
   // for private events
   @Get()
   async findAll(@Query() query: SearchEventDto) {
@@ -49,7 +47,7 @@ export class EventsController {
     );
   }
 
-  // Should add a guard that gets the user, but is undefined if not logged in
+  // TODO: Should add a guard that gets the user, but is undefined if not logged in
   // for private events
   @Get(":id")
   async findOne(@Param("id") id: number) {
@@ -92,5 +90,13 @@ export class EventsController {
         "You are not authorized to delete this event",
       );
     }
+  }
+
+  @Get(":id/registrations")
+  async getRegistrations(
+    @Query() query: SearchEventRegistrationDto,
+    @Param("id") id: string,
+  ) {
+    return this.arrangerRegistrationServcice.findAll(query, id);
   }
 }

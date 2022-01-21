@@ -91,16 +91,19 @@ model registrations {
   event      events     @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
   user_id    String
   user       users      @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-  reg_date   DateTime
-  reg_status reg_status
-  attendance Boolean
+  reg_date   DateTime   @default(now())
+  reg_status reg_status @default(INVITED)
+  attendance Boolean    @default(false)
 
   @@id([event_id, user_id])
 }
 
 enum reg_status {
-  PENDING
-  COMPLETE
+  INVITED
+  GOING
+  NOT_GOING
+  WAITLISTED
+  INTERESTED
 }
 
 model categories {

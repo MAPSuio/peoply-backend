@@ -4,6 +4,7 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UserAlreadyExistsException } from "./exceptions/userAlreadyExists.exception";
 import { v4 as uuidv4 } from "uuid";
+import { PrismaError } from "src/prisma/prisma.constants";
 import { Injectable } from "@nestjs/common";
 import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
 
@@ -59,7 +60,7 @@ export class UsersService {
       } catch (error) {
         if (
           error instanceof PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error.code === PrismaError.DuplicateUniqueValue
         ) {
           //unique value duplicated in DB
           // eslint-disable-next-line no-console

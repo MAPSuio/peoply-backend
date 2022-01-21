@@ -1,13 +1,15 @@
 import { Injectable } from "@nestjs/common";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { ArrangersService } from "src/arrangers/arrangers.service";
 import { ArrangerNotFoundException } from "src/arrangers/exceptions/arrangerNotFound.exception";
 import { PrismaService } from "../prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
-import { SearchEventDto } from "./dto/search-event-dto";
+import { SearchEventDto } from "./dto/search-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
 import { EventNotFoundException } from "./exceptions/eventNotFound.exception";
 import { v4 as uuidv4 } from "uuid";
 import { event_arranger_roles } from "@prisma/client";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class EventsService {
@@ -124,7 +126,15 @@ export class EventsService {
         data: { ...updateEventDto },
       });
     } catch (error) {
-      throw new EventNotFoundException(id);
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === PrismaError.EntityNotFound
+      ) {
+        //errorcode 'P2025' event not found in database
+        throw new EventNotFoundException(id);
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -134,7 +144,15 @@ export class EventsService {
         where: { event_numeric_id: id },
       });
     } catch (error) {
-      throw new EventNotFoundException(id);
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === PrismaError.EntityNotFound
+      ) {
+        //errorcode 'P2025' event not found in database
+        throw new EventNotFoundException(id);
+      } else {
+        throw error;
+      }
     }
   }
 }

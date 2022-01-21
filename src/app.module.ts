@@ -4,6 +4,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
 import { EventsModule } from "./events/events.module";
+import { RegistrationsModule } from "./registrations/registrations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
@@ -16,6 +17,7 @@ import * as Joi from "joi";
     UsersModule,
     OrganizationsModule,
     ArrangersModule,
+    RegistrationsModule,
     ConfigModule.forRoot({
       validationSchema: Joi.object({
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),

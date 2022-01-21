@@ -176,7 +176,7 @@ async function main() {
         event_id: eventIDs[i],
         user_id: userIDs[i + 10],
         reg_date: regDates[i],
-        reg_status: reg_status.COMPLETE,
+        reg_status: reg_status.INVITED,
         attendance: true,
       },
     });
@@ -190,7 +190,7 @@ async function main() {
         event_id: eventIDs[i],
         user_id: userIDs[i + 20],
         reg_date: regDates[i],
-        reg_status: reg_status.PENDING,
+        reg_status: reg_status.GOING,
         attendance: true,
       },
     });
