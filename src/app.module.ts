@@ -8,6 +8,7 @@ import { RegistrationsModule } from "./registrations/registrations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
+import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 
 @Module({
@@ -31,9 +32,11 @@ import * as Joi from "joi";
         VIPPS_OIDC_LOGIN_CLIENT_SECRET: Joi.string().required(),
         VIPPS_OIDC_LOGIN_SCOPE: Joi.string().required(),
         VIPPS_OIDC_POST_LOGIN_REDIRECT_URI: Joi.string().required(),
+        CORS_ORIGIN: Joi.string().required(),
       }),
     }),
     AuthModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

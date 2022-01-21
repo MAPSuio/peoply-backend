@@ -1,5 +1,5 @@
 import { reg_status } from "@prisma/client";
-import { IsBooleanString, IsEnum, IsOptional } from "class-validator";
+import { IsEnum, IsOptional } from "class-validator";
 import { ToBoolean } from "validators/string.to.boolean";
 
 export class SearchEventRegistrationDto {
@@ -9,11 +9,9 @@ export class SearchEventRegistrationDto {
 
   @ToBoolean()
   @IsOptional()
-  @IsBooleanString()
   attendance: boolean;
 
   @ToBoolean()
   @IsOptional()
-  @IsBooleanString()
   include_users: boolean;
 }

@@ -10,7 +10,6 @@ import {
   Issuer,
 } from "openid-client";
 
-import { UserDoesNotExistException } from "src/users/exceptions/userDoesNotExist.exception";
 import { UsersService } from "src/users/users.service";
 
 export const buildOpenIdClient = async (configService: ConfigService) => {
@@ -51,50 +50,45 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
     /* get user info from vipps */
     const userinfo: UserinfoResponse = await this.client.userinfo(tokenset);
 
-    try {
-      const {
+    const {
+      email,
+      phone_number: phone,
+      given_name: first_name,
+      family_name: last_name,
+      birthdate: birth_date,
+      address,
+    } = userinfo;
+
+    if (!(email && phone && first_name && last_name && birth_date && address)) {
+      throw new UnauthorizedException("Missing user info");
+    }
+
+    /* either find existing or create a new user based on user info */
+    const userByPhone = await this.userService.findByPhone(phone.substring(2));
+    const userByEmail = await this.userService.findByEmail(email);
+    if (!userByPhone && userByEmail) {
+      throw new UnauthorizedException("User with that email already exists");
+    } else if (
+      userByPhone &&
+      userByEmail &&
+      userByPhone.user_id !== userByEmail.user_id
+    ) {
+      /* found user by phone and email, but they are not the same user */
+      throw new UnauthorizedException("User with that email already exists");
+    } else if (userByPhone) {
+      /* TODO: Here we should update the user information with information from vipps */
+      return userByPhone;
+    } else {
+      /* if user does not exist, create one */
+      const createdUser = await this.userService.create({
+        phone: phone.substring(2), // remove NO country code
+        first_name,
+        last_name,
         email,
-        phone_number: phone,
-        given_name: first_name,
-        family_name: last_name,
-        birthdate: birth_date,
-        address,
-      } = userinfo;
+        birth_date: new Date(birth_date).toISOString(), // convert to proper ISO
+      });
 
-      if (
-        !(email && phone && first_name && last_name && birth_date && address)
-      ) {
-        throw new UnauthorizedException();
-      }
-
-      /* either find existing or create a new user based on user info */
-      try {
-        const user = await this.userService.findByEmailOrPhone(
-          email,
-          phone.substring(2),
-        );
-
-        if (user) {
-          return user;
-        }
-      } catch (error) {
-        if (error instanceof UserDoesNotExistException) {
-          /* if user is not created, create one */
-          const createdUser = await this.userService.create({
-            phone: phone.substring(2), // remove NO country code
-            first_name,
-            last_name,
-            email,
-            birth_date: new Date(birth_date).toISOString(), // convert to proper ISO
-          });
-
-          return createdUser;
-        }
-      }
-    } catch (err) {
-      throw new UnauthorizedException(
-        "An unknown error occured when authenticating",
-      );
+      return createdUser;
     }
   }
 }

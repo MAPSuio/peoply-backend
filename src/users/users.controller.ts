@@ -11,12 +11,12 @@ import {
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
-import { AccessGuard } from "src/auth/guards/access.guard";
 import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
 import { SearchUserRegistrationDto } from "src/registrations/dto/search-user-registration.dto";
 import { UserUpdateRegistrationDto } from "src/registrations/dto/user-update-registration.dto";
 import { CreateRegistrationDto } from "src/registrations/dto/create-registration.dto";
 import { DeleteRegistrationDto } from "src/registrations/dto/delete-registration.dto";
+import { AuthenticatedGuard } from "src/auth/guards/authenticated.guard";
 
 @Controller("users")
 export class UsersController {
@@ -24,13 +24,13 @@ export class UsersController {
     private readonly userRegistrationService: UserRegistrationService,
   ) {}
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
     return req.user;
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Get(":id/registrations")
   async getRegistrations(
     @Req() req: any,
@@ -46,7 +46,7 @@ export class UsersController {
     }
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Patch(":id/registrations")
   async updateRegistration(
     @Req() req: any,
@@ -63,7 +63,7 @@ export class UsersController {
     }
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Post(":id/registrations")
   async createRegistration(
     @Req() req: any,
@@ -80,7 +80,7 @@ export class UsersController {
     }
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Delete(":id/registrations")
   async deleteRegistration(
     @Req() req: any,

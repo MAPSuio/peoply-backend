@@ -26,10 +26,7 @@ async function bootstrap() {
   app.use(passport.session());
 
   app.enableCors({
-    origin: [
-      "http://localhost:3001",
-      "https://peoply-frontend.azurewebsites.net",
-    ],
+    origin: [`${process.env.CORS_ORIGIN}`],
     credentials: true,
   });
 

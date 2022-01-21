@@ -15,7 +15,7 @@ import { EventsService } from "./events.service";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { UpdateEventDto } from "./dto/update-event.dto";
 import { SearchEventDto } from "./dto/search-event.dto";
-import { AccessGuard } from "src/auth/guards/access.guard";
+import { AuthenticatedGuard } from "src/auth/guards/authenticated.guard";
 import { event_arranger_roles, users } from "@prisma/client";
 import { ArrangerRegistrationService } from "src/registrations/services/arranger.registrations.service";
 import { SearchEventRegistrationDto } from "./dto/search-event-registration.dto";
@@ -27,7 +27,7 @@ export class EventsController {
     private readonly arrangerRegistrationServcice: ArrangerRegistrationService,
   ) {}
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Post()
   async create(@Req() req: any, @Body() createEventDto: CreateEventDto) {
     const user: users = req.user;
@@ -54,7 +54,7 @@ export class EventsController {
     return this.eventsService.findOne(id);
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Patch(":id")
   async update(
     @Req() req: any,
@@ -72,7 +72,7 @@ export class EventsController {
     }
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Delete(":id")
   async remove(@Req() req: any, @Param("id") id: number) {
     const user: users = req.user;
