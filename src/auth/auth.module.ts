@@ -8,7 +8,7 @@ import { UsersModule } from "src/users/users.module";
 import { UsersService } from "src/users/users.service";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { JwtStrategy } from "./strategies/access.strategy";
+import { AccessStrategy } from "./strategies/access.strategy";
 import { RefreshStrategy } from "./strategies/refresh.strategy";
 
 const OidcStrategyFactory = {
@@ -46,7 +46,7 @@ const OidcStrategyFactory = {
   controllers: [AuthController],
   providers: [
     OidcStrategyFactory,
-    JwtStrategy,
+    AccessStrategy,
     RefreshStrategy,
     AuthService,
     ConfigService,

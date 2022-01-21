@@ -4,7 +4,7 @@ import { Response } from "express";
 
 import { LoginGuard } from "./guards/login.guard";
 import { AuthService } from "./auth.service";
-import { AccessGuard } from "./guards/access.guard";
+import { AuthenticatedGuard } from "./guards/authenticated.guard";
 import RefreshGuard from "./guards/refresh.guard";
 import { ConfigService } from "@nestjs/config";
 
@@ -40,7 +40,7 @@ export class AuthController {
     return res.sendStatus(200);
   }
 
-  @UseGuards(AccessGuard)
+  @UseGuards(AuthenticatedGuard)
   @Get("/user")
   async user(@Req() req: any) {
     return { user: req.user };
