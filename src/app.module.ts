@@ -10,6 +10,7 @@ import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
+import { AzureModule } from "./azure/azure.module";
 
 @Module({
   imports: [
@@ -33,9 +34,12 @@ import * as Joi from "joi";
         VIPPS_OIDC_LOGIN_SCOPE: Joi.string().required(),
         VIPPS_OIDC_POST_LOGIN_REDIRECT_URI: Joi.string().required(),
         CORS_ORIGIN: Joi.string().required(),
+        AZURE_STORAGE_ACCOUNT: Joi.string().required(),
+        AZURE_STORAGE_KEY: Joi.string().required(),
       }),
     }),
     AuthModule,
+    AzureModule,
     CategoriesModule,
   ],
   controllers: [AppController],
