@@ -5,9 +5,6 @@ import { CreateRegistrationDto } from "./create-registration.dto";
 export class ArrangerUpdateRegistrationDto extends PartialType(
   CreateRegistrationDto,
 ) {
-  //event is without tags so it will be filtered out if specified by the user.
-  event_id: string;
-
   @IsBoolean()
   attendance: boolean;
 }

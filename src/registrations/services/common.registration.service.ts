@@ -13,11 +13,7 @@ export class CommonRegistrationService {
       where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
     });
 
-    if (!registration) {
-      throw new RegistrationNotFoundException(event_id, user_id);
-    } else {
-      return registration;
-    }
+    return registration;
   }
 
   async remove(event_id: string, user_id: string) {

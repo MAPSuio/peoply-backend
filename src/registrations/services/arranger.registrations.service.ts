@@ -21,9 +21,6 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     orderBy = "reg_date",
     orderDirection = "asc",
   ) {
-    //set true = true, false and undefined = false.
-    const user_included = searchProps.include_users === true ? true : false;
-
     return await this.prismaService.registrations.findMany({
       skip,
       take,
@@ -33,7 +30,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
         attendance: searchProps.attendance,
       },
       include: {
-        user: user_included
+        user: new Boolean(searchProps.include_users).valueOf()
           ? {
               select: {
                 first_name: true,
@@ -57,7 +54,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     try {
       return await this.prismaService.registrations.update({
         where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
-        data: { ...arrangerUpdateRegistrationDto },
+        data: { ...arrangerUpdateRegistrationDto, event_id },
       });
     } catch (error) {
       if (

@@ -50,8 +50,6 @@ export class UserRegistrationService extends CommonRegistrationService {
     orderBy = "reg_date",
     orderDirection = "asc",
   ) {
-    const event_included = searchProps.include_event === true ? true : false;
-
     return await this.prismaService.registrations.findMany({
       skip,
       take,
@@ -61,7 +59,7 @@ export class UserRegistrationService extends CommonRegistrationService {
         attendance: searchProps.attendance,
       },
       include: {
-        event: event_included,
+        event: new Boolean(searchProps.include_event).valueOf(),
       },
       orderBy: {
         [orderBy]: orderDirection,

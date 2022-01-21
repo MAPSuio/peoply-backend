@@ -5,16 +5,11 @@ import {
   IsNotEmpty,
   IsNumber,
   IsString,
-  IsUUID,
   MinLength,
 } from "class-validator";
 import { CreateEventDto } from "./create-event.dto";
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {
-  @IsNotEmpty()
-  @IsUUID()
-  user_id: string;
-
   @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" })
