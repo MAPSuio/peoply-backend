@@ -7,6 +7,7 @@ import { EventsModule } from "./events/events.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
+import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 
 @Module({
@@ -33,6 +34,7 @@ import * as Joi from "joi";
       }),
     }),
     AuthModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

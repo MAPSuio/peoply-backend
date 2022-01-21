@@ -195,6 +195,21 @@ async function main() {
       },
     });
   }
+
+  /* add sample categories */
+  await prisma.categories.createMany({
+    data: [
+      { category: "matservering" },
+      { category: "alkohol" },
+      { category: "dansing" },
+      { category: "LGBTQ" },
+      { category: "rave" },
+      { category: "utendørs" },
+      { category: "eksklusivt" },
+      { category: "kultur" },
+      { category: "bedpress" },
+    ],
+  });
 }
 
 main()

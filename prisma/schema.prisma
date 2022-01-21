@@ -68,6 +68,7 @@ model events {
   private          Boolean           @default(false)
   event_arrangers  event_arrangers[]
   registrations    registrations[]
+  event_categories event_categories[]
 }
 
 model event_arrangers {
@@ -100,4 +101,20 @@ model registrations {
 enum reg_status {
   PENDING
   COMPLETE
+}
+
+model categories {
+  category_id      Int      @id @default(autoincrement())
+  category         String   @unique
+  event_categories event_categories[]
+}
+
+model event_categories {
+  category_id    Int
+  category       categories @relation(fields: [category_id], references: [category_id], onDelete: Cascade) 
+  event_id       String 
+  event          events      @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+
+
+  @@id([category_id, event_id])
 }
