@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { PrismaError } from "src/prisma/prisma.constants";
 import { Injectable } from "@nestjs/common";
 import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
+import { providers } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
@@ -15,7 +16,7 @@ export class UsersService {
   /* This will fail if uuid is a duplicate.
      Must be handled by the caller!
   */
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, provider: providers, sub: string) {
     const { phone, email } = createUserDto;
 
     /* check that phone and email are unique */
@@ -45,6 +46,7 @@ export class UsersService {
       throw new UserAlreadyExistsException(errors);
     } else {
       const arrangerID = uuidv4();
+      const userID = uuidv4();
 
       try {
         const [, newUser] = await this.prisma.$transaction([
@@ -52,7 +54,18 @@ export class UsersService {
             data: { arranger_id: arrangerID, is_business: false },
           }),
           this.prisma.users.create({
-            data: { ...createUserDto, arranger_id: arrangerID },
+            data: {
+              ...createUserDto,
+              arranger_id: arrangerID,
+              user_id: userID,
+            },
+          }),
+          this.prisma.provider_users.create({
+            data: {
+              provider: provider,
+              provider_sub: sub,
+              user_id: userID,
+            },
           }),
         ]);
 
@@ -91,6 +104,22 @@ export class UsersService {
   async findByEmail(email: string) {
     const user = await this.prisma.users.findUnique({ where: { email } });
     return user;
+  }
+
+  async findByProviderSub(provider: providers, sub: string) {
+    const user = await this.prisma.provider_users.findUnique({
+      where: {
+        provider_sub_provider: {
+          provider,
+          provider_sub: sub,
+        },
+      },
+      select: {
+        user: true,
+      },
+    });
+
+    return user?.user;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {

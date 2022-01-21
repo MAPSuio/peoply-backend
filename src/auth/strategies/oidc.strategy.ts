@@ -2,6 +2,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import { providers } from "@prisma/client";
 import {
   Strategy,
   Client,
@@ -63,32 +64,32 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
       throw new UnauthorizedException("Missing user info");
     }
 
-    /* either find existing or create a new user based on user info */
-    const userByPhone = await this.userService.findByPhone(phone.substring(2));
-    const userByEmail = await this.userService.findByEmail(email);
-    if (!userByPhone && userByEmail) {
-      throw new UnauthorizedException("User with that email already exists");
-    } else if (
-      userByPhone &&
-      userByEmail &&
-      userByPhone.user_id !== userByEmail.user_id
-    ) {
-      /* found user by phone and email, but they are not the same user */
-      throw new UnauthorizedException("User with that email already exists");
-    } else if (userByPhone) {
-      /* TODO: Here we should update the user information with information from vipps */
-      return userByPhone;
-    } else {
-      /* if user does not exist, create one */
-      const createdUser = await this.userService.create({
-        phone: phone.substring(2), // remove NO country code
-        first_name,
-        last_name,
-        email,
-        birth_date: new Date(birth_date).toISOString(), // convert to proper ISO
-      });
+    /* check if user exists */
+    const user = await this.userService.findByProviderSub(
+      providers.VIPPS,
+      userinfo.sub,
+    );
 
-      return createdUser;
+    if (!user) {
+      /* this may fail, as phone or email could belong to existing user. */
+      /* We could connect these accounts if phone AND email are equal */
+      /* or some similar strategy */
+      /* Currently a Vipps user is separate from a potential Google user. */
+      const newUser = await this.userService.create(
+        {
+          email,
+          phone,
+          first_name,
+          last_name,
+          birth_date: new Date(birth_date).toISOString(),
+        },
+        providers.VIPPS,
+        userinfo.sub,
+      );
+
+      return newUser;
     }
+
+    return user;
   }
 }

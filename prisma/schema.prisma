@@ -33,6 +33,20 @@ model users {
   birth_date         DateTime?                 @db.Date
   organization_roles user_organization_roles[]
   registrations      registrations[]
+  provider_users     provider_users[]
+}
+
+model provider_users {
+  provider_sub String
+  provider     providers
+  user_id      String
+  user         users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@id([provider_sub, provider])
+}
+
+enum providers {
+  VIPPS
 }
 
 model user_organization_roles {
@@ -58,14 +72,14 @@ model arrangers {
 }
 
 model events {
-  event_id         String            @id @default(uuid())
-  event_numeric_id Int               @unique @default(autoincrement())
+  event_id         String             @id @default(uuid())
+  event_numeric_id Int                @unique @default(autoincrement())
   start_date       DateTime
   end_date         DateTime
-  title            String            @db.VarChar(150)
+  title            String             @db.VarChar(150)
   description      String
   capacity         Int?
-  private          Boolean           @default(false)
+  private          Boolean            @default(false)
   event_arrangers  event_arrangers[]
   registrations    registrations[]
   event_categories event_categories[]
@@ -107,16 +121,16 @@ enum reg_status {
 }
 
 model categories {
-  category_id      Int      @id @default(autoincrement())
-  category         String   @unique
+  category_id      Int                @id @default(autoincrement())
+  category         String             @unique
   event_categories event_categories[]
 }
 
 model event_categories {
-  category_id    Int
-  category       categories @relation(fields: [category_id], references: [category_id], onDelete: Cascade) 
-  event_id       String 
-  event          events      @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  category_id Int
+  category    categories @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+  event_id    String
+  event       events     @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
 
 
   @@id([category_id, event_id])
