@@ -5,6 +5,7 @@ import { PrismaService } from "src/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto/arranger-update-registration.dto";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
 import { CommonRegistrationService } from "./common.registration.service";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
@@ -61,7 +62,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === prismaError.EntityNotFound
+        error.code === PrismaError.EntityNotFound
       ) {
         throw new RegistrationNotFoundException(event_id, user_id);
       } else {

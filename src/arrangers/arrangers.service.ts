@@ -2,6 +2,7 @@ import { ArrangerNotFoundException } from "./exceptions/arrangerNotFound.excepti
 import { PrismaService } from "../prisma.service";
 import { Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class ArrangersService {
@@ -29,7 +30,7 @@ export class ArrangersService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === prismaError.EntityNotFound
+        error.code === PrismaError.EntityNotFound
       ) {
         throw new ArrangerNotFoundException(id);
       } else {

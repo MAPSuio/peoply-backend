@@ -8,6 +8,7 @@ import { DuplicateRegistrationException } from "../exceptions/duplicateRegistrat
 import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
 import { CommonRegistrationService } from "./common.registration.service";
 import { SearchUserRegistrationDto } from "../dto/search-user-registration.dto";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -25,12 +26,12 @@ export class UserRegistrationService extends CommonRegistrationService {
       return registration;
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === prismaError.DuplicateUniqueValue) {
+        if (error.code === PrismaError.DuplicateUniqueValue) {
           throw new DuplicateRegistrationException(
             createRegistrationDto.event_id,
             createRegistrationDto.user_id,
           );
-        } else if (error.code === prismaError.ForeignKeyFailed) {
+        } else if (error.code === PrismaError.ForeignKeyFailed) {
           throw new ForeignKeyNotFoundException(
             createRegistrationDto.event_id,
             createRegistrationDto.user_id,
@@ -85,7 +86,7 @@ export class UserRegistrationService extends CommonRegistrationService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === prismaError.EntityNotFound
+        error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
         throw new RegistrationNotFoundException(

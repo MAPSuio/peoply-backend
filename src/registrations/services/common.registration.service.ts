@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma.service";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class CommonRegistrationService {
@@ -27,7 +28,7 @@ export class CommonRegistrationService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === prismaError.EntityNotFound
+        error.code === PrismaError.EntityNotFound
       ) {
         throw new RegistrationNotFoundException(event_id, user_id);
       } else {
