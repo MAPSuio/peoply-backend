@@ -9,6 +9,7 @@ import { UpdateEventDto } from "./dto/update-event.dto";
 import { EventNotFoundException } from "./exceptions/eventNotFound.exception";
 import { v4 as uuidv4 } from "uuid";
 import { event_arranger_roles } from "@prisma/client";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class EventsService {
@@ -127,7 +128,7 @@ export class EventsService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
         throw new EventNotFoundException(id);
@@ -145,7 +146,7 @@ export class EventsService {
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
-        error.code === "P2025"
+        error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
         throw new EventNotFoundException(id);

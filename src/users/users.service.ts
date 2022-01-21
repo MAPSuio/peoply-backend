@@ -7,6 +7,7 @@ import { UserAlreadyExistsException } from "./exceptions/userAlreadyExists.excep
 import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
 import { v4 as uuidv4 } from "uuid";
 import { users } from "@prisma/client";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class UsersService {
@@ -60,10 +61,8 @@ export class UsersService {
       } catch (error) {
         if (
           error instanceof PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error.code === PrismaError.DuplicateUniqueValue
         ) {
-          //unique value duplicated in DB
-
           throw error;
         } else {
           throw error;

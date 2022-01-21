@@ -6,6 +6,7 @@ import { OrganizationAlreadyExistsException } from "./exceptions/organizationAlr
 import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { OrganizationDoesNotExistException } from "./exceptions/organizationDoesNotExist.exception";
+import { PrismaError } from "src/prisma/prisma.constants";
 
 @Injectable()
 export class OrganizationsService {
@@ -43,7 +44,7 @@ export class OrganizationsService {
       } catch (error) {
         if (
           error instanceof PrismaClientKnownRequestError &&
-          error.code === "P2002"
+          error.code === PrismaError.DuplicateUniqueValue
         ) {
           //unique value duplicated in DB
 
@@ -63,7 +64,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      if (error.code === "P2001") {
+      if (error.code === PrismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
       }
 
@@ -78,7 +79,7 @@ export class OrganizationsService {
         data: updateOrganizationDto,
       });
     } catch (error) {
-      if (error.code === "P2001") {
+      if (error.code === PrismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
       }
 
@@ -94,7 +95,7 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      if (error.code === "P2001") {
+      if (error.code === PrismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
       }
 
