@@ -5,8 +5,10 @@ import {
   IsNotEmpty,
   IsNumber,
   IsString,
+  Min,
   MinLength,
 } from "class-validator";
+import { IsLaterDateStringThan } from "../../../decorators/validators";
 import { CreateEventDto } from "./create-event.dto";
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {
@@ -20,6 +22,7 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   description: string;
 
   @IsNumber()
+  @Min(0)
   capacity: number;
 
   @IsBoolean()
@@ -31,5 +34,6 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
 
   @IsNotEmpty()
   @IsDateString()
+  @IsLaterDateStringThan("start_date")
   end_date: Date;
 }

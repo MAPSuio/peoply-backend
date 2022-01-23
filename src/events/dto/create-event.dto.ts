@@ -5,32 +5,39 @@ import {
   IsNumber,
   IsBoolean,
   IsOptional,
-  IsDateString,
+  IsPositive,
 } from "class-validator";
+import {
+  IsLaterDateStringThan,
+  MaxDateString,
+  MinDateString,
+} from "../../../decorators/validators";
 
 export class CreateEventDto {
   @IsNotEmpty()
-  @IsDateString()
+  @MinDateString(new Date())
   start_date: Date;
 
   @IsNotEmpty()
-  @IsDateString()
+  @MaxDateString(new Date("2099-01-01T01:01:01.001Z"))
+  @IsLaterDateStringThan("start_date")
   end_date: Date;
 
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   @MinLength(3, { message: "title too short" }) // custom message when broken
   title: string;
 
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   description: string;
 
   @IsOptional()
   @IsNumber()
-  capacity: number;
+  @IsPositive()
+  capacity?: number;
 
-  @IsBoolean()
   @IsNotEmpty()
-  private: boolean;
+  @IsBoolean()
+  private?: boolean;
 }

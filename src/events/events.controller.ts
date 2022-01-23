@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { AuthenticatedGuard } from "../auth/guards";
+import { PrismaOrderDirections } from "../prisma/prisma.constants";
 import { ArrangerRegistrationService } from "../registrations/services";
 import {
   CreateEventDto,
@@ -40,6 +41,7 @@ export class EventsController {
   // for private events
   @Get()
   async findAll(@Query() query: SearchEventDto) {
+    console.log(PrismaOrderDirections.ASC);
     return this.eventsService.findAll(
       query,
       query.skip,

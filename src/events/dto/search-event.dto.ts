@@ -1,5 +1,15 @@
 import { Type } from "class-transformer";
-import { IsDateString, IsInt, IsOptional, IsString } from "class-validator";
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  MinLength,
+} from "class-validator";
+import { PrismaOrderDirections } from "../../prisma/prisma.constants";
 
 export class SearchEventDto {
   @IsOptional()
@@ -17,6 +27,7 @@ export class SearchEventDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(3)
   title?: string;
 
   @IsOptional()
@@ -25,33 +36,31 @@ export class SearchEventDto {
 
   @IsOptional()
   @IsInt()
+  @Min(0)
   @Type(() => Number)
   capacity?: number;
 
-  // @IsOptional()
-  // @IsBoolean()
-  // @Type(() => Boolean)
-  // private?: boolean;
-
   @IsOptional()
-  @IsString()
+  @IsUUID(4)
   user_id?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID(4)
   organization_id?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID(4)
   arranger_id?: string;
 
   @IsOptional()
   @IsInt()
+  @Min(0)
   @Type(() => Number)
   skip?: number;
 
   @IsOptional()
   @IsInt()
+  @Min(0)
   @Type(() => Number)
   take?: number;
 
@@ -61,5 +70,13 @@ export class SearchEventDto {
 
   @IsOptional()
   @IsString()
+  @IsEnum(PrismaOrderDirections, {
+    message:
+      "Must be either one of the values: '" +
+      PrismaOrderDirections.ASC +
+      "' or '" +
+      PrismaOrderDirections.DESC +
+      "'",
+  })
   orderDirection?: string;
 }

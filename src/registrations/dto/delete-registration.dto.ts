@@ -1,6 +1,6 @@
 import { IsUUID } from "class-validator";
 
 export class DeleteRegistrationDto {
-  @IsUUID()
+  @IsUUID(4)
   event_id: string;
 }

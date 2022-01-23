@@ -18,7 +18,6 @@ export class CreateUserDto {
   email: string;
 
   @IsNotEmpty()
-  @IsString()
   @IsDateString()
   birth_date: string;
 }

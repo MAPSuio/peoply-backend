@@ -4,3 +4,8 @@ export enum PrismaError {
   DuplicateUniqueValue = "P2002",
   ForeignKeyFailed = "P2003",
 }
+
+export enum PrismaOrderDirections {
+  ASC = "asc",
+  DESC = "desc",
+}

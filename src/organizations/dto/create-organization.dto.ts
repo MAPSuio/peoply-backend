@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString, IsUrl } from "class-validator";
 
 export class CreateOrganizationDto {
   @IsNotEmpty()
@@ -11,5 +11,6 @@ export class CreateOrganizationDto {
 
   @IsOptional()
   @IsString()
+  @IsUrl()
   image: string;
 }

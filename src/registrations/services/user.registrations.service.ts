@@ -21,11 +21,9 @@ export class UserRegistrationService extends CommonRegistrationService {
   }
 
   async create(user_id: string, createRegistrationDto: CreateRegistrationDto) {
-    createRegistrationDto.user_id = user_id;
-
     try {
       const registration = await this.prismaService.registrations.create({
-        data: createRegistrationDto,
+        data: { ...createRegistrationDto, user_id },
       });
       return registration;
     } catch (error) {
@@ -33,12 +31,12 @@ export class UserRegistrationService extends CommonRegistrationService {
         if (error.code === PrismaError.DuplicateUniqueValue) {
           throw new DuplicateRegistrationException(
             createRegistrationDto.event_id,
-            createRegistrationDto.user_id,
+            user_id,
           );
         } else if (error.code === PrismaError.ForeignKeyFailed) {
           throw new ForeignKeyNotFoundException(
             createRegistrationDto.event_id,
-            createRegistrationDto.user_id,
+            user_id,
           );
         }
       }
