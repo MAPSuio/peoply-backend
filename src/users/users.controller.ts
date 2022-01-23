@@ -11,12 +11,14 @@ import {
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
-import { UserRegistrationService } from "src/registrations/services/user.registrations.service";
-import { SearchUserRegistrationDto } from "src/registrations/dto/search-user-registration.dto";
-import { UserUpdateRegistrationDto } from "src/registrations/dto/user-update-registration.dto";
-import { CreateRegistrationDto } from "src/registrations/dto/create-registration.dto";
-import { DeleteRegistrationDto } from "src/registrations/dto/delete-registration.dto";
-import { AuthenticatedGuard } from "src/auth/guards/authenticated.guard";
+import { AuthenticatedGuard } from "../auth/guards";
+import {
+  CreateRegistrationDto,
+  DeleteRegistrationDto,
+  SearchUserRegistrationDto,
+  UserUpdateRegistrationDto,
+} from "../registrations/dto";
+import { UserRegistrationService } from "../registrations/services";
 
 @Controller("users")
 export class UsersController {

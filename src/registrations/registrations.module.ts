@@ -1,15 +1,19 @@
 import { Module } from "@nestjs/common";
-import { UserRegistrationService } from "./services/user.registrations.service";
 import { RegistrationsController } from "./registrations.controller";
-import { PrismaService } from "src/prisma.service";
-import { ArrangerRegistrationService } from "./services/arranger.registrations.service";
+import { PrismaModule } from "../prisma/prisma.module";
+import {
+  ArrangerRegistrationService,
+  CommonRegistrationService,
+  UserRegistrationService,
+} from "./services";
 
 @Module({
+  imports: [PrismaModule],
   controllers: [RegistrationsController],
   providers: [
-    PrismaService,
     UserRegistrationService,
     ArrangerRegistrationService,
+    CommonRegistrationService,
   ],
   exports: [UserRegistrationService, ArrangerRegistrationService],
 })

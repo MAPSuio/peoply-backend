@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { PrismaService } from "src/prisma.service";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
-import { PrismaError } from "src/prisma/prisma.constants";
+import { PrismaError } from "../../prisma/prisma.constants";
+import { PrismaService } from "../../prisma/prisma.service";
+import { RegistrationNotFoundException } from "../exceptions";
 
 @Injectable()
 export class CommonRegistrationService {

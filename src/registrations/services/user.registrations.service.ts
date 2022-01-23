@@ -1,14 +1,18 @@
 import { Injectable } from "@nestjs/common";
-import { CreateRegistrationDto } from "../dto/create-registration.dto";
-import { UserUpdateRegistrationDto } from "../dto/user-update-registration.dto";
-import { PrismaService } from "src/prisma.service";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
-import { DuplicateRegistrationException } from "../exceptions/duplicateRegistration.exception";
-import { ForeignKeyNotFoundException } from "../exceptions/foreignKeyNotFound.exception";
-import { CommonRegistrationService } from "./common.registration.service";
-import { SearchUserRegistrationDto } from "../dto/search-user-registration.dto";
-import { PrismaError } from "src/prisma/prisma.constants";
+import { CommonRegistrationService } from "./common.registrations.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { PrismaError } from "../../prisma/prisma.constants";
+import {
+  CreateRegistrationDto,
+  SearchUserRegistrationDto,
+  UserUpdateRegistrationDto,
+} from "../dto";
+import {
+  DuplicateRegistrationException,
+  ForeignKeyNotFoundException,
+  RegistrationNotFoundException,
+} from "../exceptions";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {

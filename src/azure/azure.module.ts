@@ -1,9 +1,10 @@
 import { Module } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { ConfigModule } from "@nestjs/config";
 import { AzureStorageService } from "./azure-storage.service";
 
 @Module({
-  providers: [AzureStorageService, ConfigService],
+  imports: [ConfigModule],
+  providers: [AzureStorageService],
   exports: [AzureStorageService],
 })
 export class AzureModule {}

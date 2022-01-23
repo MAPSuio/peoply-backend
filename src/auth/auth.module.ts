@@ -1,15 +1,18 @@
 // src/auth/auth.module.ts
 import { Module } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
-import { OidcStrategy, buildOpenIdClient } from "./strategies/oidc.strategy";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
-import { UsersModule } from "src/users/users.module";
-import { UsersService } from "src/users/users.service";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { AccessStrategy } from "./strategies/access.strategy";
-import { RefreshStrategy } from "./strategies/refresh.strategy";
+import { UsersModule } from "../users/users.module";
+import { UsersService } from "../users/users.service";
+import {
+  AccessStrategy,
+  buildOpenIdClient,
+  OidcStrategy,
+  RefreshStrategy,
+} from "./strategies";
 
 const OidcStrategyFactory = {
   provide: "OidcStrategy",
@@ -46,11 +49,9 @@ const OidcStrategyFactory = {
   controllers: [AuthController],
   providers: [
     OidcStrategyFactory,
+    AuthService,
     AccessStrategy,
     RefreshStrategy,
-    AuthService,
-    ConfigService,
-    UsersService,
   ],
 })
 export class AuthModule {}

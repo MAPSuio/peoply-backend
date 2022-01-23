@@ -1,12 +1,13 @@
 import { Injectable } from "@nestjs/common";
-import { PrismaService } from "src/prisma.service";
-import { CreateOrganizationDto } from "./dto/create-organization.dto";
-import { UpdateOrganizationDto } from "./dto/update-organization.dto";
-import { OrganizationAlreadyExistsException } from "./exceptions/organizationAlreadyExists.exception";
 import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { OrganizationDoesNotExistException } from "./exceptions/organizationDoesNotExist.exception";
-import { PrismaError } from "src/prisma/prisma.constants";
+import { PrismaService } from "../prisma/prisma.service";
+import { PrismaError } from "../prisma/prisma.constants";
+import { CreateOrganizationDto, UpdateOrganizationDto } from "./dto";
+import {
+  OrganizationAlreadyExistsException,
+  OrganizationDoesNotExistException,
+} from "./exceptions";
 
 @Injectable()
 export class OrganizationsService {

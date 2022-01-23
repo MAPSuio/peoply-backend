@@ -3,7 +3,7 @@ import {
   event_arranger_roles,
   organization_roles,
   reg_status,
-} from "@prisma/client";
+} from ".prisma/client";
 import {
   arrangerIDs,
   userIDs,

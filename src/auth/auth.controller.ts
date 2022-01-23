@@ -2,11 +2,9 @@
 import { Controller, Get, Req, Res, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 
-import { LoginGuard } from "./guards/login.guard";
 import { AuthService } from "./auth.service";
-import { AuthenticatedGuard } from "./guards/authenticated.guard";
-import RefreshGuard from "./guards/refresh.guard";
 import { ConfigService } from "@nestjs/config";
+import { AuthenticatedGuard, LoginGuard, RefreshGuard } from "./guards";
 
 @Controller("auth")
 export class AuthController {

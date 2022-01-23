@@ -1,6 +1,6 @@
-import { reg_status } from "@prisma/client";
+import { reg_status } from ".prisma/client";
 import { IsEnum, IsOptional } from "class-validator";
-import { ToBoolean } from "validators/string.to.boolean";
+import { ToBoolean } from "src/validators/string.to.boolean";
 
 export class SearchEventRegistrationDto {
   @IsOptional()

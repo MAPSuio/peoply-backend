@@ -1,15 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { ArrangersService } from "src/arrangers/arrangers.service";
-import { ArrangerNotFoundException } from "src/arrangers/exceptions/arrangerNotFound.exception";
-import { PrismaService } from "../prisma.service";
-import { CreateEventDto } from "./dto/create-event.dto";
-import { SearchEventDto } from "./dto/search-event.dto";
-import { UpdateEventDto } from "./dto/update-event.dto";
-import { EventNotFoundException } from "./exceptions/eventNotFound.exception";
+import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
-import { event_arranger_roles } from "@prisma/client";
-import { PrismaError } from "src/prisma/prisma.constants";
+import { event_arranger_roles } from ".prisma/client";
+import { ArrangersService } from "../arrangers/arrangers.service";
+import { PrismaError } from "../prisma/prisma.constants";
+import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
+import { ArrangerNotFoundException } from "../arrangers/exceptions";
+import { EventNotFoundException } from "./exceptions";
 
 @Injectable()
 export class EventsService {

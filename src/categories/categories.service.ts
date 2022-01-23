@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { EventNotFoundException } from "src/events/exceptions/eventNotFound.exception";
-import { PrismaService } from "src/prisma.service";
-import { CategorizeEventDto } from "./dto/categorize-event.dto";
-import { CategoryNotFoundException } from "./exceptions/CategoryDoesNotExist.exception";
+import { EventNotFoundException } from "../events/exceptions";
+import { PrismaService } from "../prisma/prisma.service";
+import { CategorizeEventDto } from "./dto";
+import { CategoryNotFoundException } from "./exceptions";
 
 @Injectable()
 export class CategoriesService {

@@ -1,13 +1,14 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { PrismaService } from "../prisma.service";
-import { CreateUserDto } from "./dto/create-user.dto";
-import { UpdateUserDto } from "./dto/update-user.dto";
-import { UserAlreadyExistsException } from "./exceptions/userAlreadyExists.exception";
+import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
-import { PrismaError } from "src/prisma/prisma.constants";
 import { Injectable } from "@nestjs/common";
-import { UserDoesNotExistException } from "./exceptions/userDoesNotExist.exception";
-import { providers } from "@prisma/client";
+import { providers } from ".prisma/client";
+import { CreateUserDto, UpdateUserDto } from "./dto";
+import { PrismaError } from "../prisma/prisma.constants";
+import {
+  UserAlreadyExistsException,
+  UserDoesNotExistException,
+} from "./exceptions";
 
 @Injectable()
 export class UsersService {

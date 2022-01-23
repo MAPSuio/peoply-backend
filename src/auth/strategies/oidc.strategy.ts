@@ -2,7 +2,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import { providers } from "@prisma/client";
+import { providers } from ".prisma/client";
 import {
   Strategy,
   Client,
@@ -10,8 +10,7 @@ import {
   TokenSet,
   Issuer,
 } from "openid-client";
-
-import { UsersService } from "src/users/users.service";
+import { UsersService } from "../../users/users.service";
 
 export const buildOpenIdClient = async (configService: ConfigService) => {
   const TrustIssuer = await Issuer.discover(

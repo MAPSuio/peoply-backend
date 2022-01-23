@@ -1,4 +1,4 @@
-import { reg_status } from "@prisma/client";
+import { reg_status } from ".prisma/client";
 import { IsEnum, IsNotEmpty, IsUUID } from "class-validator";
 
 export class CreateRegistrationDto {

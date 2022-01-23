@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { SearchEventRegistrationDto } from "src/events/dto/search-event-registration.dto";
-import { PrismaService } from "src/prisma.service";
-import { ArrangerUpdateRegistrationDto } from "../dto/arranger-update-registration.dto";
-import { RegistrationNotFoundException } from "../exceptions/registrationNotFound.exception";
-import { CommonRegistrationService } from "./common.registration.service";
-import { PrismaError } from "src/prisma/prisma.constants";
+import { SearchEventRegistrationDto } from "../../events/dto";
+import { PrismaError } from "../../prisma/prisma.constants";
+import { PrismaService } from "../../prisma/prisma.service";
+import { ArrangerUpdateRegistrationDto } from "../dto";
+import { RegistrationNotFoundException } from "../exceptions";
+import { CommonRegistrationService } from "./common.registrations.service";
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {

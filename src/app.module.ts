@@ -11,6 +11,7 @@ import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 import { AzureModule } from "./azure/azure.module";
+import { PrismaModule } from "./prisma/prisma.module";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AzureModule } from "./azure/azure.module";
     AuthModule,
     AzureModule,
     CategoriesModule,
+    PrismaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
