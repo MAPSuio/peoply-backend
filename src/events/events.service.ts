@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
@@ -12,7 +12,7 @@ import { EventNotFoundException } from "./exceptions";
 @Injectable()
 export class EventsService {
   constructor(
-    private readonly prismaService: PrismaService,
+    private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
   ) {}
 
@@ -23,19 +23,52 @@ export class EventsService {
     }
 
     const eventId = uuidv4();
-    const [event] = await this.prismaService.$transaction([
-      this.prismaService.events.create({
-        data: { event_id: eventId, ...createEventDto },
-      }),
-      this.prismaService.event_arrangers.create({
-        data: {
-          role: event_arranger_roles.ADMIN,
-          arranger_id,
-          event_id: eventId,
-        },
-      }),
-    ]);
-    return event;
+    try {
+      const [event] = await this.prisma.$transaction([
+        this.prisma.events.create({
+          data: {
+            event_id: eventId,
+            description: createEventDto.description,
+            title: createEventDto.title,
+            start_date: createEventDto.start_date,
+            end_date: createEventDto.end_date,
+            capacity: createEventDto.capacity,
+            private: createEventDto.private,
+          },
+        }),
+        this.prisma.event_arrangers.create({
+          data: {
+            role: event_arranger_roles.ADMIN,
+            arranger_id,
+            event_id: eventId,
+          },
+        }),
+        this.prisma.event_categories.createMany({
+          data: createEventDto.category_ids.map((category_id) => ({
+            category_id,
+            event_id: eventId,
+          })),
+        }),
+      ]);
+      return event;
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        switch (error.code) {
+          case PrismaError.ForeignKeyFailed:
+            /* bad category id */
+            throw new BadRequestException("Bad category id");
+
+          case PrismaError.DuplicateUniqueValue:
+            throw new BadRequestException(
+              "Duplicate event id, or duplicates in category_ids",
+            );
+          default:
+            throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   async findAll(
@@ -45,7 +78,7 @@ export class EventsService {
     orderBy = "start_date",
     orderDirection = "asc",
   ) {
-    return await this.prismaService.events.findMany({
+    return await this.prisma.events.findMany({
       skip,
       take,
       where: {
@@ -91,7 +124,7 @@ export class EventsService {
   }
 
   async findOne(id: number) {
-    const event = await this.prismaService.events.findUnique({
+    const event = await this.prisma.events.findUnique({
       where: { event_numeric_id: id },
     });
 
@@ -103,7 +136,7 @@ export class EventsService {
   }
 
   async findOneWithEventArrangers(id: number) {
-    const event = await this.prismaService.events.findUnique({
+    const event = await this.prisma.events.findUnique({
       where: { event_numeric_id: id },
       include: {
         event_arrangers: true,
@@ -119,7 +152,7 @@ export class EventsService {
 
   async update(id: number, updateEventDto: UpdateEventDto) {
     try {
-      return await this.prismaService.events.update({
+      return await this.prisma.events.update({
         where: { event_numeric_id: id },
         data: { ...updateEventDto },
       });
@@ -138,7 +171,7 @@ export class EventsService {
 
   async remove(id: number) {
     try {
-      return await this.prismaService.events.delete({
+      return await this.prisma.events.delete({
         where: { event_numeric_id: id },
       });
     } catch (error) {

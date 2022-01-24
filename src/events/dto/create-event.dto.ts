@@ -6,6 +6,8 @@ import {
   IsBoolean,
   IsOptional,
   IsPositive,
+  IsArray,
+  IsInt,
 } from "class-validator";
 import {
   IsLaterDateStringThan,
@@ -40,4 +42,9 @@ export class CreateEventDto {
   @IsNotEmpty()
   @IsBoolean()
   private?: boolean;
+
+  @IsNotEmpty()
+  @IsArray()
+  @IsInt({ each: true })
+  category_ids: number[];
 }
