@@ -80,6 +80,7 @@ model events {
   description      String
   capacity         Int?
   private          Boolean            @default(false)
+  image            String?            @unique
   event_arrangers  event_arrangers[]
   registrations    registrations[]
   event_categories event_categories[]

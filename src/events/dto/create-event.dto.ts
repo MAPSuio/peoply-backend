@@ -1,15 +1,17 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
-  IsString,
-  IsNotEmpty,
-  MinLength,
-  IsNumber,
+  IsArray,
   IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsPositive,
-  IsArray,
-  IsInt,
+  IsString,
+  MinLength,
 } from "class-validator";
+import { ToBoolean } from "../../../decorators/transformers";
+import { ToArray } from "../../../decorators/transformers/string.to.array";
 import {
   IsLaterDateStringThan,
   MaxDateString,
@@ -46,11 +48,13 @@ export class CreateEventDto {
   capacity?: number;
 
   @IsNotEmpty()
+  @ToBoolean()
   @IsBoolean()
   @ApiProperty()
   private?: boolean;
 
   @IsNotEmpty()
+  @ToArray({ type: "int" })
   @IsArray()
   @IsInt({ each: true })
   @ApiProperty({ type: [Number] })

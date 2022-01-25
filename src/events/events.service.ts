@@ -8,22 +8,39 @@ import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
 import { EventNotFoundException } from "./exceptions";
+import { AzureStorageService } from "../azure/azure-storage.service";
+import { AzureStorageContainer } from "../azure/azure-storage.constants";
 
 @Injectable()
 export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
+    private readonly azureStorageService: AzureStorageService,
   ) {}
 
-  async create(createEventDto: CreateEventDto, arranger_id: string) {
+  async create(
+    createEventDto: CreateEventDto,
+    arranger_id: string,
+    eventImage?: Express.Multer.File,
+  ) {
     const arranger = await this.arrangersService.findOne(arranger_id);
     if (!arranger) {
       throw new ArrangerNotFoundException(arranger_id);
     }
 
     const eventId = uuidv4();
+    const eventImageFileName = `${eventId}.${
+      eventImage?.mimetype.split("/")[1]
+    }`;
     try {
+      const imageUrl = eventImage
+        ? await this.azureStorageService.upload(
+            eventImageFileName,
+            eventImage.buffer,
+            AzureStorageContainer.EVENT_IMAGES,
+          )
+        : null;
       const [event] = await this.prisma.$transaction([
         this.prisma.events.create({
           data: {
@@ -34,6 +51,7 @@ export class EventsService {
             end_date: createEventDto.end_date,
             capacity: createEventDto.capacity,
             private: createEventDto.private,
+            image: imageUrl,
           },
         }),
         this.prisma.event_arrangers.create({
@@ -52,6 +70,10 @@ export class EventsService {
       ]);
       return event;
     } catch (error) {
+      await this.azureStorageService.delete(
+        eventImageFileName,
+        AzureStorageContainer.EVENT_IMAGES,
+      );
       if (error instanceof PrismaClientKnownRequestError) {
         switch (error.code) {
           case PrismaError.ForeignKeyFailed:

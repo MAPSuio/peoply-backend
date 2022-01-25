@@ -1,5 +1,6 @@
 import { event_arranger_roles, users } from ".prisma/client";
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,8 +11,11 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { AuthenticatedGuard } from "../auth/guards";
 import { ArrangerRegistrationService } from "../registrations/services";
 import {
@@ -31,9 +35,35 @@ export class EventsController {
 
   @UseGuards(AuthenticatedGuard)
   @Post()
-  async create(@Req() req: any, @Body() createEventDto: CreateEventDto) {
+  @UseInterceptors(
+    FileInterceptor("eventImage", {
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
+          callback(
+            new BadRequestException("Only .jpeg and .png files are allowed!"),
+            false,
+          );
+        } else {
+          callback(null, true);
+        }
+      },
+      limits: {
+        // filesize limit 50 MB
+        fileSize: 50 * 1024 * 1024,
+      },
+    }),
+  )
+  async create(
+    @Req() req: any,
+    @Body() createEventDto: CreateEventDto,
+    @UploadedFile() eventImage?: Express.Multer.File,
+  ) {
     const user: users = req.user;
-    return this.eventsService.create(createEventDto, user.arranger_id);
+    return this.eventsService.create(
+      createEventDto,
+      user.arranger_id,
+      eventImage,
+    );
   }
 
   // TODO: Should add a guard that gets the user, but is undefined if not logged in
