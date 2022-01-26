@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -42,7 +43,8 @@ export class CreateEventDto {
   description: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   @IsPositive()
   @ApiProperty()
   capacity?: number;
