@@ -12,6 +12,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 import { AzureModule } from "./azure/azure.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { FavoritesModule } from "./favorites/favorites.module";
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     AzureModule,
     CategoriesModule,
     PrismaModule,
+    FavoritesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

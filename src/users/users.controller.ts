@@ -3,15 +3,19 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
 import { AuthenticatedGuard } from "../auth/guards";
+import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
+import { FavoritesService } from "../favorites/favorites.service";
 import {
   CreateRegistrationDto,
   DeleteRegistrationDto,
@@ -19,11 +23,14 @@ import {
   UserUpdateRegistrationDto,
 } from "../registrations/dto";
 import { UserRegistrationService } from "../registrations/services";
+import { Response } from "express";
+import { UuidDto } from "../genericDTOs/uuid.dto";
 
 @Controller("users")
 export class UsersController {
   constructor(
     private readonly userRegistrationService: UserRegistrationService,
+    private readonly userFavoritesService: FavoritesService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -95,6 +102,80 @@ export class UsersController {
     } else {
       throw new UnauthorizedException(
         "You are not authorized to delete the registration for this user",
+      );
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Post(":id/favorites")
+  async makeFavorite(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() dto: UuidDto,
+  ) {
+    if (id === req.user.user_id) {
+      return this.userFavoritesService.create(id, dto.id);
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to add a favorite for this user",
+      );
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get(":id/favorites")
+  async getFavorites(
+    @Req() req: any,
+    @Query() query: SearchFavoritesDto,
+    @Param("id") id: string,
+  ) {
+    if (id === req.user.user_id) {
+      return this.userFavoritesService.findAll(query, id);
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to see this users registrations",
+      );
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get(":user_id/favorites/:event_id")
+  async getSpecificFavorite(
+    @Req() req: any,
+    @Param("user_id") user_id: string,
+    @Param("event_id") event_id: string,
+    @Res({ passthrough: true }) res: Response, //passthrough is enabeled to allow both express and nestjs(next) handlers
+  ) {
+    if (user_id === req.user.user_id) {
+      const favorite = await this.userFavoritesService.findOne(
+        user_id,
+        event_id,
+      );
+
+      if (!favorite) {
+        res.status(HttpStatus.NO_CONTENT);
+      }
+
+      return favorite;
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to see this users registrations",
+      );
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Delete(":user_id/favorites")
+  async deleteFavorite(
+    @Req() req: any,
+    @Body() dto: UuidDto,
+    @Param("user_id") user_id: string,
+  ) {
+    if (user_id === req.user.user_id) {
+      return await this.userFavoritesService.remove(req.user.user_id, dto.id);
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to see delete this users registrations",
       );
     }
   }

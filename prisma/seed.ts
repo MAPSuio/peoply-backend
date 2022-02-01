@@ -194,6 +194,17 @@ async function main() {
         attendance: true,
       },
     });
+
+    const testFavorites = await prisma.favorites.upsert({
+      where: {
+        event_id_user_id: { event_id: eventIDs[i], user_id: userIDs[i + 20] },
+      },
+      update: {},
+      create: {
+        event_id: eventIDs[i],
+        user_id: userIDs[i + 20],
+      },
+    });
   }
 
   /* add sample categories */

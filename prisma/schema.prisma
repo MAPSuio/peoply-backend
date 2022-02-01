@@ -34,6 +34,7 @@ model users {
   organization_roles user_organization_roles[]
   registrations      registrations[]
   provider_users     provider_users[]
+  favorites          favorites[]
 }
 
 model provider_users {
@@ -84,6 +85,7 @@ model events {
   event_arrangers  event_arrangers[]
   registrations    registrations[]
   event_categories event_categories[]
+  favorites        favorites[]
 }
 
 model event_arrangers {
@@ -118,7 +120,6 @@ enum reg_status {
   GOING
   NOT_GOING
   WAITLISTED
-  INTERESTED
 }
 
 model categories {
@@ -135,4 +136,14 @@ model event_categories {
 
 
   @@id([category_id, event_id])
+}
+
+model favorites {
+  user_id  String 
+  user     users  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  event_id String 
+  event    events @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+  favorite_date   DateTime   @default(now())
+
+  @@id([event_id, user_id])
 }
