@@ -1,8 +1,17 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString } from "class-validator";
+import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
+import { ToBoolean } from "../../../decorators/transformers";
 
 export class UpdateUserDto {
-  @IsString()
+  @ToBoolean()
+  @IsBoolean()
+  @IsOptional()
   @ApiProperty()
-  image: string;
+  removeImage?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @ApiProperty({ required: false })
+  description?: string;
 }

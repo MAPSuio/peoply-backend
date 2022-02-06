@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,7 +12,9 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import { AuthenticatedGuard } from "../auth/guards";
 import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
@@ -25,18 +28,70 @@ import {
 import { UserRegistrationService } from "../registrations/services";
 import { Response } from "express";
 import { UuidDto } from "../genericDTOs/uuid.dto";
+import { UpdateUserDto } from "./dto";
+import { UsersService } from "./users.service";
+import { UserDoesNotExistException } from "./exceptions";
+import { FileInterceptor } from "@nestjs/platform-express";
 
 @Controller("users")
 export class UsersController {
   constructor(
     private readonly userRegistrationService: UserRegistrationService,
     private readonly userFavoritesService: FavoritesService,
+    private readonly userService: UsersService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
     return req.user;
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @UseInterceptors(
+    FileInterceptor("profileImage", {
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
+          callback(
+            new BadRequestException("Only .jpeg and .png files are allowed!"),
+            false,
+          );
+        } else {
+          callback(null, true);
+        }
+      },
+      limits: {
+        // filesize limit 50 MB
+        fileSize: 50 * 1024 * 1024,
+      },
+    }),
+  )
+  @Patch("me")
+  async updateUser(
+    @Req() req: any,
+    @Body() data: UpdateUserDto,
+    @UploadedFile() profileImage?: Express.Multer.File,
+  ) {
+    const { user_id } = req.user;
+    return this.userService.update(user_id, data, profileImage);
+  }
+
+  @Get(":id")
+  async getUser(@Param("id") id: string) {
+    const user = await this.userService.findById(id);
+
+    if (!user) {
+      throw new UserDoesNotExistException(id);
+    }
+
+    /* extract non-sensitive data */
+    return (({ user_id, first_name, last_name, image, description }) => ({
+      user_id,
+      first_name,
+      last_name,
+      image,
+      description,
+    }))(user);
   }
 
   @UseGuards(AuthenticatedGuard)

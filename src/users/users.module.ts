@@ -4,9 +4,10 @@ import { UsersController } from "./users.controller";
 import { RegistrationsModule } from "../registrations/registrations.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { FavoritesModule } from "../favorites/favorites.module";
+import { AzureModule } from "../azure/azure.module";
 
 @Module({
-  imports: [RegistrationsModule, PrismaModule, FavoritesModule],
+  imports: [RegistrationsModule, PrismaModule, FavoritesModule, AzureModule],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

@@ -67,4 +67,8 @@ export class AzureStorageService
     await blockBlobClient.upload(file, file.length);
     return blockBlobClient.url;
   }
+
+  generateFileNameById(id: string, file: Express.Multer.File) {
+    return `${id}.${file.mimetype.split("/")[1]}`;
+  }
 }

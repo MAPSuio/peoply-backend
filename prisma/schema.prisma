@@ -31,6 +31,7 @@ model users {
   email              String                    @unique
   image              String?
   birth_date         DateTime?                 @db.Date
+  description        String?                   @db.VarChar(120)
   organization_roles user_organization_roles[]
   registrations      registrations[]
   provider_users     provider_users[]

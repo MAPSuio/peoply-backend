@@ -1,7 +1,7 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
 import { providers } from ".prisma/client";
 import { CreateUserDto, UpdateUserDto } from "./dto";
 import { PrismaError } from "../prisma/prisma.constants";
@@ -9,10 +9,15 @@ import {
   UserAlreadyExistsException,
   UserDoesNotExistException,
 } from "./exceptions";
+import { AzureStorageService } from "../azure/azure-storage.service";
+import { AzureStorageContainer } from "../azure/azure-storage.constants";
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly azureStorageService: AzureStorageService,
+  ) {}
 
   /* This will fail if uuid is a duplicate.
      Must be handled by the caller!
@@ -123,14 +128,67 @@ export class UsersService {
     return user?.user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    profileImage?: Express.Multer.File,
+  ) {
+    const getImageFileName = async () => {
+      /* cannot remove and add an image at the same time... */
+      if (updateUserDto.removeImage && profileImage) {
+        throw new HttpException(
+          { message: "The profile image must either be removed or added" },
+          409,
+        );
+      }
+      /* check if picture should be removed */
+      if (updateUserDto.removeImage && !profileImage) {
+        delete updateUserDto.removeImage; // must remove before inserting to db
+        return null;
+      } else if (profileImage) {
+        /* upload image to blob */
+        return await this.azureStorageService.upload(
+          this.azureStorageService.generateFileNameById(id, profileImage),
+          profileImage.buffer,
+          AzureStorageContainer.PROFILE_IMAGES,
+        );
+      } else {
+        /* do nothing if an image is not provided */
+        return undefined;
+      }
+    };
+
+    const imageFileName = await getImageFileName();
+
     try {
       return await this.prisma.users.update({
         where: { user_id: id },
-        data: updateUserDto,
+        data: {
+          ...(imageFileName !== undefined && {
+            image: imageFileName,
+          }),
+          ...updateUserDto,
+        },
       });
     } catch (error) {
-      throw new UserDoesNotExistException(id);
+      /* delete uploaded image if anything fails */
+      if (imageFileName) {
+        this.azureStorageService.delete(
+          imageFileName,
+          AzureStorageContainer.PROFILE_IMAGES,
+        );
+      }
+
+      if (error instanceof PrismaClientKnownRequestError) {
+        switch (error.code) {
+          case PrismaError.EntityNotFound:
+            throw new BadRequestException("No such user exists.");
+
+          default:
+            throw error;
+        }
+      }
+      throw error;
     }
   }
 
