@@ -38,6 +38,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.13.2",
     "cookie-parser": "^1.4.6",
+    "express": "^4.17.1",
     "express-session": "^1.17.2",
     "joi": "^17.5.0",
     "openid-client": "^5.1.0",

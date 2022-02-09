@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { reg_status } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { SearchEventRegistrationDto } from "../../events/dto";
 import { PrismaError } from "../../prisma/prisma.constants";
@@ -42,6 +43,15 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       },
       orderBy: {
         [orderBy]: orderDirection,
+      },
+    });
+  }
+
+  async findNumberAttending(event_id: string, reg_status: reg_status) {
+    return this.prismaService.registrations.count({
+      where: {
+        event_id: event_id,
+        reg_status: reg_status,
       },
     });
   }

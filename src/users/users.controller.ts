@@ -111,6 +111,32 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard)
+  @Get(":user_id/registrations/:event_id")
+  async getSingleRegistrations(
+    @Req() req: any,
+    @Query() query: SearchUserRegistrationDto,
+    @Param("user_id") user_id: string,
+    @Param("event_id") event_id: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (user_id === req.user.user_id) {
+      const registration = await this.userRegistrationService.findOne(
+        event_id,
+        user_id,
+      );
+      //the registration does not exist
+      if (!registration) {
+        res.status(HttpStatus.NO_CONTENT);
+      }
+      return registration;
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to see this users registrations",
+      );
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
   @Patch(":id/registrations")
   async updateRegistration(
     @Req() req: any,

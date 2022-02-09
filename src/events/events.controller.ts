@@ -131,4 +131,9 @@ export class EventsController {
   ) {
     return this.arrangerRegistrationServcice.findAll(query, id);
   }
+
+  @Get(":id/registrations/number-going")
+  async findNumberGoing(@Param("id") id: string) {
+    return this.arrangerRegistrationServcice.findNumberAttending(id, "GOING");
+  }
 }
