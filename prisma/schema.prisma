@@ -131,6 +131,7 @@ model Registration {
   attendance Boolean   @default(false)
 
   @@id([eventId, userId])
+  @@map("registrations")
 }
 
 enum RegStatus {
