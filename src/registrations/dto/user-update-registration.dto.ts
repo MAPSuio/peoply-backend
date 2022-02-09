@@ -1,4 +1,4 @@
-import { reg_status } from ".prisma/client";
+import { RegStatus } from ".prisma/client";
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEnum, IsNotEmpty, IsUUID } from "class-validator";
@@ -11,10 +11,10 @@ export class UserUpdateRegistrationDto extends PartialType(
   @IsNotEmpty()
   @IsUUID(4)
   @ApiProperty()
-  event_id: string;
+  eventId: string;
 
   @IsNotEmpty()
   @IsEnum(UserAllowedRegStatus)
   @ApiProperty()
-  reg_status: reg_status;
+  regStatus: RegStatus;
 }

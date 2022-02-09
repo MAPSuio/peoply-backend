@@ -14,30 +14,30 @@ export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createOrganizationDto: CreateOrganizationDto) {
-    const { org_nr } = createOrganizationDto;
+    const { orgNr } = createOrganizationDto;
 
     /* orgNr is unique */
-    const orgNrExists = await this.prisma.organizations.findUnique({
+    const orgNrExists = await this.prisma.organization.findUnique({
       where: {
-        org_nr,
+        orgNr,
       },
     });
 
-    const errors: { org_nr?: string } = {};
+    const errors: { orgNr?: string } = {};
 
     if (orgNrExists) {
-      errors.org_nr = "Organization number already exists";
+      errors.orgNr = "Organization number already exists";
       throw new OrganizationAlreadyExistsException(errors);
     } else {
-      const arrangerID = uuidv4();
+      const arrangerId = uuidv4();
 
       try {
         const [, newOrganization] = await this.prisma.$transaction([
-          this.prisma.arrangers.create({
-            data: { arranger_id: arrangerID, is_business: true },
+          this.prisma.arranger.create({
+            data: { id: arrangerId, isBusiness: true },
           }),
-          this.prisma.organizations.create({
-            data: { arranger_id: arrangerID, ...createOrganizationDto },
+          this.prisma.organization.create({
+            data: { arrangerId, ...createOrganizationDto },
           }),
         ]);
 
@@ -59,9 +59,9 @@ export class OrganizationsService {
 
   async findOne(id: string) {
     try {
-      return await this.prisma.organizations.findUnique({
+      return await this.prisma.organization.findUnique({
         where: {
-          organization_id: id,
+          id,
         },
       });
     } catch (error) {
@@ -75,8 +75,8 @@ export class OrganizationsService {
 
   async update(id: string, updateOrganizationDto: UpdateOrganizationDto) {
     try {
-      return await this.prisma.organizations.update({
-        where: { organization_id: id },
+      return await this.prisma.organization.update({
+        where: { id },
         data: updateOrganizationDto,
       });
     } catch (error) {
@@ -90,9 +90,9 @@ export class OrganizationsService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.organizations.delete({
+      return await this.prisma.organization.delete({
         where: {
-          organization_id: id,
+          id,
         },
       });
     } catch (error) {

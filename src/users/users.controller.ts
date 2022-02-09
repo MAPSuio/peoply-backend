@@ -32,6 +32,7 @@ import { UpdateUserDto } from "./dto";
 import { UsersService } from "./users.service";
 import { UserDoesNotExistException } from "./exceptions";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { User } from ".prisma/client";
 
 @Controller("users")
 export class UsersController {
@@ -72,8 +73,8 @@ export class UsersController {
     @Body() data: UpdateUserDto,
     @UploadedFile() profileImage?: Express.Multer.File,
   ) {
-    const { user_id } = req.user;
-    return this.userService.update(user_id, data, profileImage);
+    const user: User = req.user;
+    return this.userService.update(user.id, data, profileImage);
   }
 
   @Get(":id")
@@ -85,10 +86,10 @@ export class UsersController {
     }
 
     /* extract non-sensitive data */
-    return (({ user_id, first_name, last_name, image, description }) => ({
-      user_id,
-      first_name,
-      last_name,
+    return (({ id, firstName, lastName, image, description }) => ({
+      id,
+      firstName,
+      lastName,
       image,
       description,
     }))(user);
@@ -101,7 +102,8 @@ export class UsersController {
     @Query() query: SearchUserRegistrationDto,
     @Param("id") id: string,
   ) {
-    if (id === req.user.user_id) {
+    const user: User = req.user;
+    if (id === user.id) {
       return this.userRegistrationService.findAll(query, id);
     } else {
       throw new UnauthorizedException(
@@ -111,18 +113,19 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @Get(":user_id/registrations/:event_id")
+  @Get(":userId/registrations/:eventId")
   async getSingleRegistrations(
     @Req() req: any,
     @Query() query: SearchUserRegistrationDto,
-    @Param("user_id") user_id: string,
-    @Param("event_id") event_id: string,
+    @Param("userId") userId: string,
+    @Param("eventId") eventId: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (user_id === req.user.user_id) {
+    const user: User = req.user;
+    if (userId === user.id) {
       const registration = await this.userRegistrationService.findOne(
-        event_id,
-        user_id,
+        eventId,
+        userId,
       );
       //the registration does not exist
       if (!registration) {
@@ -143,7 +146,8 @@ export class UsersController {
     @Param("id") id: string,
     @Body() dto: UserUpdateRegistrationDto,
   ) {
-    if (id === req.user.user_id) {
+    const user: User = req.user;
+    if (id === user.id) {
       // TODO check if the event exists
       return this.userRegistrationService.update(id, dto);
     } else {
@@ -160,7 +164,8 @@ export class UsersController {
     @Param("id") id: string,
     @Body() dto: CreateRegistrationDto,
   ) {
-    if (id === req.user.user_id) {
+    const user: User = req.user;
+    if (id === user.id) {
       // TODO check if the event exists
       return this.userRegistrationService.create(id, dto);
     } else {
@@ -177,9 +182,10 @@ export class UsersController {
     @Param("id") id: string,
     @Body() dto: DeleteRegistrationDto,
   ) {
-    if (id === req.user.user_id) {
+    const user: User = req.user;
+    if (id === user.id) {
       // TODO check if the event exists
-      return this.userRegistrationService.remove(dto.event_id, id);
+      return this.userRegistrationService.remove(dto.eventId, id);
     } else {
       throw new UnauthorizedException(
         "You are not authorized to delete the registration for this user",
@@ -194,7 +200,8 @@ export class UsersController {
     @Param("id") id: string,
     @Body() dto: UuidDto,
   ) {
-    if (id === req.user.user_id) {
+    const user: User = req.user;
+    if (id === user.id) {
       return this.userFavoritesService.create(id, dto.id);
     } else {
       throw new UnauthorizedException(
@@ -210,7 +217,8 @@ export class UsersController {
     @Query() query: SearchFavoritesDto,
     @Param("id") id: string,
   ) {
-    if (id === req.user.user_id) {
+    const user: User = req.user;
+    if (id === user.id) {
       return this.userFavoritesService.findAll(query, id);
     } else {
       throw new UnauthorizedException(
@@ -220,18 +228,16 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @Get(":user_id/favorites/:event_id")
+  @Get(":userId/favorites/:eventId")
   async getSpecificFavorite(
     @Req() req: any,
-    @Param("user_id") user_id: string,
-    @Param("event_id") event_id: string,
+    @Param("userId") userId: string,
+    @Param("eventId") eventId: string,
     @Res({ passthrough: true }) res: Response, //passthrough is enabeled to allow both express and nestjs(next) handlers
   ) {
-    if (user_id === req.user.user_id) {
-      const favorite = await this.userFavoritesService.findOne(
-        user_id,
-        event_id,
-      );
+    const user: User = req.user;
+    if (userId === user.id) {
+      const favorite = await this.userFavoritesService.findOne(userId, eventId);
 
       if (!favorite) {
         res.status(HttpStatus.NO_CONTENT);
@@ -246,14 +252,15 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @Delete(":user_id/favorites")
+  @Delete(":userId/favorites")
   async deleteFavorite(
     @Req() req: any,
     @Body() dto: UuidDto,
-    @Param("user_id") user_id: string,
+    @Param("userId") userId: string,
   ) {
-    if (user_id === req.user.user_id) {
-      return await this.userFavoritesService.remove(req.user.user_id, dto.id);
+    const user: User = req.user;
+    if (userId === user.id) {
+      return await this.userFavoritesService.remove(userId, dto.id);
     } else {
       throw new UnauthorizedException(
         "You are not authorized to see delete this users registrations",

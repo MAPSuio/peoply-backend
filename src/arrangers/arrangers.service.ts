@@ -9,12 +9,12 @@ export class ArrangersService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async findAll() {
-    return await this.prismaService.arrangers.findMany();
+    return await this.prismaService.arranger.findMany();
   }
 
   async findOne(id: string) {
-    const arranger = await this.prismaService.arrangers.findUnique({
-      where: { arranger_id: id },
+    const arranger = await this.prismaService.arranger.findUnique({
+      where: { id: id },
     });
     if (!arranger) {
       throw new ArrangerNotFoundException(id);
@@ -24,8 +24,8 @@ export class ArrangersService {
 
   async remove(id: string) {
     try {
-      return await this.prismaService.arrangers.delete({
-        where: { arranger_id: id },
+      return await this.prismaService.arranger.delete({
+        where: { id: id },
       });
     } catch (error) {
       if (

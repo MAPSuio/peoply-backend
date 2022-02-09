@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "registrations" ALTER COLUMN "reg_date" SET DEFAULT CURRENT_TIMESTAMP,
-ALTER COLUMN "reg_status" SET DEFAULT E'INVITED',
-ALTER COLUMN "attendance" SET DEFAULT false;

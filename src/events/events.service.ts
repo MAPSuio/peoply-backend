@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
-import { event_arranger_roles } from ".prisma/client";
+import { EventArrangerRole } from ".prisma/client";
 import { ArrangersService } from "../arrangers/arrangers.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
@@ -21,12 +21,12 @@ export class EventsService {
 
   async create(
     createEventDto: CreateEventDto,
-    arranger_id: string,
+    arrangerId: string,
     eventImage?: Express.Multer.File,
   ) {
-    const arranger = await this.arrangersService.findOne(arranger_id);
+    const arranger = await this.arrangersService.findOne(arrangerId);
     if (!arranger) {
-      throw new ArrangerNotFoundException(arranger_id);
+      throw new ArrangerNotFoundException(arrangerId);
     }
 
     const eventId = uuidv4();
@@ -42,29 +42,29 @@ export class EventsService {
           )
         : null;
       const [event] = await this.prisma.$transaction([
-        this.prisma.events.create({
+        this.prisma.event.create({
           data: {
-            event_id: eventId,
+            id: eventId,
             description: createEventDto.description,
             title: createEventDto.title,
-            start_date: createEventDto.start_date,
-            end_date: createEventDto.end_date,
+            startDate: createEventDto.startDate,
+            endDate: createEventDto.endDate,
             capacity: createEventDto.capacity,
             private: createEventDto.private,
             image: imageUrl,
           },
         }),
-        this.prisma.event_arrangers.create({
+        this.prisma.eventArranger.create({
           data: {
-            role: event_arranger_roles.ADMIN,
-            arranger_id,
-            event_id: eventId,
+            role: EventArrangerRole.ADMIN,
+            arrangerId,
+            eventId,
           },
         }),
-        this.prisma.event_categories.createMany({
-          data: createEventDto.category_ids.map((category_id) => ({
-            category_id,
-            event_id: eventId,
+        this.prisma.eventCategory.createMany({
+          data: createEventDto.categoryIds.map((categoryId) => ({
+            categoryId,
+            eventId,
           })),
         }),
       ]);
@@ -82,7 +82,7 @@ export class EventsService {
 
           case PrismaError.DuplicateUniqueValue:
             throw new BadRequestException(
-              "Duplicate event id, or duplicates in category_ids",
+              "Duplicate event id, or duplicates in categoryIds",
             );
           default:
             throw error;
@@ -97,15 +97,15 @@ export class EventsService {
     searchProps: SearchEventDto = {},
     skip = 0,
     take = 10,
-    orderBy = "start_date",
+    orderBy = "startDate",
     orderDirection = "asc",
   ) {
-    return await this.prisma.events.findMany({
+    return await this.prisma.event.findMany({
       skip,
       take,
       where: {
-        event_numeric_id: searchProps.event_id,
-        start_date: {
+        numericId: searchProps.numericId,
+        startDate: {
           gte: searchProps.afterDate,
           lte: searchProps.beforeDate,
         },
@@ -117,22 +117,22 @@ export class EventsService {
         private: false,
 
         // find arranger if specified
-        // if not specified, but user is, then find arranger using user_id
-        // if not specified, but organization is, then find arranger using organization_id
-        event_arrangers:
-          searchProps.arranger_id ||
-          searchProps.user_id ||
-          searchProps.organization_id
+        // if not specified, but user is, then find arranger using userId
+        // if not specified, but organization is, then find arranger using organizationId
+        eventArrangers:
+          searchProps.arrangerId ||
+          searchProps.userId ||
+          searchProps.organizationId
             ? {
                 every: {
-                  arranger: searchProps.arranger_id
-                    ? { arranger_id: searchProps.arranger_id }
+                  arranger: searchProps.arrangerId
+                    ? { id: searchProps.arrangerId }
                     : {
-                        user: searchProps.user_id
-                          ? { user_id: searchProps.user_id }
+                        user: searchProps.userId
+                          ? { id: searchProps.userId }
                           : undefined,
-                        organization: searchProps.organization_id
-                          ? { organization_id: searchProps.organization_id }
+                        organization: searchProps.organizationId
+                          ? { id: searchProps.organizationId }
                           : undefined,
                       },
                 },
@@ -146,8 +146,8 @@ export class EventsService {
   }
 
   async findOne(id: number) {
-    const event = await this.prisma.events.findUnique({
-      where: { event_numeric_id: id },
+    const event = await this.prisma.event.findUnique({
+      where: { numericId: id },
     });
 
     if (!event) {
@@ -158,10 +158,10 @@ export class EventsService {
   }
 
   async findOneWithEventArrangers(id: number) {
-    const event = await this.prisma.events.findUnique({
-      where: { event_numeric_id: id },
+    const event = await this.prisma.event.findUnique({
+      where: { numericId: id },
       include: {
-        event_arrangers: true,
+        eventArrangers: true,
       },
     });
 
@@ -174,8 +174,8 @@ export class EventsService {
 
   async update(id: number, updateEventDto: UpdateEventDto) {
     try {
-      return await this.prisma.events.update({
-        where: { event_numeric_id: id },
+      return await this.prisma.event.update({
+        where: { numericId: id },
         data: { ...updateEventDto },
       });
     } catch (error) {
@@ -193,8 +193,8 @@ export class EventsService {
 
   async remove(id: number) {
     try {
-      return await this.prisma.events.delete({
-        where: { event_numeric_id: id },
+      return await this.prisma.event.delete({
+        where: { numericId: id },
       });
     } catch (error) {
       if (

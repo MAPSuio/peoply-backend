@@ -22,13 +22,13 @@ export class CreateEventDto {
   @IsNotEmpty()
   @MinDateString(new Date())
   @ApiProperty()
-  start_date: Date;
+  startDate: Date;
 
   @IsNotEmpty()
   @MaxDateString(new Date("2099-01-01T01:01:01.001Z"))
-  @IsLaterDateStringThan("start_date")
+  @IsLaterDateStringThan("startDate")
   @ApiProperty()
-  end_date: Date;
+  endDate: Date;
 
   @IsNotEmpty()
   @IsString()
@@ -59,5 +59,5 @@ export class CreateEventDto {
   @IsArray()
   @IsInt({ each: true })
   @ApiProperty({ type: [Number] })
-  category_ids: number[];
+  categoryIds: number[];
 }

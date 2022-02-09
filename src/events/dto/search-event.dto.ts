@@ -17,7 +17,7 @@ export class SearchEventDto {
   @IsInt()
   @Type(() => Number)
   @ApiProperty({ required: false })
-  event_id?: number;
+  numericId?: number;
 
   @IsOptional()
   @IsDateString()
@@ -50,17 +50,17 @@ export class SearchEventDto {
   @IsOptional()
   @IsUUID(4)
   @ApiProperty({ required: false })
-  user_id?: string;
+  userId?: string;
 
   @IsOptional()
   @IsUUID(4)
   @ApiProperty({ required: false })
-  organization_id?: string;
+  organizationId?: string;
 
   @IsOptional()
   @IsUUID(4)
   @ApiProperty({ required: false })
-  arranger_id?: string;
+  arrangerId?: string;
 
   @IsOptional()
   @IsInt()

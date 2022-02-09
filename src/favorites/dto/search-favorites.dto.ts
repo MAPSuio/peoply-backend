@@ -4,9 +4,9 @@ import { ToBoolean } from "../../../decorators/transformers";
 export class SearchFavoritesDto {
   @IsOptional()
   @IsUUID(4)
-  event_id: string;
+  eventId: string;
 
   @IsOptional()
   @ToBoolean()
-  include_event?: boolean;
+  includeEvent?: boolean;
 }

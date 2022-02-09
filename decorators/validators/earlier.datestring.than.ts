@@ -5,7 +5,7 @@ import {
 } from "class-validator";
 
 export function IsEarlierDateStringThan(
-  latest_date_variable_name: string,
+  latestDateVariableName: string,
   validationOptions?: ValidationOptions,
 ) {
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -14,18 +14,18 @@ export function IsEarlierDateStringThan(
       name: "IsEarlierDateStringThan",
       target: object.constructor,
       propertyName: propertyName,
-      constraints: [latest_date_variable_name],
+      constraints: [latestDateVariableName],
       options: validationOptions,
       validator: {
         validate(_value: any, args: ValidationArguments) {
-          const latest_date = (args.object as any)[latest_date_variable_name];
-          const earliest_date = args.value;
-          return new Date(latest_date) >= new Date(earliest_date);
+          const latestDate = (args.object as any)[latestDateVariableName];
+          const earliestDate = args.value;
+          return new Date(latestDate) >= new Date(earliestDate);
         },
         defaultMessage() {
           return (
             "This the date must be earlier than the date defined in the column '" +
-            latest_date_variable_name +
+            latestDateVariableName +
             "'"
           );
         },

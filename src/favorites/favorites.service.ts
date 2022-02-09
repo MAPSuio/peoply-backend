@@ -11,18 +11,18 @@ import { ForeignKeyNotFoundException } from "./exceptions/foreignKeyNotFound";
 export class FavoritesService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async create(user_id: string, event_id: string) {
+  async create(userId: string, eventId: string) {
     try {
-      const registration = await this.prismaService.favorites.create({
-        data: { event_id, user_id },
+      const registration = await this.prismaService.favorite.create({
+        data: { eventId, userId },
       });
       return registration;
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === PrismaError.DuplicateUniqueValue) {
-          throw new DuplicateFavoriteException(event_id, user_id);
+          throw new DuplicateFavoriteException(eventId, userId);
         } else if (error.code === PrismaError.ForeignKeyFailed) {
-          throw new ForeignKeyNotFoundException(event_id, user_id);
+          throw new ForeignKeyNotFoundException(eventId, userId);
         }
       }
       throw error;
@@ -31,20 +31,20 @@ export class FavoritesService {
 
   async findAll(
     searchProps: SearchFavoritesDto,
-    user_id: string,
+    userId: string,
     skip = 0,
     take = 10,
-    orderBy = "favorite_date",
+    orderBy = "favoritedDate",
     orderDirection = "asc",
   ) {
-    return await this.prismaService.favorites.findMany({
+    return await this.prismaService.favorite.findMany({
       skip,
       take,
       where: {
-        user_id: user_id,
+        userId,
       },
       include: {
-        event: new Boolean(searchProps.include_event).valueOf(),
+        event: new Boolean(searchProps.includeEvent).valueOf(),
       },
       orderBy: {
         [orderBy]: orderDirection,
@@ -52,26 +52,26 @@ export class FavoritesService {
     });
   }
 
-  async findOne(user_id: string, event_id: string) {
-    return await this.prismaService.favorites.findUnique({
+  async findOne(userId: string, eventId: string) {
+    return await this.prismaService.favorite.findUnique({
       where: {
-        event_id_user_id: { event_id: event_id, user_id: user_id },
+        eventId_userId: { eventId, userId },
       },
     });
   }
 
-  async remove(user_id: string, event_id: string) {
+  async remove(userId: string, eventId: string) {
     try {
-      return await this.prismaService.favorites.delete({
+      return await this.prismaService.favorite.delete({
         where: {
-          event_id_user_id: {
-            user_id: user_id,
-            event_id: event_id,
+          eventId_userId: {
+            userId,
+            eventId,
           },
         },
       });
     } catch (error) {
-      throw new FavoriteDoesNotExistException(user_id, event_id);
+      throw new FavoriteDoesNotExistException(userId, eventId);
     }
   }
 }

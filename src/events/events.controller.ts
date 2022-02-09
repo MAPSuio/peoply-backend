@@ -1,4 +1,4 @@
-import { event_arranger_roles, users } from ".prisma/client";
+import { EventArrangerRole, User } from ".prisma/client";
 import {
   BadRequestException,
   Body,
@@ -58,10 +58,10 @@ export class EventsController {
     @Body() createEventDto: CreateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
-    const user: users = req.user;
+    const user: User = req.user;
     return this.eventsService.create(
       createEventDto,
-      user.arranger_id,
+      user.arrangerId,
       eventImage,
     );
   }
@@ -93,9 +93,9 @@ export class EventsController {
     @Param("id") id: number,
     @Body() updateEventDto: UpdateEventDto,
   ) {
-    const user: users = req.user;
+    const user: User = req.user;
     const event = await this.eventsService.findOneWithEventArrangers(id);
-    if (event.event_arrangers.find((e) => e.arranger_id === user.arranger_id)) {
+    if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
       return this.eventsService.update(id, updateEventDto);
     } else {
       throw new UnauthorizedException(
@@ -107,13 +107,13 @@ export class EventsController {
   @UseGuards(AuthenticatedGuard)
   @Delete(":id")
   async remove(@Req() req: any, @Param("id") id: number) {
-    const user: users = req.user;
+    const user: User = req.user;
     const event = await this.eventsService.findOneWithEventArrangers(id);
     if (
-      event.event_arrangers.find(
+      event.eventArrangers.find(
         (e) =>
-          e.arranger_id === user.arranger_id &&
-          e.role === event_arranger_roles.ADMIN,
+          e.arrangerId === user.arrangerId &&
+          e.role === EventArrangerRole.ADMIN,
       )
     ) {
       return this.eventsService.remove(id);

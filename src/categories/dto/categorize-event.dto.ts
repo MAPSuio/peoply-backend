@@ -9,5 +9,5 @@ export class CategorizeEventDto {
 
   @IsUUID(4)
   @ApiProperty()
-  event_id: string;
+  eventId: string;
 }

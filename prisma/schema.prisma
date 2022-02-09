@@ -11,140 +11,163 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model organizations {
-  organization_id    String                    @id @default(uuid())
-  arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id], onDelete: Cascade)
-  arranger_id        String                    @unique
-  name               String
-  org_nr             String                    @unique @db.VarChar(9)
-  image              String?                   @db.VarChar(100)
-  organization_roles user_organization_roles[]
+model Organization {
+  id                String                 @id @default(uuid())
+  arranger          Arranger               @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  arrangerId        String                 @unique @map("arranger_id")
+  name              String
+  orgNr             String                 @unique @map("org_nr") @db.VarChar(9)
+  image             String?                @db.VarChar(100)
+  organizationRoles UserOrganizationRole[]
+
+  @@map("organizations")
 }
 
-model users {
-  user_id            String                    @id @default(uuid())
-  arranger           arrangers                 @relation(fields: [arranger_id], references: [arranger_id], onDelete: Cascade)
-  arranger_id        String                    @unique
-  phone              String                    @unique
-  first_name         String                    @db.VarChar(100)
-  last_name          String?
-  email              String                    @unique
-  image              String?
-  birth_date         DateTime?                 @db.Date
-  description        String?                   @db.VarChar(120)
-  organization_roles user_organization_roles[]
-  registrations      registrations[]
-  provider_users     provider_users[]
-  favorites          favorites[]
+model User {
+  id                String                 @id @default(uuid())
+  arranger          Arranger               @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  arrangerId        String                 @unique @map("arranger_id")
+  phone             String                 @unique
+  firstName         String                 @map("first_name") @db.VarChar(100)
+  lastName          String                 @map("last_name") @db.VarChar(100)
+  email             String                 @unique
+  image             String?
+  birthDate         DateTime?              @map("birth_date") @db.Date
+  description       String?                @db.VarChar(120)
+  organizationRoles UserOrganizationRole[]
+  registrations     Registration[]
+  providerUsers     ProviderUser[]
+  favorites         Favorite[]
+
+  @@map("users")
 }
 
-model provider_users {
-  provider_sub String
-  provider     providers
-  user_id      String
-  user         users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+model ProviderUser {
+  sub      String
+  provider Provider
+  id       String
+  user     User     @relation(fields: [id], references: [id], onDelete: Cascade)
 
-  @@id([provider_sub, provider])
+  @@id([sub, provider])
+  @@map("provider_users")
 }
 
-enum providers {
+enum Provider {
   VIPPS
+
+  @@map("providers")
 }
 
-model user_organization_roles {
-  organization_id String
-  user_id         String
-  organization    organizations      @relation(fields: [organization_id], references: [organization_id], onDelete: Cascade)
-  user            users              @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-  role            organization_roles
+model UserOrganizationRole {
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrganizationRole
 
-  @@id([organization_id, user_id])
+  @@id([organizationId, userId])
+  @@map("user_organization_roles")
 }
 
-enum organization_roles {
+enum OrganizationRole {
   ADMIN
+
+  @@map("organization_roles")
 }
 
-model arrangers {
-  arranger_id     String            @id @default(uuid())
-  is_business     Boolean
-  organization    organizations?
-  user            users?
-  event_arrangers event_arrangers[]
+model Arranger {
+  id             String          @id @default(uuid())
+  isBusiness     Boolean         @map("is_business")
+  organization   Organization?
+  user           User?
+  eventArrangers EventArranger[]
+
+  @@map("arrangers")
 }
 
-model events {
-  event_id         String             @id @default(uuid())
-  event_numeric_id Int                @unique @default(autoincrement())
-  start_date       DateTime
-  end_date         DateTime
-  title            String             @db.VarChar(150)
-  description      String
-  capacity         Int?
-  private          Boolean            @default(false)
-  image            String?            @unique
-  event_arrangers  event_arrangers[]
-  registrations    registrations[]
-  event_categories event_categories[]
-  favorites        favorites[]
+model Event {
+  id              String          @id @default(uuid())
+  numericId       Int             @unique @default(autoincrement()) @map("numeric_id")
+  startDate       DateTime        @map("start_date")
+  endDate         DateTime        @map("end_date")
+  title           String          @db.VarChar(150)
+  description     String
+  capacity        Int?
+  private         Boolean         @default(false)
+  image           String?         @unique
+  eventArrangers  EventArranger[]
+  registrations   Registration[]
+  eventCategories EventCategory[]
+  favorites       Favorite[]
+
+  @@map("events")
 }
 
-model event_arrangers {
-  event_id    String
-  event       events               @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
-  arranger_id String
-  arranger    arrangers            @relation(fields: [arranger_id], references: [arranger_id], onDelete: Cascade)
-  role        event_arranger_roles
+model EventArranger {
+  eventId    String            @map("event_id")
+  event      Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  arrangerId String            @map("arranger_id")
+  arranger   Arranger          @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  role       EventArrangerRole
 
-  @@id([event_id, arranger_id])
+  @@id([eventId, arrangerId])
+  @@map("event_arrangers")
 }
 
-enum event_arranger_roles {
+enum EventArrangerRole {
   ADMIN
   COLLABORATOR
+
+  @@map("event_arranger_roles")
 }
 
-model registrations {
-  event_id   String
-  event      events     @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
-  user_id    String
-  user       users      @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-  reg_date   DateTime   @default(now())
-  reg_status reg_status @default(INVITED)
-  attendance Boolean    @default(false)
+model Registration {
+  eventId    String    @map("event_id")
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regDate    DateTime  @default(now()) @map("reg_date")
+  regStatus  RegStatus @default(INVITED) @map("reg_status")
+  attendance Boolean   @default(false)
 
-  @@id([event_id, user_id])
+  @@id([eventId, userId])
 }
 
-enum reg_status {
+enum RegStatus {
   INVITED
   GOING
   NOT_GOING
   WAITLISTED
+
+  @@map("reg_statuses")
 }
 
-model categories {
-  category_id      Int                @id @default(autoincrement())
-  category         String             @unique
-  event_categories event_categories[]
+model Category {
+  id              Int             @id @default(autoincrement())
+  name            String          @unique
+  eventCategories EventCategory[]
+
+  @@map("categories")
 }
 
-model event_categories {
-  category_id Int
-  category    categories @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
-  event_id    String
-  event       events     @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
+model EventCategory {
+  categoryId Int      @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  eventId    String   @map("event_id")
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
 
-  @@id([category_id, event_id])
+  @@id([categoryId, eventId])
+  @@map("event_categories")
 }
 
-model favorites {
-  user_id  String 
-  user     users  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-  event_id String 
-  event    events @relation(fields: [event_id], references: [event_id], onDelete: Cascade)
-  favorite_date   DateTime   @default(now())
+model Favorite {
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId       String   @map("event_id")
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  favoritedDate DateTime @default(now()) @map("favorited_date")
 
-  @@id([event_id, user_id])
+  @@id([eventId, userId])
+  @@map("favorites")
 }

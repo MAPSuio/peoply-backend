@@ -4,5 +4,5 @@ import { IsUUID } from "class-validator";
 export class DeleteRegistrationDto {
   @IsUUID(4)
   @ApiProperty()
-  event_id: string;
+  eventId: string;
 }

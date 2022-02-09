@@ -2,7 +2,7 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
 import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
-import { providers } from ".prisma/client";
+import { Provider } from ".prisma/client";
 import { CreateUserDto, UpdateUserDto } from "./dto";
 import { PrismaError } from "../prisma/prisma.constants";
 import {
@@ -22,17 +22,17 @@ export class UsersService {
   /* This will fail if uuid is a duplicate.
      Must be handled by the caller!
   */
-  async create(createUserDto: CreateUserDto, provider: providers, sub: string) {
+  async create(createUserDto: CreateUserDto, provider: Provider, sub: string) {
     const { phone, email } = createUserDto;
 
     /* check that phone and email are unique */
-    const emailExists = await this.prisma.users.findUnique({
+    const emailExists = await this.prisma.user.findUnique({
       where: {
         email,
       },
     });
 
-    const phoneExists = await this.prisma.users.findUnique({
+    const phoneExists = await this.prisma.user.findUnique({
       where: {
         phone,
       },
@@ -51,26 +51,26 @@ export class UsersService {
     if (emailExists || phoneExists) {
       throw new UserAlreadyExistsException(errors);
     } else {
-      const arrangerID = uuidv4();
-      const userID = uuidv4();
+      const arrangerId = uuidv4();
+      const userId = uuidv4();
 
       try {
         const [, newUser] = await this.prisma.$transaction([
-          this.prisma.arrangers.create({
-            data: { arranger_id: arrangerID, is_business: false },
+          this.prisma.arranger.create({
+            data: { id: arrangerId, isBusiness: false },
           }),
-          this.prisma.users.create({
+          this.prisma.user.create({
             data: {
               ...createUserDto,
-              arranger_id: arrangerID,
-              user_id: userID,
+              arrangerId,
+              id: userId,
             },
           }),
-          this.prisma.provider_users.create({
+          this.prisma.providerUser.create({
             data: {
               provider: provider,
-              provider_sub: sub,
-              user_id: userID,
+              sub: sub,
+              id: userId,
             },
           }),
         ]);
@@ -94,30 +94,30 @@ export class UsersService {
   }
 
   async findById(id: string) {
-    const user = await this.prisma.users.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: {
-        user_id: id,
+        id,
       },
     });
     return user;
   }
 
   async findByPhone(phone: string) {
-    const user = await this.prisma.users.findUnique({ where: { phone } });
+    const user = await this.prisma.user.findUnique({ where: { phone } });
     return user;
   }
 
   async findByEmail(email: string) {
-    const user = await this.prisma.users.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({ where: { email } });
     return user;
   }
 
-  async findByProviderSub(provider: providers, sub: string) {
-    const user = await this.prisma.provider_users.findUnique({
+  async findByProviderSub(provider: Provider, sub: string) {
+    const user = await this.prisma.providerUser.findUnique({
       where: {
-        provider_sub_provider: {
+        sub_provider: {
           provider,
-          provider_sub: sub,
+          sub: sub,
         },
       },
       select: {
@@ -161,8 +161,8 @@ export class UsersService {
     const imageFileName = await getImageFileName();
 
     try {
-      return await this.prisma.users.update({
-        where: { user_id: id },
+      return await this.prisma.user.update({
+        where: { id },
         data: {
           ...(imageFileName !== undefined && {
             image: imageFileName,
@@ -194,9 +194,9 @@ export class UsersService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.users.delete({
+      return await this.prisma.user.delete({
         where: {
-          user_id: id,
+          id,
         },
       });
     } catch (error) {

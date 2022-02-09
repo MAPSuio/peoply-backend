@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { reg_status } from ".prisma/client";
+import { RegStatus } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { SearchEventRegistrationDto } from "../../events/dto";
 import { PrismaError } from "../../prisma/prisma.constants";
@@ -16,26 +16,26 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
 
   async findAll(
     searchProps: SearchEventRegistrationDto,
-    event_id: string,
+    eventId: string,
     skip = 0,
     take = 10,
-    orderBy = "reg_date",
+    orderBy = "regDate",
     orderDirection = "asc",
   ) {
-    return await this.prismaService.registrations.findMany({
+    return await this.prismaService.registration.findMany({
       skip,
       take,
       where: {
-        event_id: event_id,
-        reg_status: searchProps.reg_status,
+        eventId,
+        regStatus: searchProps.regStatus,
         attendance: searchProps.attendance,
       },
       include: {
-        user: new Boolean(searchProps.include_users).valueOf()
+        user: new Boolean(searchProps.includeUsers).valueOf()
           ? {
               select: {
-                first_name: true,
-                last_name: true,
+                firstName: true,
+                lastName: true,
                 image: true,
               },
             }
@@ -47,31 +47,31 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     });
   }
 
-  async findNumberAttending(event_id: string, reg_status: reg_status) {
-    return this.prismaService.registrations.count({
+  async findNumberAttending(eventId: string, regStatus: RegStatus) {
+    return this.prismaService.registration.count({
       where: {
-        event_id: event_id,
-        reg_status: reg_status,
+        eventId,
+        regStatus,
       },
     });
   }
 
   async update(
-    event_id: string,
-    user_id: string,
+    eventId: string,
+    userId: string,
     arrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
   ) {
     try {
-      return await this.prismaService.registrations.update({
-        where: { event_id_user_id: { event_id: event_id, user_id: user_id } },
-        data: { ...arrangerUpdateRegistrationDto, event_id },
+      return await this.prismaService.registration.update({
+        where: { eventId_userId: { eventId, userId } },
+        data: { ...arrangerUpdateRegistrationDto, eventId },
       });
     } catch (error) {
       if (
         error instanceof PrismaClientKnownRequestError &&
         error.code === PrismaError.EntityNotFound
       ) {
-        throw new RegistrationNotFoundException(event_id, user_id);
+        throw new RegistrationNotFoundException(eventId, userId);
       } else {
         throw error;
       }

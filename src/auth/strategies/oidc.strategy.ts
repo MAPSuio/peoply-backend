@@ -2,7 +2,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import { providers } from ".prisma/client";
+import { Provider } from ".prisma/client";
 import {
   Strategy,
   Client,
@@ -53,19 +53,19 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
     const {
       email,
       phone_number: phone,
-      given_name: first_name,
-      family_name: last_name,
-      birthdate: birth_date,
+      given_name: firstName,
+      family_name: lastName,
+      birthdate: birthDate,
       address,
     } = userinfo;
 
-    if (!(email && phone && first_name && last_name && birth_date && address)) {
+    if (!(email && phone && firstName && lastName && birthDate && address)) {
       throw new UnauthorizedException("Missing user info");
     }
 
     /* check if user exists */
     const user = await this.userService.findByProviderSub(
-      providers.VIPPS,
+      Provider.VIPPS,
       userinfo.sub,
     );
 
@@ -78,11 +78,11 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
         {
           email,
           phone,
-          first_name,
-          last_name,
-          birth_date: new Date(birth_date).toISOString(),
+          firstName,
+          lastName,
+          birthDate: new Date(birthDate).toISOString(),
         },
-        providers.VIPPS,
+        Provider.VIPPS,
         userinfo.sub,
       );
 

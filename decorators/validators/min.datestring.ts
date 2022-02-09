@@ -5,7 +5,7 @@ import {
 } from "class-validator";
 
 export function MinDateString(
-  min_time: Date,
+  minTime: Date,
   validationOptions?: ValidationOptions,
 ) {
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -17,10 +17,10 @@ export function MinDateString(
       options: validationOptions,
       validator: {
         validate(_value: any, args: ValidationArguments) {
-          return min_time < new Date(args.value);
+          return minTime < new Date(args.value);
         },
         defaultMessage() {
-          return "The date is too early. The date has to be after " + min_time;
+          return "The date is too early. The date has to be after " + minTime;
         },
       },
     });

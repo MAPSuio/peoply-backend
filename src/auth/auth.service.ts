@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
-import { users } from ".prisma/client";
+import { User } from ".prisma/client";
 import { CookieOptions } from "express";
 
 @Injectable()
@@ -22,13 +22,13 @@ export class AuthService {
     secure: true,
   };
 
-  getAccessToken(user: users) {
-    const payload = { sub: user.user_id };
+  getAccessToken(user: User) {
+    const payload = { sub: user.id };
     return this.jwtService.sign(payload); // configured in AuthModule
   }
 
-  getRefreshToken(user: users) {
-    const payload = { sub: user.user_id };
+  getRefreshToken(user: User) {
+    const payload = { sub: user.id };
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>("JWT_REFRESH_TOKEN_SECRET"),
       expiresIn: `${this.configService.get<number>(

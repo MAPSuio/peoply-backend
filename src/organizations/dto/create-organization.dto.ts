@@ -10,7 +10,7 @@ export class CreateOrganizationDto {
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
-  org_nr: string;
+  orgNr: string;
 
   @IsOptional()
   @IsString()

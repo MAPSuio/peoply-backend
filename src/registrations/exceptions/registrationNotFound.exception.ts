@@ -1,9 +1,9 @@
 import { NotFoundException } from "@nestjs/common";
 
 export class RegistrationNotFoundException extends NotFoundException {
-  constructor(event_id: string, user_id: string) {
+  constructor(eventId: string, userId: string) {
     super(
-      `No event with combination of event_id ${event_id} and user_id ${user_id}  exists`,
+      `No event with combination of eventId ${eventId} and userId ${userId}  exists`,
     );
   }
 }

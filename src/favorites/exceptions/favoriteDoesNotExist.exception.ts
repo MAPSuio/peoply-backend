@@ -1,9 +1,9 @@
 import { NotFoundException } from "@nestjs/common";
 
 export class FavoriteDoesNotExistException extends NotFoundException {
-  constructor(user_id: string, event_id: string) {
+  constructor(userId: string, eventId: string) {
     super({
-      message: `No favorite with user_id ${user_id} has event ${event_id} as a favorite`,
+      message: `No favorite with userId ${userId} has event ${eventId} as a favorite`,
     });
   }
 }

@@ -1,8 +1,8 @@
 import {
   PrismaClient,
-  event_arranger_roles,
-  organization_roles,
-  reg_status,
+  EventArrangerRole,
+  OrganizationRole,
+  RegStatus,
 } from ".prisma/client";
 import {
   arrangerIDs,
@@ -28,107 +28,107 @@ const prisma = new PrismaClient();
 
 async function main() {
   for (let i = 0; i < 10; i++) {
-    const testArranger1 = await prisma.arrangers.upsert({
+    const testArranger1 = await prisma.arranger.upsert({
       where: {
-        arranger_id: arrangerIDs[i],
+        id: arrangerIDs[i],
       },
       update: {},
       create: {
-        arranger_id: arrangerIDs[i],
-        is_business: true,
+        id: arrangerIDs[i],
+        isBusiness: true,
       },
     });
-    const testArranger2 = await prisma.arrangers.upsert({
+    const testArranger2 = await prisma.arranger.upsert({
       where: {
-        arranger_id: arrangerIDs[i + 10],
+        id: arrangerIDs[i + 10],
       },
       update: {},
       create: {
-        arranger_id: arrangerIDs[i + 10],
-        is_business: false,
+        id: arrangerIDs[i + 10],
+        isBusiness: false,
       },
     });
-    const testArranger3 = await prisma.arrangers.upsert({
+    const testArranger3 = await prisma.arranger.upsert({
       where: {
-        arranger_id: arrangerIDs[i + 20],
+        id: arrangerIDs[i + 20],
       },
       update: {},
       create: {
-        arranger_id: arrangerIDs[i + 20],
-        is_business: false,
+        id: arrangerIDs[i + 20],
+        isBusiness: false,
       },
     });
 
-    const testUser1 = await prisma.users.upsert({
+    const testUser1 = await prisma.user.upsert({
       where: {
-        user_id: userIDs[i],
+        id: userIDs[i],
       },
       update: {},
       create: {
-        user_id: userIDs[i],
-        arranger_id: arrangerIDs[i],
+        id: userIDs[i],
+        arrangerId: arrangerIDs[i],
         phone: phoneNumbers[i],
-        first_name: firstNames[i],
-        last_name: lastNames[i],
+        firstName: firstNames[i],
+        lastName: lastNames[i],
         email: emails[i],
-        birth_date: birthDates[i],
+        birthDate: birthDates[i],
       },
     });
 
-    const testUser2 = await prisma.users.upsert({
+    const testUser2 = await prisma.user.upsert({
       where: {
-        user_id: userIDs[i + 10],
+        id: userIDs[i + 10],
       },
       update: {},
       create: {
-        user_id: userIDs[i + 10],
-        arranger_id: arrangerIDs[i + 10],
+        id: userIDs[i + 10],
+        arrangerId: arrangerIDs[i + 10],
         phone: phoneNumbers[i + 10],
-        first_name: firstNames[i + 10],
-        last_name: lastNames[i + 10],
+        firstName: firstNames[i + 10],
+        lastName: lastNames[i + 10],
         email: emails[i + 10],
-        birth_date: birthDates[i],
+        birthDate: birthDates[i],
       },
     });
 
-    const testUser3 = await prisma.users.upsert({
+    const testUser3 = await prisma.user.upsert({
       where: {
-        user_id: userIDs[i + 20],
+        id: userIDs[i + 20],
       },
       update: {},
       create: {
-        user_id: userIDs[i + 20],
-        arranger_id: arrangerIDs[i + 20],
+        id: userIDs[i + 20],
+        arrangerId: arrangerIDs[i + 20],
         phone: phoneNumbers[i + 20],
-        first_name: firstNames[i + 20],
-        last_name: lastNames[i + 20],
+        firstName: firstNames[i + 20],
+        lastName: lastNames[i + 20],
         email: emails[i + 20],
-        birth_date: birthDates[i],
+        birthDate: birthDates[i],
       },
     });
 
-    const testOrganization = await prisma.organizations.upsert({
+    const testOrganization = await prisma.organization.upsert({
       where: {
-        organization_id: organisationIDs[i],
+        id: organisationIDs[i],
       },
       update: {},
       create: {
-        organization_id: organisationIDs[i],
-        arranger_id: arrangerIDs[i],
+        id: organisationIDs[i],
+        arrangerId: arrangerIDs[i],
         name: companyNames[i],
-        org_nr: organisationNumbers[i],
+        orgNr: organisationNumbers[i],
       },
     });
 
-    const testEvents = await prisma.events.upsert({
+    const testEvents = await prisma.event.upsert({
       where: {
-        event_id: eventIDs[i],
+        id: eventIDs[i],
       },
       update: {},
       create: {
-        event_id: eventIDs[i],
-        start_date: startDates[i],
-        end_date: endDates[i],
+        id: eventIDs[i],
+        startDate: startDates[i],
+        endDate: endDates[i],
         title: eventNames[i],
         description: eventDescriptions[i],
         capacity: capacities[i],
@@ -136,89 +136,88 @@ async function main() {
       },
     });
 
-    const testEventArrangers = await prisma.event_arrangers.upsert({
+    const testEventArrangers = await prisma.eventArranger.upsert({
       where: {
-        event_id_arranger_id: {
-          event_id: eventIDs[i],
-          arranger_id: arrangerIDs[i],
+        eventId_arrangerId: {
+          eventId: eventIDs[i],
+          arrangerId: arrangerIDs[i],
         },
       },
       update: {},
       create: {
-        event_id: eventIDs[i],
-        arranger_id: arrangerIDs[i],
-        role: event_arranger_roles.ADMIN,
+        eventId: eventIDs[i],
+        arrangerId: arrangerIDs[i],
+        role: EventArrangerRole.ADMIN,
       },
     });
 
-    const testUserOrganizationRoles =
-      await prisma.user_organization_roles.upsert({
-        where: {
-          organization_id_user_id: {
-            organization_id: organisationIDs[i],
-            user_id: userIDs[i],
-          },
-        },
-        update: {},
-        create: {
-          organization_id: organisationIDs[i],
-          user_id: userIDs[i],
-          role: organization_roles.ADMIN,
-        },
-      });
-
-    const testRegistrations1 = await prisma.registrations.upsert({
+    const testUserOrganizationRoles = await prisma.userOrganizationRole.upsert({
       where: {
-        event_id_user_id: { event_id: eventIDs[i], user_id: userIDs[i + 10] },
+        organizationId_userId: {
+          organizationId: organisationIDs[i],
+          userId: userIDs[i],
+        },
       },
       update: {},
       create: {
-        event_id: eventIDs[i],
-        user_id: userIDs[i + 10],
-        reg_date: regDates[i],
-        reg_status: reg_status.INVITED,
+        organizationId: organisationIDs[i],
+        userId: userIDs[i],
+        role: OrganizationRole.ADMIN,
+      },
+    });
+
+    const testRegistrations1 = await prisma.registration.upsert({
+      where: {
+        eventId_userId: { eventId: eventIDs[i], userId: userIDs[i + 10] },
+      },
+      update: {},
+      create: {
+        eventId: eventIDs[i],
+        userId: userIDs[i + 10],
+        regDate: regDates[i],
+        regStatus: RegStatus.INVITED,
         attendance: true,
       },
     });
 
-    const testRegistrations2 = await prisma.registrations.upsert({
+    const testRegistrations2 = await prisma.registration.upsert({
       where: {
-        event_id_user_id: { event_id: eventIDs[i], user_id: userIDs[i + 20] },
+        eventId_userId: { eventId: eventIDs[i], userId: userIDs[i + 20] },
       },
       update: {},
       create: {
-        event_id: eventIDs[i],
-        user_id: userIDs[i + 20],
-        reg_date: regDates[i],
-        reg_status: reg_status.GOING,
+        eventId: eventIDs[i],
+        userId: userIDs[i + 20],
+        regDate: regDates[i],
+        regStatus: RegStatus.GOING,
         attendance: true,
       },
     });
 
-    const testFavorites = await prisma.favorites.upsert({
+    const testFavorites = await prisma.favorite.upsert({
       where: {
-        event_id_user_id: { event_id: eventIDs[i], user_id: userIDs[i + 20] },
+        eventId_userId: { eventId: eventIDs[i], userId: userIDs[i + 20] },
       },
       update: {},
       create: {
-        event_id: eventIDs[i],
-        user_id: userIDs[i + 20],
+        eventId: eventIDs[i],
+        userId: userIDs[i + 20],
       },
     });
   }
 
   /* add sample categories */
-  await prisma.categories.createMany({
+  await prisma.category.createMany({
     data: [
-      { category: "matservering" },
-      { category: "alkohol" },
-      { category: "dansing" },
-      { category: "LGBTQ" },
-      { category: "rave" },
-      { category: "utendørs" },
-      { category: "eksklusivt" },
-      { category: "kultur" },
-      { category: "bedpress" },
+      { name: "matservering" },
+      { name: "alkohol" },
+      { name: "dansing" },
+      { name: "LGBTQ" },
+      { name: "rave" },
+      { name: "utendørs" },
+      { name: "eksklusivt" },
+      { name: "kultur" },
+      { name: "bedpress" },
     ],
   });
 }

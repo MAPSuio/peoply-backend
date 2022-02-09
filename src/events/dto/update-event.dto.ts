@@ -36,11 +36,11 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @IsNotEmpty()
   @IsDateString()
   @ApiProperty()
-  start_date: Date;
+  startDate: Date;
 
   @IsNotEmpty()
   @IsDateString()
-  @IsLaterDateStringThan("start_date")
+  @IsLaterDateStringThan("startDate")
   @ApiProperty()
-  end_date: Date;
+  endDate: Date;
 }

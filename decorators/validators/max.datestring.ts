@@ -5,7 +5,7 @@ import {
 } from "class-validator";
 
 export function MaxDateString(
-  max_time: Date,
+  maxTime: Date,
   validationOptions?: ValidationOptions,
 ) {
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -17,10 +17,10 @@ export function MaxDateString(
       options: validationOptions,
       validator: {
         validate(_value: any, args: ValidationArguments) {
-          return max_time > new Date(args.value);
+          return maxTime > new Date(args.value);
         },
         defaultMessage() {
-          return "The date is too late. The date has to be before " + max_time;
+          return "The date is too late. The date has to be before " + maxTime;
         },
       },
     });
