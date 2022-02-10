@@ -3,13 +3,13 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
 import { EventArrangerRole } from ".prisma/client";
-import { ArrangersService } from "../arrangers/arrangers.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
 import { EventNotFoundException } from "./exceptions";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
+import { ArrangersService } from "../arrangers/services";
 
 @Injectable()
 export class EventsService {

@@ -33,6 +33,7 @@ import { UsersService } from "./users.service";
 import { UserDoesNotExistException } from "./exceptions";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { User } from ".prisma/client";
+import { EventArrangersService } from "../arrangers/services";
 
 @Controller("users")
 export class UsersController {
@@ -40,6 +41,7 @@ export class UsersController {
     private readonly userRegistrationService: UserRegistrationService,
     private readonly userFavoritesService: FavoritesService,
     private readonly userService: UsersService,
+    private readonly eventArrangersService: EventArrangersService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -264,6 +266,19 @@ export class UsersController {
     } else {
       throw new UnauthorizedException(
         "You are not authorized to see delete this users registrations",
+      );
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get(":userId/arranging")
+  async getArrangedEvents(@Req() req: any, @Param("userId") id: string) {
+    const user: User = req.user;
+    if (id === user.id) {
+      return this.eventArrangersService.findAllWithEvents(user.arrangerId);
+    } else {
+      throw new UnauthorizedException(
+        "You are not authorized to see what this arranger is arranging",
       );
     }
   }
