@@ -3,7 +3,7 @@ name: D.I.C
 on:
   pull_request:
     branches:
-      - cleanup/imports
+      - testing/Introduce_unit_testing
 
 env:
   WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
