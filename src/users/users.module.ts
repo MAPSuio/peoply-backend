@@ -6,6 +6,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { FavoritesModule } from "../favorites/favorites.module";
 import { AzureModule } from "../azure/azure.module";
 import { ArrangersModule } from "../arrangers/arrangers.module";
+import { OrganizationsModule } from "../organizations/organizations.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ArrangersModule } from "../arrangers/arrangers.module";
     FavoritesModule,
     AzureModule,
     ArrangersModule,
+    OrganizationsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

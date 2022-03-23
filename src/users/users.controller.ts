@@ -34,7 +34,7 @@ import { UserDoesNotExistException } from "./exceptions";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { User } from ".prisma/client";
 import { EventArrangersService } from "../arrangers/services";
-
+import { OrganizationsService } from "../organizations/organizations.service";
 @Controller("users")
 export class UsersController {
   constructor(
@@ -42,6 +42,7 @@ export class UsersController {
     private readonly userFavoritesService: FavoritesService,
     private readonly userService: UsersService,
     private readonly eventArrangersService: EventArrangersService,
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -280,6 +281,20 @@ export class UsersController {
       throw new UnauthorizedException(
         "You are not authorized to see what this arranger is arranging",
       );
+    }
+  }
+  @UseGuards(AuthenticatedGuard)
+  @Get(":userId/organizations")
+  async getOrganizations(@Req() req: any, @Param("userId") userId: string) {
+    /* gets all orgs that user is admin for
+    Args:
+      userId: id of user
+    Returns:
+      list of orgs
+    */
+    const user: User = req.user;
+    if (userId === user.id) {
+      return this.organizationsService.findOrgsByUserIdAndRole(user.id);
     }
   }
 }

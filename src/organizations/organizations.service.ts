@@ -8,6 +8,7 @@ import {
   OrganizationAlreadyExistsException,
   OrganizationDoesNotExistException,
 } from "./exceptions";
+import { OrganizationRole } from "@prisma/client";
 
 @Injectable()
 export class OrganizationsService {
@@ -100,6 +101,35 @@ export class OrganizationsService {
         throw new OrganizationDoesNotExistException(id);
       }
 
+      throw error;
+    }
+  }
+
+  async findOrgsByUserIdAndRole(userId: string, role?: OrganizationRole) {
+    /* Find all orgs a user has access to
+
+    Args:
+      userId - users id
+      role - role in org
+
+    Returns: 
+      list of org - List<model Organization>
+    */
+    try {
+      let args;
+      if (role === undefined) {
+        args = { userId: userId };
+      } else {
+        args = { userId: userId, role: role };
+      }
+      return await this.prisma.organization.findMany({
+        where: {
+          organizationRoles: {
+            some: args,
+          },
+        },
+      });
+    } catch (error) {
       throw error;
     }
   }
