@@ -93,7 +93,7 @@ model Event {
   title           String          @db.VarChar(150)
   description     String
   capacity        Int?
-  private         Boolean         @default(false)
+  visibility      Visibility      
   image           String?         @unique
   eventArrangers  EventArranger[]
   registrations   Registration[]
@@ -101,6 +101,14 @@ model Event {
   favorites       Favorite[]
 
   @@map("events")
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+  
+  @@map("visibility")
 }
 
 model EventArranger {

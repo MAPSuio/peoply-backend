@@ -79,8 +79,6 @@ export class EventsController {
     );
   }
 
-  // TODO: Should add a guard that gets the user, but is undefined if not logged in
-  // for private events
   @Get(":id")
   async findOne(@Param("id") id: number) {
     return this.eventsService.findOne(id);
@@ -94,7 +92,8 @@ export class EventsController {
     @Body() updateEventDto: UpdateEventDto,
   ) {
     const user: User = req.user;
-    const event = await this.eventsService.findOneWithEventArrangers(id);
+    const event = await this.eventsService.findOneWithArrangers(id);
+
     if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
       return this.eventsService.update(id, updateEventDto);
     } else {
@@ -108,7 +107,7 @@ export class EventsController {
   @Delete(":id")
   async remove(@Req() req: any, @Param("id") id: number) {
     const user: User = req.user;
-    const event = await this.eventsService.findOneWithEventArrangers(id);
+    const event = await this.eventsService.findOneWithArrangers(id);
     if (
       event.eventArrangers.find(
         (e) =>

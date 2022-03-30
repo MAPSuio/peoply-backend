@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
-import { EventArrangerRole } from ".prisma/client";
+import { EventArrangerRole, Visibility } from ".prisma/client";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
@@ -33,6 +33,7 @@ export class EventsService {
     const eventImageFileName = `${eventId}.${
       eventImage?.mimetype.split("/")[1]
     }`;
+
     try {
       const imageUrl = eventImage
         ? await this.azureStorageService.upload(
@@ -50,7 +51,7 @@ export class EventsService {
             startDate: createEventDto.startDate,
             endDate: createEventDto.endDate,
             capacity: createEventDto.capacity,
-            private: createEventDto.private,
+            visibility: createEventDto.visibility,
             image: imageUrl,
           },
         }),
@@ -114,7 +115,7 @@ export class EventsService {
           ? { search: searchProps.description }
           : undefined,
         capacity: searchProps.capacity,
-        private: false,
+        visibility: Visibility.PUBLIC,
 
         // find arranger if specified
         // if not specified, but user is, then find arranger using userId
@@ -157,7 +158,7 @@ export class EventsService {
     }
   }
 
-  async findOneWithEventArrangers(id: number) {
+  async findOneWithArrangers(id: number) {
     const event = await this.prisma.event.findUnique({
       where: { numericId: id },
       include: {

@@ -22,6 +22,10 @@ export class AuthService {
     secure: true,
   };
 
+  validateJWT(token: string) {
+    return this.jwtService.verify(token);
+  }
+
   getAccessToken(user: User) {
     const payload = { sub: user.id };
     return this.jwtService.sign(payload); // configured in AuthModule

@@ -1,8 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Visibility } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
-  IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -10,7 +11,6 @@ import {
   IsString,
   MinLength,
 } from "class-validator";
-import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import {
   IsLaterDateStringThan,
@@ -49,15 +49,13 @@ export class CreateEventDto {
   capacity?: number;
 
   @IsNotEmpty()
-  @ToBoolean()
-  @IsBoolean()
-  @ApiProperty()
-  private?: boolean;
-
-  @IsNotEmpty()
   @ToArray({ type: "int" })
   @IsArray()
   @IsInt({ each: true })
   @ApiProperty({ type: [Number] })
   categoryIds: number[];
+
+  @IsNotEmpty()
+  @IsEnum(Visibility)
+  visibility: Visibility;
 }

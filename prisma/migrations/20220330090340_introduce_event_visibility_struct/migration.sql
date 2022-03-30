@@ -5,6 +5,9 @@ CREATE TYPE "providers" AS ENUM ('VIPPS');
 CREATE TYPE "organization_roles" AS ENUM ('ADMIN');
 
 -- CreateEnum
+CREATE TYPE "visibility" AS ENUM ('PUBLIC', 'PRIVATE', 'UNLISTED');
+
+-- CreateEnum
 CREATE TYPE "event_arranger_roles" AS ENUM ('ADMIN', 'COLLABORATOR');
 
 -- CreateEnum
@@ -71,7 +74,7 @@ CREATE TABLE "events" (
     "title" VARCHAR(150) NOT NULL,
     "description" TEXT NOT NULL,
     "capacity" INTEGER,
-    "private" BOOLEAN NOT NULL DEFAULT false,
+    "visibility" "visibility" NOT NULL,
     "image" TEXT,
 
     CONSTRAINT "events_pkey" PRIMARY KEY ("id")

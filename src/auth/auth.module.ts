@@ -53,5 +53,6 @@ const OidcStrategyFactory = {
     AccessStrategy,
     RefreshStrategy,
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}

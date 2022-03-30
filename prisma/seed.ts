@@ -3,6 +3,7 @@ import {
   EventArrangerRole,
   OrganizationRole,
   RegStatus,
+  Visibility,
 } from ".prisma/client";
 import {
   arrangerIDs,
@@ -120,6 +121,11 @@ async function main() {
       },
     });
 
+    let visibility: Visibility = Visibility.PUBLIC;
+    if (i % 2 === 0) {
+      visibility = Visibility.UNLISTED;
+    }
+
     const testEvents = await prisma.event.upsert({
       where: {
         id: eventIDs[i],
@@ -132,7 +138,7 @@ async function main() {
         title: eventNames[i],
         description: eventDescriptions[i],
         capacity: capacities[i],
-        private: i % 2 === 0,
+        visibility: visibility,
       },
     });
 
