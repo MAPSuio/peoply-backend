@@ -174,9 +174,7 @@ async function main() {
       create: {
         eventId: eventIDs[i],
         userId: userIDs[i + 10],
-        regDate: regDates[i],
         regStatus: RegStatus.INVITED,
-        attendance: true,
       },
     });
 
@@ -188,9 +186,7 @@ async function main() {
       create: {
         eventId: eventIDs[i],
         userId: userIDs[i + 20],
-        regDate: regDates[i],
         regStatus: RegStatus.GOING,
-        attendance: true,
       },
     });
 

@@ -28,7 +28,6 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       where: {
         eventId,
         regStatus: searchProps.regStatus,
-        attendance: searchProps.attendance,
       },
       include: {
         user: new Boolean(searchProps.includeUsers).valueOf()

@@ -3,7 +3,7 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearch"]
+  previewFeatures = ["fullTextSearch", "interactiveTransactions"]
 }
 
 datasource db {
@@ -126,9 +126,8 @@ model Registration {
   event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId     String    @map("user_id")
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  regDate    DateTime  @default(now()) @map("reg_date")
-  regStatus  RegStatus @default(INVITED) @map("reg_status")
-  attendance Boolean   @default(false)
+  updatedAt  DateTime  @map("updated_at") @updatedAt
+  regStatus  RegStatus @map("reg_status")
 
   @@id([eventId, userId])
   @@map("registrations")
