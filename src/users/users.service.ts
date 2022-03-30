@@ -2,7 +2,7 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
 import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
-import { Provider } from ".prisma/client";
+import { Provider, User } from ".prisma/client";
 import { CreateUserDto, UpdateUserDto } from "./dto";
 import { PrismaError } from "../prisma/prisma.constants";
 import {
@@ -129,10 +129,11 @@ export class UsersService {
   }
 
   async update(
-    id: string,
+    user: User,
     updateUserDto: UpdateUserDto,
     profileImage?: Express.Multer.File,
   ) {
+    /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
     const getImageFileName = async () => {
       /* cannot remove and add an image at the same time... */
       if (updateUserDto.removeImage && profileImage) {
@@ -141,28 +142,37 @@ export class UsersService {
           409,
         );
       }
-      /* check if picture should be removed */
-      if (updateUserDto.removeImage && !profileImage) {
-        delete updateUserDto.removeImage; // must remove before inserting to db
-        return null;
-      } else if (profileImage) {
-        /* upload image to blob */
+      /* existing image must be deleted if either removing or uploading a new one*/
+      if (user.image && (updateUserDto.removeImage || profileImage)) {
+        const imageName = user.image.slice(user.image.lastIndexOf("/") + 1); // remove url portion
+        await this.azureStorageService.delete(
+          imageName,
+          AzureStorageContainer.PROFILE_IMAGES,
+        );
+      }
+
+      /* upload image if one is provided */
+      if (profileImage) {
         return await this.azureStorageService.upload(
-          this.azureStorageService.generateFileNameById(id, profileImage),
+          this.azureStorageService.generateFileNameById(user.id, profileImage),
           profileImage.buffer,
           AzureStorageContainer.PROFILE_IMAGES,
         );
-      } else {
-        /* do nothing if an image is not provided */
-        return undefined;
+      } else if (updateUserDto.removeImage) {
+        return null;
       }
+
+      return undefined;
     };
 
     const imageFileName = await getImageFileName();
 
+    /* delete removeImage before inserting to db */
+    delete updateUserDto.removeImage;
+
     try {
       return await this.prisma.user.update({
-        where: { id },
+        where: { id: user.id },
         data: {
           ...(imageFileName !== undefined && {
             image: imageFileName,

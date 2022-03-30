@@ -68,7 +68,10 @@ export class AzureStorageService
     return blockBlobClient.url;
   }
 
+  /* generates filename on format id-randomStr.type */
   generateFileNameById(id: string, file: Express.Multer.File) {
-    return `${id}.${file.mimetype.split("/")[1]}`;
+    return `${id}-${(Math.random() + 1).toString(36).substring(7)}.${
+      file.mimetype.split("/")[1]
+    }`;
   }
 }

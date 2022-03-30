@@ -77,7 +77,7 @@ export class UsersController {
     @UploadedFile() profileImage?: Express.Multer.File,
   ) {
     const user: User = req.user;
-    return this.userService.update(user.id, data, profileImage);
+    return this.userService.update(user, data, profileImage);
   }
 
   @Get(":id")
