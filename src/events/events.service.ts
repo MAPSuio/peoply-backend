@@ -62,7 +62,7 @@ export class EventsService {
           throw new Error("Could not generate urlId");
         }
 
-        const event = trx.event.create({
+        const event = await trx.event.create({
           data: {
             id: eventId,
             urlId,
@@ -89,14 +89,20 @@ export class EventsService {
           })),
         });
 
-        return await event;
+        return event;
       });
       return event;
     } catch (error) {
-      await this.azureStorageService.delete(
-        eventImageFileName,
-        AzureStorageContainer.EVENT_IMAGES,
-      );
+      try {
+        if (eventImage) {
+          await this.azureStorageService.delete(
+            eventImageFileName,
+            AzureStorageContainer.EVENT_IMAGES,
+          );
+        }
+      } catch (error) {
+        console.log(error, "Could not delete event image");
+      }
       if (error instanceof PrismaClientKnownRequestError) {
         switch (error.code) {
           case PrismaError.ForeignKeyFailed:
