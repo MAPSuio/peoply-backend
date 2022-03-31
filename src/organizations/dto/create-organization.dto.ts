@@ -7,14 +7,9 @@ export class CreateOrganizationDto {
   @ApiProperty()
   name: string;
 
-  @IsNotEmpty()
-  @IsString()
-  @ApiProperty()
-  orgNr: string;
-
   @IsOptional()
   @IsString()
   @IsUrl()
   @ApiProperty()
-  image: string;
+  image?: string;
 }

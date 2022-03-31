@@ -1,60 +1,54 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, Injectable } from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateOrganizationDto, UpdateOrganizationDto } from "./dto";
-import {
-  OrganizationAlreadyExistsException,
-  OrganizationDoesNotExistException,
-} from "./exceptions";
+import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from "@prisma/client";
+import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
 
 @Injectable()
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
+  async create(
+    creatorId: string, // id of the user creating the org
+    createOrganizationDto: CreateOrganizationDto,
+  ) {
+    const arrangerId = uuidv4();
 
-  async create(createOrganizationDto: CreateOrganizationDto) {
-    const { orgNr } = createOrganizationDto;
+    try {
+      const newOrganization = await this.prisma.$transaction(async (trx) => {
+        //create arranger
+        await trx.arranger.create({
+          data: { id: arrangerId, isBusiness: true },
+        });
+        //create organization
+        const newOrg = await trx.organization.create({
+          data: { arrangerId, ...createOrganizationDto },
+        });
+        //create userOrganizationRole
+        await trx.userOrganizationRole.create({
+          data: {
+            userId: creatorId,
+            organizationId: newOrg.id,
+            role: OrganizationRole.ADMIN,
+          },
+        });
+        return newOrg;
+      });
 
-    /* orgNr is unique */
-    const orgNrExists = await this.prisma.organization.findUnique({
-      where: {
-        orgNr,
-      },
-    });
+      return newOrganization;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === PrismaError.DuplicateUniqueValue
+      ) {
+        //unique value duplicated in DB
 
-    const errors: { orgNr?: string } = {};
-
-    if (orgNrExists) {
-      errors.orgNr = "Organization number already exists";
-      throw new OrganizationAlreadyExistsException(errors);
-    } else {
-      const arrangerId = uuidv4();
-
-      try {
-        const [, newOrganization] = await this.prisma.$transaction([
-          this.prisma.arranger.create({
-            data: { id: arrangerId, isBusiness: true },
-          }),
-          this.prisma.organization.create({
-            data: { arrangerId, ...createOrganizationDto },
-          }),
-        ]);
-
-        return newOrganization;
-      } catch (error) {
-        if (
-          error instanceof PrismaClientKnownRequestError &&
-          error.code === PrismaError.DuplicateUniqueValue
-        ) {
-          //unique value duplicated in DB
-
-          throw error;
-        } else {
-          throw error;
-        }
+        throw new DuplicateArrangerException(arrangerId);
       }
+      throw new HttpException(error + "\nCreate organization error", 500);
     }
   }
 

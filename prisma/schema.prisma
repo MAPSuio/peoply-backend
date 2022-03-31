@@ -16,7 +16,7 @@ model Organization {
   arranger          Arranger               @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
   arrangerId        String                 @unique @map("arranger_id")
   name              String
-  orgNr             String                 @unique @map("org_nr") @db.VarChar(9)
+  orgNr             String?                @unique @map("org_nr") @db.VarChar(9)
   image             String?                @db.VarChar(100)
   organizationRoles UserOrganizationRole[]
 
