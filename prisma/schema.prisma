@@ -18,6 +18,7 @@ model Organization {
   name              String
   orgNr             String?                @unique @map("org_nr") @db.VarChar(9)
   image             String?                @db.VarChar(100)
+  description       String?                @db.Text
   organizationRoles UserOrganizationRole[]
 
   @@map("organizations")
