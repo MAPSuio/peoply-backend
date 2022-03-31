@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { RegStatus } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { SearchEventRegistrationDto } from "../../events/dto";
@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { RegistrationNotFoundException } from "../exceptions";
 import { CommonRegistrationService } from "./common.registrations.service";
+import { Registration } from ".prisma/client";
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
@@ -19,9 +20,21 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     eventId: string,
     skip = 0,
     take = 10,
-    orderBy = "regDate",
-    orderDirection = "asc",
+    orderBy: keyof Registration = "updatedAt",
+    orderDirection: "asc" | "desc" = "asc",
   ) {
+    /* create a dummy object to type check runtime */
+    const dummy: Registration = {
+      eventId: "",
+      userId: "",
+      regStatus: RegStatus.GOING,
+      updatedAt: new Date(),
+    };
+    /* Check if orderBy is a key of Registration */
+    if (!Object.keys(dummy).includes(orderBy)) {
+      throw new BadRequestException(`${orderBy} is not a key of Registration`);
+    }
+
     return await this.prismaService.registration.findMany({
       skip,
       take,

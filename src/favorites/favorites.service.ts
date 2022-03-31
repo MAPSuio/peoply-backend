@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { Favorite } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaError } from "../prisma/prisma.constants";
 import { PrismaService } from "../prisma/prisma.service";
@@ -34,9 +35,20 @@ export class FavoritesService {
     userId: string,
     skip = 0,
     take = 10,
-    orderBy = "favoritedDate",
-    orderDirection = "asc",
+    orderBy: keyof Favorite = "favoritedDate",
+    orderDirection: "asc" | "desc" = "asc",
   ) {
+    /* create a dummy object to type check runtime */
+    const dummy: Favorite = {
+      eventId: "",
+      userId: "",
+      favoritedDate: new Date(),
+    };
+    /* Check if orderBy is a key of Registration */
+    if (!Object.keys(dummy).includes(orderBy)) {
+      throw new BadRequestException(`${orderBy} is not a key of Registration`);
+    }
+
     return await this.prismaService.favorite.findMany({
       skip,
       take,
