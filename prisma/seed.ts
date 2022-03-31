@@ -20,7 +20,6 @@ import {
   eventDescriptions,
   startDates,
   endDates,
-  regDates,
   birthDates,
   eventIDs,
 } from "./dbTestData";
@@ -29,7 +28,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   for (let i = 0; i < 10; i++) {
-    const testArranger1 = await prisma.arranger.upsert({
+    await prisma.arranger.upsert({
       where: {
         id: arrangerIDs[i],
       },
@@ -39,7 +38,7 @@ async function main() {
         isBusiness: true,
       },
     });
-    const testArranger2 = await prisma.arranger.upsert({
+    await prisma.arranger.upsert({
       where: {
         id: arrangerIDs[i + 10],
       },
@@ -49,7 +48,7 @@ async function main() {
         isBusiness: false,
       },
     });
-    const testArranger3 = await prisma.arranger.upsert({
+    await prisma.arranger.upsert({
       where: {
         id: arrangerIDs[i + 20],
       },
@@ -60,7 +59,7 @@ async function main() {
       },
     });
 
-    const testUser1 = await prisma.user.upsert({
+    await prisma.user.upsert({
       where: {
         id: userIDs[i],
       },
@@ -76,7 +75,7 @@ async function main() {
       },
     });
 
-    const testUser2 = await prisma.user.upsert({
+    await prisma.user.upsert({
       where: {
         id: userIDs[i + 10],
       },
@@ -92,7 +91,7 @@ async function main() {
       },
     });
 
-    const testUser3 = await prisma.user.upsert({
+    await prisma.user.upsert({
       where: {
         id: userIDs[i + 20],
       },
@@ -108,7 +107,7 @@ async function main() {
       },
     });
 
-    const testOrganization = await prisma.organization.upsert({
+    await prisma.organization.upsert({
       where: {
         id: organisationIDs[i],
       },
@@ -126,13 +125,22 @@ async function main() {
       visibility = Visibility.UNLISTED;
     }
 
-    const testEvents = await prisma.event.upsert({
+    await prisma.event.upsert({
       where: {
         id: eventIDs[i],
       },
       update: {},
       create: {
         id: eventIDs[i],
+        urlId: (() => {
+          const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+          let urlId = "";
+          for (let i = 0; i < 8; i++) {
+            urlId += letters.charAt(Math.floor(Math.random() * letters.length));
+          }
+
+          return urlId;
+        })(),
         startDate: startDates[i],
         endDate: endDates[i],
         title: eventNames[i],
@@ -142,7 +150,7 @@ async function main() {
       },
     });
 
-    const testEventArrangers = await prisma.eventArranger.upsert({
+    await prisma.eventArranger.upsert({
       where: {
         eventId_arrangerId: {
           eventId: eventIDs[i],
@@ -157,7 +165,7 @@ async function main() {
       },
     });
 
-    const testUserOrganizationRoles = await prisma.userOrganizationRole.upsert({
+    await prisma.userOrganizationRole.upsert({
       where: {
         organizationId_userId: {
           organizationId: organisationIDs[i],
@@ -172,7 +180,7 @@ async function main() {
       },
     });
 
-    const testRegistrations1 = await prisma.registration.upsert({
+    await prisma.registration.upsert({
       where: {
         eventId_userId: { eventId: eventIDs[i], userId: userIDs[i + 10] },
       },
@@ -184,7 +192,7 @@ async function main() {
       },
     });
 
-    const testRegistrations2 = await prisma.registration.upsert({
+    await prisma.registration.upsert({
       where: {
         eventId_userId: { eventId: eventIDs[i], userId: userIDs[i + 20] },
       },
@@ -196,7 +204,7 @@ async function main() {
       },
     });
 
-    const testFavorites = await prisma.favorite.upsert({
+    await prisma.favorite.upsert({
       where: {
         eventId_userId: { eventId: eventIDs[i], userId: userIDs[i + 20] },
       },

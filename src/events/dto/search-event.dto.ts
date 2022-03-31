@@ -10,14 +10,15 @@ import {
   Min,
   MinLength,
 } from "class-validator";
+import { IsUrlId } from "../../../decorators/validators/isUrlId.validator";
 import { PrismaOrderDirections } from "../../prisma/prisma.constants";
 
 export class SearchEventDto {
   @IsOptional()
-  @IsInt()
-  @Type(() => Number)
+  @IsString()
+  @IsUrlId()
   @ApiProperty({ required: false })
-  numericId?: number;
+  urlId?: string;
 
   @IsOptional()
   @IsDateString()

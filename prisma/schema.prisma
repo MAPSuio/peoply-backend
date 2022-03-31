@@ -88,19 +88,20 @@ model Arranger {
 
 model Event {
   id              String          @id @default(uuid())
-  numericId       Int             @unique @default(autoincrement()) @map("numeric_id")
+  urlId           String          @unique @map("url_id")
   startDate       DateTime        @map("start_date")
   endDate         DateTime        @map("end_date")
   title           String          @db.VarChar(150)
   description     String
   capacity        Int?
-  visibility      Visibility      
+  visibility      Visibility
   image           String?         @unique
   eventArrangers  EventArranger[]
   registrations   Registration[]
   eventCategories EventCategory[]
   favorites       Favorite[]
 
+  @@index([urlId])
   @@map("events")
 }
 
@@ -108,7 +109,7 @@ enum Visibility {
   PUBLIC
   PRIVATE
   UNLISTED
-  
+
   @@map("visibility")
 }
 
@@ -131,12 +132,12 @@ enum EventArrangerRole {
 }
 
 model Registration {
-  eventId    String    @map("event_id")
-  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId     String    @map("user_id")
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  updatedAt  DateTime  @map("updated_at") @updatedAt
-  regStatus  RegStatus @map("reg_status")
+  eventId   String    @map("event_id")
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  regStatus RegStatus @map("reg_status")
 
   @@id([eventId, userId])
   @@map("registrations")

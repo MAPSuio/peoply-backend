@@ -10,7 +10,7 @@ import { EventNotFoundException } from "./exceptions";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
-
+import { Event } from ".prisma/client";
 @Injectable()
 export class EventsService {
   constructor(
@@ -42,10 +42,30 @@ export class EventsService {
             AzureStorageContainer.EVENT_IMAGES,
           )
         : null;
-      const [event] = await this.prisma.$transaction([
-        this.prisma.event.create({
+
+      const event = await this.prisma.$transaction(async (trx) => {
+        let existingEvent: Event | null;
+        let urlId: string;
+        let counter = 0;
+
+        /* Make sure the URL id is unique
+         * If not, generate a new one and try again 3 times
+         */
+        do {
+          urlId = this.generateUrlId();
+          existingEvent = await trx.event.findUnique({
+            where: { urlId: urlId },
+          });
+        } while (existingEvent && ++counter < 3);
+
+        if (counter === 3 && existingEvent) {
+          throw new Error("Could not generate urlId");
+        }
+
+        const event = trx.event.create({
           data: {
             id: eventId,
+            urlId,
             description: createEventDto.description,
             title: createEventDto.title,
             startDate: createEventDto.startDate,
@@ -54,21 +74,23 @@ export class EventsService {
             visibility: createEventDto.visibility,
             image: imageUrl,
           },
-        }),
-        this.prisma.eventArranger.create({
+        });
+        await trx.eventArranger.create({
           data: {
             role: EventArrangerRole.ADMIN,
             arrangerId,
             eventId,
           },
-        }),
-        this.prisma.eventCategory.createMany({
+        });
+        await trx.eventCategory.createMany({
           data: createEventDto.categoryIds.map((categoryId) => ({
             categoryId,
             eventId,
           })),
-        }),
-      ]);
+        });
+
+        return await event;
+      });
       return event;
     } catch (error) {
       await this.azureStorageService.delete(
@@ -105,7 +127,7 @@ export class EventsService {
       skip,
       take,
       where: {
-        numericId: searchProps.numericId,
+        urlId: searchProps.urlId,
         startDate: {
           gte: searchProps.afterDate,
           lte: searchProps.beforeDate,
@@ -146,37 +168,37 @@ export class EventsService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(urlId: string) {
     const event = await this.prisma.event.findUnique({
-      where: { numericId: id },
+      where: { urlId: urlId },
     });
 
     if (!event) {
-      throw new EventNotFoundException(id);
+      throw new EventNotFoundException(urlId);
     } else {
       return event;
     }
   }
 
-  async findOneWithArrangers(id: number) {
+  async findOneWithArrangers(urlId: string) {
     const event = await this.prisma.event.findUnique({
-      where: { numericId: id },
+      where: { urlId: urlId },
       include: {
         eventArrangers: true,
       },
     });
 
     if (!event) {
-      throw new EventNotFoundException(id);
+      throw new EventNotFoundException(urlId);
     } else {
       return event;
     }
   }
 
-  async update(id: number, updateEventDto: UpdateEventDto) {
+  async update(urlId: string, updateEventDto: UpdateEventDto) {
     try {
       return await this.prisma.event.update({
-        where: { numericId: id },
+        where: { urlId: urlId },
         data: { ...updateEventDto },
       });
     } catch (error) {
@@ -185,17 +207,17 @@ export class EventsService {
         error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
-        throw new EventNotFoundException(id);
+        throw new EventNotFoundException(urlId);
       } else {
         throw error;
       }
     }
   }
 
-  async remove(id: number) {
+  async remove(urlId: string) {
     try {
       return await this.prisma.event.delete({
-        where: { numericId: id },
+        where: { urlId: urlId },
       });
     } catch (error) {
       if (
@@ -203,10 +225,22 @@ export class EventsService {
         error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
-        throw new EventNotFoundException(id);
+        throw new EventNotFoundException(urlId);
       } else {
         throw error;
       }
     }
+  }
+
+  private generateUrlId() {
+    const ID_LENGTH = 8;
+    /* Generate a random string of 10 letters from A to Z */
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let urlId = "";
+    for (let i = 0; i < ID_LENGTH; i++) {
+      urlId += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+
+    return urlId;
   }
 }

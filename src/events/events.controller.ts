@@ -79,23 +79,23 @@ export class EventsController {
     );
   }
 
-  @Get(":id")
-  async findOne(@Param("id") id: number) {
-    return this.eventsService.findOne(id);
+  @Get(":urlId")
+  async findOne(@Param("urlId") urlId: string) {
+    return this.eventsService.findOne(urlId);
   }
 
   @UseGuards(AuthenticatedGuard)
-  @Patch(":id")
+  @Patch(":urlId")
   async update(
     @Req() req: any,
-    @Param("id") id: number,
+    @Param("urlId") urlId: string,
     @Body() updateEventDto: UpdateEventDto,
   ) {
     const user: User = req.user;
-    const event = await this.eventsService.findOneWithArrangers(id);
+    const event = await this.eventsService.findOneWithArrangers(urlId);
 
     if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
-      return this.eventsService.update(id, updateEventDto);
+      return this.eventsService.update(urlId, updateEventDto);
     } else {
       throw new UnauthorizedException(
         "You are not authorized to update this event",
@@ -104,10 +104,10 @@ export class EventsController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @Delete(":id")
-  async remove(@Req() req: any, @Param("id") id: number) {
+  @Delete(":urlId")
+  async remove(@Req() req: any, @Param("urlId") urlId: string) {
     const user: User = req.user;
-    const event = await this.eventsService.findOneWithArrangers(id);
+    const event = await this.eventsService.findOneWithArrangers(urlId);
     if (
       event.eventArrangers.find(
         (e) =>
@@ -115,7 +115,7 @@ export class EventsController {
           e.role === EventArrangerRole.ADMIN,
       )
     ) {
-      return this.eventsService.remove(id);
+      return this.eventsService.remove(urlId);
     } else {
       throw new UnauthorizedException(
         "You are not authorized to delete this event",
