@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Param,
   Patch,
   Post,
@@ -8,6 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
+import { OrganizationRole } from "@prisma/client";
 import { AuthenticatedGuard } from "../auth/guards";
 import { UpdateOrganizationDto } from "./dto";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
@@ -56,9 +58,42 @@ export class OrganizationsController {
     }
     const usersRoles = organization.organizationRoles;
 
+    // check for user permissions
     for (const userRole of usersRoles) {
-      if (userRole.userId === req.user.id && userRole.role === "ADMIN") {
+      if (
+        userRole.userId === req.user.id &&
+        userRole.role === OrganizationRole.ADMIN
+      ) {
         return this.organizationsService.update(orgId, updateOrganizationDto);
+      }
+    }
+    throw new UnauthorizedException("User is not an admin of the organization");
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Delete("/:orgId")
+  async delete(@Req() req: any, @Param("orgId") orgId: string) {
+    /* delete organization
+    Args:
+        orgId: string - id of the organization to delete
+    Returns:
+        Organization - the deleted organization
+    */
+    const organization = await this.organizationsService.findOrgWithUsers(
+      orgId,
+    );
+    if (!organization) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+    const usersRoles = organization.organizationRoles;
+
+    // check for user permissions
+    for (const userRole of usersRoles) {
+      if (
+        userRole.userId === req.user.id &&
+        userRole.role === OrganizationRole.ADMIN
+      ) {
+        return this.organizationsService.remove(orgId);
       }
     }
     throw new UnauthorizedException("User is not an admin of the organization");

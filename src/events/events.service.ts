@@ -101,6 +101,7 @@ export class EventsService {
           );
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.log(error, "Could not delete event image");
       }
       if (error instanceof PrismaClientKnownRequestError) {

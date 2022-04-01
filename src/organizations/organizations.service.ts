@@ -85,11 +85,19 @@ export class OrganizationsService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.organization.delete({
+      // get arranger id
+      const org = await this.prisma.organization.findUnique({
+        where: { id },
+      });
+      if (!org) {
+        throw new OrganizationDoesNotExistException(id);
+      }
+      await this.prisma.arranger.delete({
         where: {
-          id,
+          id: org.arrangerId,
         },
       });
+      return org;
     } catch (error) {
       if (error.code === PrismaError.DoesNotExist) {
         throw new OrganizationDoesNotExistException(id);
