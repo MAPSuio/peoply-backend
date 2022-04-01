@@ -8,4 +8,12 @@ export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {
   @IsUrl()
   @ApiProperty()
   image: string;
+
+  @IsString()
+  @ApiProperty()
+  description: string;
+
+  @IsString()
+  @ApiProperty()
+  name: string;
 }

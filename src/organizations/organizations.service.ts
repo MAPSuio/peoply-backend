@@ -127,4 +127,24 @@ export class OrganizationsService {
       throw error;
     }
   }
+  async findOrgWithUsers(orgId: string) {
+    /* Find all users in an org and the org itself
+    Args:
+      orgId - org id
+    Returns: 
+      the organizatin and all users in it - model Organization
+    */
+    try {
+      return await this.prisma.organization.findUnique({
+        where: {
+          id: orgId,
+        },
+        include: {
+          organizationRoles: true,
+        },
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
 }
