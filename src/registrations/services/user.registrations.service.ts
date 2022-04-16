@@ -95,6 +95,7 @@ export class UserRegistrationService extends CommonRegistrationService {
       userId: "",
       regStatus: RegStatus.GOING,
       updatedAt: new Date(),
+      createdAt: new Date(),
     };
     /* Check if orderBy is a key of Registration */
     if (!Object.keys(dummy).includes(orderBy)) {

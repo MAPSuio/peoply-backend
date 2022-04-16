@@ -19,6 +19,8 @@ model Organization {
   orgNr             String?                @unique @map("org_nr") @db.VarChar(9)
   image             String?                @db.VarChar(100)
   description       String?                @db.Text
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at")
   organizationRoles UserOrganizationRole[]
 
   @@map("organizations")
@@ -35,6 +37,8 @@ model User {
   image             String?
   birthDate         DateTime?              @map("birth_date") @db.Date
   description       String?                @db.VarChar(120)
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at")
   organizationRoles UserOrganizationRole[]
   registrations     Registration[]
   providerUsers     ProviderUser[]
@@ -44,10 +48,12 @@ model User {
 }
 
 model ProviderUser {
-  sub      String
-  provider Provider
-  id       String
-  user     User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  sub       String
+  provider  Provider
+  id        String
+  user      User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@id([sub, provider])
   @@map("provider_users")
@@ -65,6 +71,8 @@ model UserOrganizationRole {
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           OrganizationRole
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at")
 
   @@id([organizationId, userId])
   @@map("user_organization_roles")
@@ -81,6 +89,8 @@ model Arranger {
   isBusiness     Boolean         @map("is_business")
   organization   Organization?
   user           User?
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
   eventArrangers EventArranger[]
 
   @@map("arrangers")
@@ -96,6 +106,8 @@ model Event {
   capacity        Int?
   visibility      Visibility
   image           String?         @unique
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at")
   eventArrangers  EventArranger[]
   registrations   Registration[]
   eventCategories EventCategory[]
@@ -119,6 +131,8 @@ model EventArranger {
   arrangerId String            @map("arranger_id")
   arranger   Arranger          @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
   role       EventArrangerRole
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@id([eventId, arrangerId])
   @@map("event_arrangers")
@@ -136,7 +150,8 @@ model Registration {
   event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId    String    @map("user_id")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
   regStatus RegStatus @map("reg_status")
 
   @@id([eventId, userId])
@@ -155,6 +170,8 @@ enum RegStatus {
 model Category {
   id              Int             @id @default(autoincrement())
   name            String          @unique
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at")
   eventCategories EventCategory[]
 
   @@map("categories")
@@ -165,6 +182,8 @@ model EventCategory {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   eventId    String   @map("event_id")
   event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
 
   @@id([categoryId, eventId])
@@ -172,11 +191,12 @@ model EventCategory {
 }
 
 model Favorite {
-  userId        String   @map("user_id")
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventId       String   @map("event_id")
-  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  favoritedDate DateTime @default(now()) @map("favorited_date")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String   @map("event_id")
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@id([eventId, userId])
   @@map("favorites")

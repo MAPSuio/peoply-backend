@@ -35,14 +35,15 @@ export class FavoritesService {
     userId: string,
     skip = 0,
     take = 10,
-    orderBy: keyof Favorite = "favoritedDate",
+    orderBy: keyof Favorite = "updatedAt",
     orderDirection: "asc" | "desc" = "asc",
   ) {
     /* create a dummy object to type check runtime */
     const dummy: Favorite = {
       eventId: "",
       userId: "",
-      favoritedDate: new Date(),
+      updatedAt: new Date(),
+      createdAt: new Date(),
     };
     /* Check if orderBy is a key of Registration */
     if (!Object.keys(dummy).includes(orderBy)) {
