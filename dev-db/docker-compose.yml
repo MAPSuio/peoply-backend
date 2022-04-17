@@ -1,7 +1,7 @@
 version: '3.7'
 services:
     postgres:
-        image: postgres:10.5
+        image: postgres:13
         restart: always
         environment:
           - POSTGRES_USER=pg
@@ -12,4 +12,3 @@ services:
             max-file: "3"
         ports:
           - '5432:5432'
-          
