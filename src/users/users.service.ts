@@ -125,7 +125,11 @@ export class UsersService {
 
     /* splits name by ORing the different parts of the name */
     const generateSearchQuery = (name: string) =>
-      name.toLowerCase().split(" ").join(" | ");
+      name
+        .toLowerCase()
+        .split(" ")
+        .map((n) => `+${n}`)
+        .join(" | ");
 
     const { name } = searchProps;
     const users = await this.prisma.user.findMany({
@@ -134,6 +138,18 @@ export class UsersService {
           OR: [
             { firstName: { search: generateSearchQuery(name) } },
             { lastName: { search: name.split(" ").slice(-1)[0] } },
+            {
+              firstName: {
+                startsWith: name.split(" ")[0],
+                mode: "insensitive",
+              },
+            },
+            {
+              lastName: {
+                startsWith: name.split(" ").slice(-1)[0],
+                mode: "insensitive",
+              },
+            },
           ],
         }),
       },
@@ -145,9 +161,17 @@ export class UsersService {
       /* sort the user by edit distance before returning */
       return users
         .map((user) => {
-          const editDistance = calculateEditDistance(
+          const firstNameEditDistance = calculateEditDistance(
             name,
-            user.firstName + " " + user.lastName,
+            user.firstName,
+          );
+          const lastNameEditDistance = calculateEditDistance(
+            name,
+            user.lastName,
+          );
+          const editDistance = Math.min(
+            firstNameEditDistance,
+            lastNameEditDistance,
           );
           return {
             user,

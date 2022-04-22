@@ -5,7 +5,7 @@ import { IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
 export class SearchUserDto {
   @IsOptional()
   @IsString()
-  @MinLength(3)
+  @MinLength(1)
   name?: string;
 
   @IsOptional()
