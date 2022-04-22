@@ -175,7 +175,14 @@ export class EventsService {
     });
   }
 
-  async findOne(urlId: string) {
+  async findOne(eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+    return event;
+  }
+
+  async findOneByUrlId(urlId: string) {
     const event = await this.prisma.event.findUnique({
       where: { urlId: urlId },
     });

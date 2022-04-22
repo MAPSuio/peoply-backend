@@ -1,4 +1,9 @@
-import { EventArrangerRole, OrganizationRole, User } from ".prisma/client";
+import {
+  EventArrangerRole,
+  OrganizationRole,
+  InvitationStatus,
+  User,
+} from ".prisma/client";
 import {
   BadRequestException,
   Body,
@@ -17,6 +22,9 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { AuthenticatedGuard } from "../auth/guards";
+import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
+import { EventInvitationDoesNotExistException } from "../invitations/exceptions/eventInvitationDoesNotExistException.exception";
+import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerRegistrationService } from "../registrations/services";
 import {
@@ -26,6 +34,7 @@ import {
   UpdateEventDto,
 } from "./dto";
 import { EventsService } from "./events.service";
+import { EventNotFoundException } from "./exceptions";
 
 @Controller("events")
 export class EventsController {
@@ -33,6 +42,7 @@ export class EventsController {
     private readonly organizationsService: OrganizationsService,
     private readonly eventsService: EventsService,
     private readonly arrangerRegistrationServcice: ArrangerRegistrationService,
+    private readonly eventInvitationsService: EventInvitationsService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -113,7 +123,7 @@ export class EventsController {
 
   @Get(":urlId")
   async findOne(@Param("urlId") urlId: string) {
-    return this.eventsService.findOne(urlId);
+    return this.eventsService.findOneByUrlId(urlId);
   }
 
   @UseGuards(AuthenticatedGuard)
@@ -166,5 +176,82 @@ export class EventsController {
   @Get(":id/registrations/number-going")
   async findNumberGoing(@Param("id") id: string) {
     return this.arrangerRegistrationServcice.findNumberAttending(id, "GOING");
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Post(":id/invitations")
+  async sendInvitations(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() userIds: string[],
+  ) {
+    const user: User = req.user;
+    return this.eventInvitationsService.createInvitations(id, user.id, userIds);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Patch(":id/invitations/:invitationId")
+  async updateInvitation(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("invitationId") invitationId: string,
+    @Body() updateInvitationDto: UpdateInvitationDto,
+  ) {
+    /* The toUser can update to ACCEPTED, DECLINED, and IGNORED only if the status is PENDING
+     * while the fromUser can update to CANCELLED only if the status is still PENDING
+     */
+    const user: User = req.user;
+    const event = await this.eventsService.findOne(id);
+    if (!event) {
+      throw new EventNotFoundException(id);
+    }
+
+    const invitation = await this.eventInvitationsService.findOne(invitationId);
+    if (!invitation) {
+      throw new EventInvitationDoesNotExistException(
+        "Invitation does not exist",
+      );
+    }
+
+    if (invitation.invitationStatus !== InvitationStatus.PENDING) {
+      throw new BadRequestException(
+        "You can only update to ACCEPTED, DECLINED, or IGNORED if the status is PENDING",
+      );
+    }
+
+    switch (updateInvitationDto.status) {
+      case InvitationStatus.ACCEPTED:
+        if (user.id === invitation.toUserId) {
+          return this.eventInvitationsService.acceptInvitation(invitationId);
+        }
+        throw new UnauthorizedException(
+          "You can only update to ACCEPTED if you are the toUser",
+        );
+      case InvitationStatus.DECLINED:
+        if (user.id === invitation.toUserId) {
+          return this.eventInvitationsService.declineInvitation(invitationId);
+        }
+        throw new UnauthorizedException(
+          "You can only update to DECLINED if you are the toUser",
+        );
+      case InvitationStatus.IGNORED:
+        if (user.id === invitation.toUserId) {
+          return this.eventInvitationsService.ignoreInvitation(invitationId);
+        }
+        throw new UnauthorizedException(
+          "You can only update to IGNORED if you are the toUser",
+        );
+      case InvitationStatus.CANCELLED:
+        if (user.id === invitation.fromUserId) {
+          return this.eventInvitationsService.cancelInvitation(invitationId);
+        }
+        throw new UnauthorizedException(
+          "You can only update to CANCELLED if you are the fromUser",
+        );
+      default:
+        throw new BadRequestException(
+          "You can only update to ACCEPTED, DECLINED, IGNORED, or CANCELLED",
+        );
+    }
   }
 }

@@ -35,6 +35,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { User } from ".prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { NotificationsService } from "../notifications/notifications.service";
 @Controller("users")
 export class UsersController {
   constructor(
@@ -43,6 +44,7 @@ export class UsersController {
     private readonly userService: UsersService,
     private readonly eventArrangersService: EventArrangersService,
     private readonly organizationsService: OrganizationsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -295,6 +297,15 @@ export class UsersController {
     const user: User = req.user;
     if (userId === user.id) {
       return this.organizationsService.findOrgsByUserIdAndRole(user.id);
+    }
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get(":userId/notifications")
+  async getNotifications(@Req() req: any, @Param("userId") userId: string) {
+    const user: User = req.user;
+    if (userId === user.id) {
+      return this.notificationsService.findAllPendingByUserId(user.id);
     }
   }
 }

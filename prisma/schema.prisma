@@ -23,26 +23,31 @@ model Organization {
   updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at")
   organizationRoles UserOrganizationRole[]
 
+  organizationInvitations OrganizationInvitation[]
   @@map("organizations")
 }
 
 model User {
-  id                String                 @id @default(uuid())
-  arranger          Arranger               @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
-  arrangerId        String                 @unique @map("arranger_id")
-  phone             String                 @unique
-  firstName         String                 @map("first_name") @db.VarChar(100)
-  lastName          String                 @map("last_name") @db.VarChar(100)
-  email             String                 @unique
-  image             String?
-  birthDate         DateTime?              @map("birth_date") @db.Date
-  description       String?                @db.VarChar(120)
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at")
-  organizationRoles UserOrganizationRole[]
-  registrations     Registration[]
-  providerUsers     ProviderUser[]
-  favorites         Favorite[]
+  id                             String                   @id @default(uuid())
+  arranger                       Arranger                 @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  arrangerId                     String                   @unique @map("arranger_id")
+  phone                          String                   @unique
+  firstName                      String                   @map("first_name") @db.VarChar(100)
+  lastName                       String                   @map("last_name") @db.VarChar(100)
+  email                          String                   @unique
+  image                          String?
+  birthDate                      DateTime?                @map("birth_date") @db.Date
+  description                    String?                  @db.VarChar(120)
+  createdAt                      DateTime                 @default(now()) @map("created_at")
+  updatedAt                      DateTime                 @default(now()) @updatedAt @map("updated_at")
+  organizationRoles              UserOrganizationRole[]
+  registrations                  Registration[]
+  providerUsers                  ProviderUser[]
+  favorites                      Favorite[]
+  eventInvitationsToMe           EventInvitation[]        @relation("ToUserEventInvitations")
+  eventInvitationsFromMe         EventInvitation[]        @relation("FromUserEventInvitations")
+  origanizationInvitationsToMe   OrganizationInvitation[] @relation("ToUserOrganizationInvitations")
+  origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
 
   @@map("users")
 }
@@ -80,6 +85,7 @@ model UserOrganizationRole {
 
 enum OrganizationRole {
   ADMIN
+  MEMBER
 
   @@map("organization_roles")
 }
@@ -97,21 +103,22 @@ model Arranger {
 }
 
 model Event {
-  id              String          @id @default(uuid())
-  urlId           String          @unique @map("url_id")
-  startDate       DateTime        @map("start_date")
-  endDate         DateTime        @map("end_date")
-  title           String          @db.VarChar(150)
-  description     String
-  capacity        Int?
-  visibility      Visibility
-  image           String?         @unique
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at")
-  eventArrangers  EventArranger[]
-  registrations   Registration[]
-  eventCategories EventCategory[]
-  favorites       Favorite[]
+  id               String            @id @default(uuid())
+  urlId            String            @unique @map("url_id")
+  startDate        DateTime          @map("start_date")
+  endDate          DateTime          @map("end_date")
+  title            String            @db.VarChar(150)
+  description      String
+  capacity         Int?
+  visibility       Visibility
+  image            String?           @unique
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
+  eventArrangers   EventArranger[]
+  registrations    Registration[]
+  eventCategories  EventCategory[]
+  favorites        Favorite[]
+  eventInvitations EventInvitation[]
 
   @@index([urlId])
   @@map("events")
@@ -200,4 +207,49 @@ model Favorite {
 
   @@id([eventId, userId])
   @@map("favorites")
+}
+
+model EventInvitation {
+  id         String   @id @default(uuid())
+  eventId    String   @map("event_id")
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fromUserId String   @map("from_user_id")
+  fromUser   User     @relation(name: "FromUserEventInvitations", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String   @map("to_user_id")
+  toUser     User     @relation(name: "ToUserEventInvitations", fields: [toUserId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // This field should never be used to indicate event status
+  // Invitation and registration are to very seperate things
+  invitationStatus InvitationStatus @default(PENDING) @map("invitation_status")
+
+  @@unique([eventId, fromUserId, toUserId])
+  @@map("event_invitations")
+}
+
+model OrganizationInvitation {
+  id               String           @id @default(uuid())
+  organizationId   String           @map("organization_id")
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromUserId       String           @map("from_user_id")
+  fromUser         User             @relation(name: "FromUserOrganizationInvitations", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId         String           @map("to_user_id")
+  toUser           User             @relation(name: "ToUserOrganizationInvitations", fields: [toUserId], references: [id], onDelete: Cascade)
+  organizationRole OrganizationRole @map("organization_role")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at")
+  invitationStatus InvitationStatus @default(PENDING) @map("invitation_status")
+
+  @@map("organization_invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  IGNORED
+
+  @@map("invitation_statuses")
 }

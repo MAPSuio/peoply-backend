@@ -7,6 +7,7 @@ import { FavoritesModule } from "../favorites/favorites.module";
 import { AzureModule } from "../azure/azure.module";
 import { ArrangersModule } from "../arrangers/arrangers.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { OrganizationsModule } from "../organizations/organizations.module";
     AzureModule,
     ArrangersModule,
     OrganizationsModule,
+    NotificationsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

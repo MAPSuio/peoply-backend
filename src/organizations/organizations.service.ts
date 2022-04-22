@@ -5,7 +5,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateOrganizationDto, UpdateOrganizationDto } from "./dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
-import { OrganizationRole } from "@prisma/client";
+import { OrganizationRole } from ".prisma/client";
 import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
 
 @Injectable()
@@ -114,7 +114,7 @@ export class OrganizationsService {
       userId - users id
       role - role in org
 
-    Returns: 
+    Returns:
       list of org - List<model Organization>
     */
     try {
@@ -139,7 +139,7 @@ export class OrganizationsService {
     /* Find all users in an org and the org itself
     Args:
       orgId - org id
-    Returns: 
+    Returns:
       the organization and all users in it - model Organization
     */
     try {
@@ -157,7 +157,7 @@ export class OrganizationsService {
   }
   async getArrangerId(orgId: string) {
     /* Find the arranger id of an org
-    Args: 
+    Args:
       orgId - org id
     Returns:
       arranger id - string
@@ -171,7 +171,7 @@ export class OrganizationsService {
   }
   async findByArrangerId(arrangerId: string) {
     /* Find the org id of an arranger
-    Args: 
+    Args:
       arrangerId - arranger id
     Returns:
       org id - string
