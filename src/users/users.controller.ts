@@ -35,7 +35,9 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { User } from ".prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { SearchUserDto } from "./dto/search-user.dto";
 import { NotificationsService } from "../notifications/notifications.service";
+
 @Controller("users")
 export class UsersController {
   constructor(
@@ -80,6 +82,12 @@ export class UsersController {
   ) {
     const user: User = req.user;
     return this.userService.update(user, data, profileImage);
+  }
+
+  @Get()
+  async findAll(@Query() query: SearchUserDto) {
+    const { skip, take } = query;
+    return this.userService.findAll(query, skip, take);
   }
 
   @Get(":id")
