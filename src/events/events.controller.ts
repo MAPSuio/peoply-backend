@@ -16,9 +16,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
-import { OrganizationRolesGuard } from "../auth/guards/organizationRoles.guard";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerRegistrationService } from "../registrations/services";
 import {
@@ -39,9 +37,6 @@ export class EventsController {
 
   @UseGuards(AuthenticatedGuard)
   @Post()
-  // admin only for now, but other roles may be specified later
-  @OrganizationRoles(OrganizationRole.ADMIN)
-  @UseGuards(OrganizationRolesGuard)
   @UseInterceptors(
     FileInterceptor("eventImage", {
       fileFilter: (req, file, callback) => {
@@ -77,9 +72,29 @@ export class EventsController {
     let arrangerId;
     if (createEventDto.arrangerId) {
       arrangerId = createEventDto.arrangerId;
+      /* check if arrangerid is org */
+      const org = await this.organizationsService.findByArrangerId(arrangerId);
+      if (org) {
+        /* check if user is admin of org */
+        const admin = org.organizationRoles.find(
+          (o) => o.userId === req.user.id && o.role === OrganizationRole.ADMIN,
+        );
+        if (!admin) {
+          throw new UnauthorizedException(
+            "User is not an admin of the organization",
+          );
+        }
+      } else {
+        if (req.user.arrangerId !== arrangerId) {
+          throw new UnauthorizedException(
+            "arrangerId in dto does not match user arrangerId",
+          );
+        }
+      }
     } else {
       arrangerId = req.user.arrangerId;
     }
+
     return this.eventsService.create(createEventDto, arrangerId, eventImage);
   }
 
