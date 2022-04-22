@@ -140,7 +140,7 @@ export class OrganizationsService {
     Args:
       orgId - org id
     Returns: 
-      the organizatin and all users in it - model Organization
+      the organization and all users in it - model Organization
     */
     try {
       return await this.prisma.organization.findUnique({
@@ -154,5 +154,36 @@ export class OrganizationsService {
     } catch (error) {
       throw error;
     }
+  }
+  async getArrangerId(orgId: string) {
+    /* Find the arranger id of an org
+    Args: 
+      orgId - org id
+    Returns:
+      arranger id - string
+    */
+    const organization = await this.prisma.organization.findUnique({
+      where: {
+        id: orgId,
+      },
+    });
+    return organization?.arrangerId;
+  }
+  async findByArrangerId(arrangerId: string) {
+    /* Find the org id of an arranger
+    Args: 
+      arrangerId - arranger id
+    Returns:
+      org id - string
+    */
+    const organization = await this.prisma.organization.findUnique({
+      where: {
+        arrangerId: arrangerId,
+      },
+      include: {
+        organizationRoles: true,
+      },
+    });
+    return organization;
   }
 }

@@ -1,4 +1,4 @@
-import { EventArrangerRole, User } from ".prisma/client";
+import { EventArrangerRole, OrganizationRole, User } from ".prisma/client";
 import {
   BadRequestException,
   Body,
@@ -16,7 +16,10 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
+import { OrganizationRolesGuard } from "../auth/guards/organizationRoles.guard";
+import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerRegistrationService } from "../registrations/services";
 import {
   CreateEventDto,
@@ -29,12 +32,16 @@ import { EventsService } from "./events.service";
 @Controller("events")
 export class EventsController {
   constructor(
+    private readonly organizationsService: OrganizationsService,
     private readonly eventsService: EventsService,
     private readonly arrangerRegistrationServcice: ArrangerRegistrationService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
   @Post()
+  // admin only for now, but other roles may be specified later
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(OrganizationRolesGuard)
   @UseInterceptors(
     FileInterceptor("eventImage", {
       fileFilter: (req, file, callback) => {
@@ -58,12 +65,22 @@ export class EventsController {
     @Body() createEventDto: CreateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
-    const user: User = req.user;
-    return this.eventsService.create(
-      createEventDto,
-      user.arrangerId,
-      eventImage,
-    );
+    /* creates an event.
+    Args:
+      req: the request object
+      createEventDto: the event data (if arrangerId is not provided, we use users arrangerId)
+      eventImage: the event image
+    Returns:
+      new event
+
+    */
+    let arrangerId;
+    if (createEventDto.arrangerId) {
+      arrangerId = createEventDto.arrangerId;
+    } else {
+      arrangerId = req.user.arrangerId;
+    }
+    return this.eventsService.create(createEventDto, arrangerId, eventImage);
   }
 
   // TODO: Should add a guard that gets the user, but is undefined if not logged in

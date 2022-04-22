@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   Patch,
   Post,
@@ -10,6 +11,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { OrganizationRole } from "@prisma/client";
+import { EventArrangersService } from "../arrangers/services";
 import { AuthenticatedGuard } from "../auth/guards";
 import { UpdateOrganizationDto } from "./dto";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
@@ -18,7 +20,10 @@ import { OrganizationsService } from "./organizations.service";
 
 @Controller("organizations")
 export class OrganizationsController {
-  constructor(private readonly organizationsService: OrganizationsService) {}
+  constructor(
+    private readonly organizationsService: OrganizationsService,
+    private readonly eventArrangersService: EventArrangersService,
+  ) {}
 
   @UseGuards(AuthenticatedGuard)
   @Post()
@@ -94,6 +99,39 @@ export class OrganizationsController {
         userRole.role === OrganizationRole.ADMIN
       ) {
         return this.organizationsService.remove(orgId);
+      }
+    }
+    throw new UnauthorizedException("User is not an admin of the organization");
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get(":orgId/events")
+  async getEvents(@Req() req: any, @Param("orgId") orgId: string) {
+    /* get events for organization
+    Args:
+        orgId: string - id of the organization to get events for
+    Returns:
+        List<Event> - list of events for the organization
+    */
+    const arrangerID = await this.organizationsService.getArrangerId(orgId);
+    if (!arrangerID) {
+      return;
+    }
+
+    const organization = await this.organizationsService.findOrgWithUsers(
+      orgId,
+    );
+    if (!organization) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+    const usersRoles = organization.organizationRoles;
+    // check for user permissions
+    for (const userRole of usersRoles) {
+      if (
+        userRole.userId === req.user.id &&
+        userRole.role === OrganizationRole.ADMIN
+      ) {
+        return await this.eventArrangersService.findAllWithEvents(arrangerID);
       }
     }
     throw new UnauthorizedException("User is not an admin of the organization");

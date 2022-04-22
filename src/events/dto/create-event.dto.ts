@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUUID,
   MinLength,
 } from "class-validator";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
@@ -58,4 +59,9 @@ export class CreateEventDto {
   @IsNotEmpty()
   @IsEnum(Visibility)
   visibility: Visibility;
+
+  @IsOptional()
+  @IsUUID(4)
+  @ApiProperty()
+  arrangerId?: string;
 }

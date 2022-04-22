@@ -22,6 +22,25 @@ export class ArrangersService {
     return arranger;
   }
 
+  async findOrganization(id: string) {
+    /* finds the organization that the arranger is associated with 
+    Args: id - string
+    Returns: Organization object
+    */
+    const arranger = await this.prismaService.arranger.findUnique({
+      where: { id: id },
+      include: {
+        organization: {
+          select: { id: true },
+        },
+      },
+    });
+    if (!arranger) {
+      throw new ArrangerNotFoundException(id);
+    }
+    return arranger.organization;
+  }
+
   async remove(id: string) {
     try {
       return await this.prismaService.arranger.delete({
