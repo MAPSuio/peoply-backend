@@ -83,7 +83,7 @@ export class OrganizationInvitationsService {
 
       const usersToInvite = [...usersNotInOrg, ...usersMemberToAdmin];
 
-      trx.organizationInvitation.createMany({
+      await trx.organizationInvitation.createMany({
         data: usersToInvite.map(
           ({ userId: toUserId, role: organizationRole }) => {
             const invitationId = uuidv4();
@@ -98,7 +98,7 @@ export class OrganizationInvitationsService {
           },
         ),
       });
-      trx.organizationInvitation.findMany({
+      return await trx.organizationInvitation.findMany({
         where: {
           organizationId,
           fromUserId,

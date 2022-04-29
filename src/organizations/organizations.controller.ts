@@ -99,6 +99,7 @@ export class OrganizationsController {
   @OrganizationRoles(OrganizationRole.ADMIN)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Post("/:id/invitations")
+  @UseGuards(AuthenticatedGuard)
   async sendInvitations(
     @Req() req: any,
     @Param("id") id: string,
