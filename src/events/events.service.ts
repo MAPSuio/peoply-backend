@@ -185,6 +185,26 @@ export class EventsService {
   async findOneByUrlId(urlId: string) {
     const event = await this.prisma.event.findUnique({
       where: { urlId: urlId },
+      include: {
+        eventArrangers: {
+          include: {
+            arranger: {
+              include: {
+                user: { select: { firstName: true, lastName: true, id: true } },
+                organization: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        eventCategories: {
+          include: {
+            category: true,
+          },
+        },
+        registrations: {
+          select: { regStatus: true },
+        },
+      },
     });
 
     if (!event) {
