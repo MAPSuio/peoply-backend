@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { UsersService } from "./users.service";
 import { UsersController } from "./users.controller";
 import { RegistrationsModule } from "../registrations/registrations.module";
@@ -16,7 +16,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
     FavoritesModule,
     AzureModule,
     ArrangersModule,
-    OrganizationsModule,
+    forwardRef(() => OrganizationsModule),
     NotificationsModule,
   ],
   controllers: [UsersController],

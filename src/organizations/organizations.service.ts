@@ -3,7 +3,11 @@ import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { PrismaError } from "../prisma/prisma.constants";
-import { CreateOrganizationDto, UpdateOrganizationDto } from "./dto";
+import {
+  ChangeRoleDto,
+  CreateOrganizationDto,
+  UpdateOrganizationDto,
+} from "./dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from ".prisma/client";
 import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
@@ -185,5 +189,50 @@ export class OrganizationsService {
       },
     });
     return organization;
+  }
+  async checkUserRole(
+    userId: string,
+    orgId: string,
+    roles: Array<OrganizationRole>,
+  ) {
+    /* Check if a user is in an org
+    Args:
+      userId - user id
+      orgId - org id
+    Returns:
+      boolean - true if user is in org, false if not
+    */
+    const userRole = await this.prisma.userOrganizationRole.findFirst({
+      where: {
+        userId: userId,
+        organizationId: orgId,
+        role: { in: roles },
+      },
+    });
+    return userRole !== null;
+  }
+
+  async changeUserRole(orgId: string, changeRoleDto: ChangeRoleDto) {
+    /* Change the role of a user in an org
+    Args:
+      orgId - org id
+      changeRoleDto - model ChangeRoleDto
+    */
+
+    try {
+      return this.prisma.userOrganizationRole.update({
+        where: {
+          organizationId_userId: {
+            organizationId: orgId,
+            userId: changeRoleDto.userId,
+          },
+        },
+        data: {
+          role: changeRoleDto.role,
+        },
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 }

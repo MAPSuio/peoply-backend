@@ -12,13 +12,14 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { InvitationStatus, OrganizationRole, User } from "@prisma/client";
+import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangersService } from "../arrangers/services";
-import { AuthenticatedGuard } from "../auth/guards";
+import { AuthenticatedGuard, OrganizationRolesGuard } from "../auth/guards";
 import { CreateOrganizationInvitationDto } from "../invitations/dto/create-organizationInvitation.dto";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
-import { UpdateOrganizationDto } from "./dto";
+import { ChangeRoleDto, UpdateOrganizationDto } from "./dto";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationsService } from "./organizations.service";
@@ -48,7 +49,8 @@ export class OrganizationsController {
     return this.organizationsService.create(req.user.id, createOrganizationDto);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Patch("/:orgId")
   async update(
     @Req() req: any,
@@ -61,27 +63,11 @@ export class OrganizationsController {
     Returns:
         Organization - the updated organization
     */
-    const organization = await this.organizationsService.findOrgWithUsers(
-      orgId,
-    );
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
-    const usersRoles = organization.organizationRoles;
-
-    // check for user permissions
-    for (const userRole of usersRoles) {
-      if (
-        userRole.userId === req.user.id &&
-        userRole.role === OrganizationRole.ADMIN
-      ) {
-        return this.organizationsService.update(orgId, updateOrganizationDto);
-      }
-    }
-    throw new UnauthorizedException("User is not an admin of the organization");
+    return this.organizationsService.update(orgId, updateOrganizationDto);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Delete("/:orgId")
   async delete(@Req() req: any, @Param("orgId") orgId: string) {
     /* delete organization
@@ -90,27 +76,11 @@ export class OrganizationsController {
     Returns:
         Organization - the deleted organization
     */
-    const organization = await this.organizationsService.findOrgWithUsers(
-      orgId,
-    );
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
-    const usersRoles = organization.organizationRoles;
-
-    // check for user permissions
-    for (const userRole of usersRoles) {
-      if (
-        userRole.userId === req.user.id &&
-        userRole.role === OrganizationRole.ADMIN
-      ) {
-        return this.organizationsService.remove(orgId);
-      }
-    }
-    throw new UnauthorizedException("User is not an admin of the organization");
+    return this.organizationsService.remove(orgId);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/events")
   async getEvents(@Req() req: any, @Param("orgId") orgId: string) {
     /* get events for organization
@@ -123,51 +93,32 @@ export class OrganizationsController {
     if (!arrangerID) {
       return;
     }
-
-    const organization = await this.organizationsService.findOrgWithUsers(
-      orgId,
-    );
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
-    const usersRoles = organization.organizationRoles;
-    // check for user permissions
-    for (const userRole of usersRoles) {
-      if (
-        userRole.userId === req.user.id &&
-        userRole.role === OrganizationRole.ADMIN
-      ) {
-        return await this.eventArrangersService.findAllWithEvents(arrangerID);
-      }
-    }
-    throw new UnauthorizedException("User is not an admin of the organization");
+    return await this.eventArrangersService.findAllWithEvents(arrangerID);
   }
 
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Post("/:id/invitations")
   async sendInvitations(
     @Req() req: any,
     @Param("id") id: string,
     @Body() createOrgInvitesDtos: CreateOrganizationInvitationDto[],
   ) {
-    const organization = await this.organizationsService.findOrgWithUsers(id);
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(id);
-    }
-    const usersRoles = organization.organizationRoles;
+    return this.organizationInvitationsService.createInvitations(
+      id,
+      req.user.id,
+      createOrgInvitesDtos,
+    );
+  }
 
-    for (const userRole of usersRoles) {
-      if (
-        userRole.userId === req.user.id &&
-        userRole.role === OrganizationRole.ADMIN
-      ) {
-        return this.organizationInvitationsService.createInvitations(
-          id,
-          req.user.id,
-          createOrgInvitesDtos,
-        );
-      }
-    }
-    throw new UnauthorizedException("User is not an admin of the organization");
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @Patch("/:orgId/roles")
+  async changeUserRole(
+    @Param("orgId") orgId: string,
+    @Body() changeRoleDto: ChangeRoleDto,
+  ) {
+    return this.organizationsService.changeUserRole(orgId, changeRoleDto);
   }
 
   @UseGuards(AuthenticatedGuard)

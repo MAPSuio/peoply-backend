@@ -1,5 +1,5 @@
 // src/auth/auth.module.ts
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
@@ -31,7 +31,7 @@ const OidcStrategyFactory = {
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: "oidc" }),
-    UsersModule,
+    forwardRef(() => UsersModule),
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
