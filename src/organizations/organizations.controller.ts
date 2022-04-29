@@ -187,4 +187,18 @@ export class OrganizationsController {
         );
     }
   }
+
+  @Get(":orgId/members")
+  async getMembers(@Req() req: any, @Param("orgId") orgId: string) {
+    /* get events for organization
+    Args:
+        orgId: string - id of the organization to get events for
+    Returns:
+        List<UserOrganizationRole> - list of users for the organization
+    */
+    const organization = await this.organizationsService.findOrgWithUsers(
+      orgId,
+    );
+    return organization?.organizationRoles;
+  }
 }

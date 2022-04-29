@@ -152,7 +152,19 @@ export class OrganizationsService {
           id: orgId,
         },
         include: {
-          organizationRoles: true,
+          organizationRoles: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  image: true,
+                  firstName: true,
+                  lastName: true,
+                  description: true,
+                },
+              },
+            },
+          },
         },
       });
     } catch (error) {
