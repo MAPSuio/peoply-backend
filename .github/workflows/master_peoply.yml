@@ -15,7 +15,7 @@ on:
       - master
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,13 +26,26 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: npm install, build, and test
-        run: |
-          npm install
-          npm run lint --if-present
-          npm run build --if-present
-          npm run test --if-present
-          npm run prisma:deploy --if-present
+      - name: npm install
+        run: npm install
+      - name: npm lint
+        run: npm run lint --if-present
+      - name: npm build
+        run: npm run build --if-present
+      - name: npm test
+        run: npm run test --if-present
+
+  deploy:
+    runs-on: ubuntu-latest
+
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Node.js version ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
