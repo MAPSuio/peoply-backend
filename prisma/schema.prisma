@@ -106,7 +106,7 @@ model Event {
   id               String            @id @default(uuid())
   urlId            String            @unique @map("url_id")
   startDate        DateTime          @map("start_date")
-  endDate          DateTime          @map("end_date")
+  endDate          DateTime?         @map("end_date")
   title            String            @db.VarChar(150)
   description      String
   capacity         Int?

@@ -25,11 +25,11 @@ export class CreateEventDto {
   @ApiProperty()
   startDate: Date;
 
-  @IsNotEmpty()
+  @IsOptional()
   @MaxDateString(new Date("2099-01-01T01:01:01.001Z"))
   @IsLaterDateStringThan("startDate")
   @ApiProperty()
-  endDate: Date;
+  endDate?: Date;
 
   @IsNotEmpty()
   @IsString()
