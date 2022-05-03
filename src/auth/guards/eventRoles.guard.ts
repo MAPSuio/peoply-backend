@@ -1,0 +1,81 @@
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  Inject,
+  forwardRef,
+  NotFoundException,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { OrganizationRole } from "@prisma/client";
+import { EventsService } from "../../events/events.service";
+import { OrganizationsService } from "../../organizations/organizations.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { UsersService } from "../../users/users.service";
+import { AuthService } from "../auth.service";
+import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
+
+/*
+    To use this guard with orgs, one must also specify which org roles that can access, e.g. ADMIN. This is done by adding the decorator @OrganizationRoles(OrganizationRole.ADMIN) to the controller method, before the @UseGuards(EventRolesGuard). This example uses the ADMIN role, but other or more roles can be added.
+    Requires urlId to be in the request params.
+  */
+@Injectable()
+export class EventRolesGuard implements CanActivate {
+  constructor(
+    private reflector: Reflector,
+    private readonly organizationsService: OrganizationsService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const roles = this.reflector.get<OrganizationRole[]>(
+      "roles",
+      context.getHandler(),
+    );
+    if (!roles) {
+      throw new RolesNotFoundException();
+    }
+    const request = context.switchToHttp().getRequest();
+    const valid = this.authService.validateJWT(request.cookies.access);
+    const user = await this.usersService.findById(valid.sub);
+    const urlId = request.params.urlId;
+    if (!urlId) {
+      throw new NotFoundException(
+        "No urlId provided. Use urlId as param in function.",
+      );
+    }
+
+    const event = await this.eventsService.findOneWithArrangers(urlId);
+
+    if (!user || !event) {
+      return false;
+    }
+
+    //user is arranger of event
+    if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
+      return true;
+    }
+    // check if user is admin of an organization that is arranger of event
+    for (const arranger of event.eventArrangers) {
+      const org = await this.organizationsService.findByArrangerId(
+        arranger.arrangerId,
+      );
+
+      if (!org) {
+        return false;
+      }
+      // is the user a <role> of the organization?
+      const res = await this.organizationsService.checkUserRole(
+        user.id,
+        org.id,
+        roles,
+      );
+      return res;
+    }
+    return false;
+  }
+}

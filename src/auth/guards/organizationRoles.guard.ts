@@ -10,6 +10,7 @@ import { OrganizationRole } from "@prisma/client";
 import { OrganizationsService } from "../../organizations/organizations.service";
 import { UsersService } from "../../users/users.service";
 import { AuthService } from "../auth.service";
+import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 
 /*
   To use this guard, one must also specify which org roles that can access, e.g. ADMIN. This is done by adding the decorator @OrganizationRoles(OrganizationRole.ADMIN) to the controller method, before the @UseGuards(OrganizationRolesGuard). This example uses the ADMIN role, but other or more roles can be added.
@@ -31,7 +32,7 @@ export class OrganizationRolesGuard implements CanActivate {
       context.getHandler(),
     );
     if (!roles) {
-      return false;
+      throw new RolesNotFoundException();
     }
     const request = context.switchToHttp().getRequest();
     const valid = this.authService.validateJWT(request.cookies.access);
@@ -41,7 +42,6 @@ export class OrganizationRolesGuard implements CanActivate {
     if (!user) {
       return false;
     }
-
     // is the user a <role> of the organization?
     const res = await this.organizationsService.checkUserRole(
       user.id,

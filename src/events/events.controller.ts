@@ -1,9 +1,4 @@
-import {
-  EventArrangerRole,
-  OrganizationRole,
-  InvitationStatus,
-  User,
-} from ".prisma/client";
+import { OrganizationRole, InvitationStatus, User } from ".prisma/client";
 import {
   BadRequestException,
   Body,
@@ -21,7 +16,9 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
+import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventInvitationDoesNotExistException } from "../invitations/exceptions/eventInvitationDoesNotExistException.exception";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
@@ -126,43 +123,23 @@ export class EventsController {
     return this.eventsService.findOneByUrlId(urlId);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Patch(":urlId")
   async update(
-    @Req() req: any,
     @Param("urlId") urlId: string,
     @Body() updateEventDto: UpdateEventDto,
   ) {
-    const user: User = req.user;
-    const event = await this.eventsService.findOneWithArrangers(urlId);
-
-    if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
-      return this.eventsService.update(urlId, updateEventDto);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to update this event",
-      );
-    }
+    //the user has to be the arranger or the admin of the organization
+    return this.eventsService.update(urlId, updateEventDto);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @OrganizationRoles(OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Delete(":urlId")
-  async remove(@Req() req: any, @Param("urlId") urlId: string) {
-    const user: User = req.user;
-    const event = await this.eventsService.findOneWithArrangers(urlId);
-    if (
-      event.eventArrangers.find(
-        (e) =>
-          e.arrangerId === user.arrangerId &&
-          e.role === EventArrangerRole.ADMIN,
-      )
-    ) {
-      return this.eventsService.remove(urlId);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to delete this event",
-      );
-    }
+  async remove(@Req() @Param("urlId") urlId: string) {
+    //the user has to be the arranger or the admin of the organization
+    return this.eventsService.remove(urlId);
   }
 
   @Get(":id/registrations")

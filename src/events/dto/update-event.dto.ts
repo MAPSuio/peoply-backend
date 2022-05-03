@@ -1,8 +1,9 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
+import { Visibility } from "@prisma/client";
 import {
-  IsBoolean,
   IsDateString,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsString,
@@ -29,9 +30,9 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiProperty()
   capacity: number;
 
-  @IsBoolean()
+  @IsEnum(Visibility)
   @ApiProperty()
-  private: boolean;
+  visibility: Visibility;
 
   @IsNotEmpty()
   @IsDateString()
