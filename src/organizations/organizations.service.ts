@@ -7,6 +7,7 @@ import {
   ChangeRoleDto,
   CreateOrganizationDto,
   UpdateOrganizationDto,
+  ChangeRoleDescriptionDTO,
 } from "./dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from ".prisma/client";
@@ -231,20 +232,40 @@ export class OrganizationsService {
       changeRoleDto - model ChangeRoleDto
     */
 
-    try {
-      return this.prisma.userOrganizationRole.update({
-        where: {
-          organizationId_userId: {
-            organizationId: orgId,
-            userId: changeRoleDto.userId,
-          },
+    return await this.prisma.userOrganizationRole.update({
+      where: {
+        organizationId_userId: {
+          organizationId: orgId,
+          userId: changeRoleDto.userId,
         },
-        data: {
-          role: changeRoleDto.role,
-        },
-      });
-    } catch (error) {
-      throw error;
+      },
+      data: {
+        role: changeRoleDto.role,
+      },
+    });
+  }
+
+  async changeUserRoleDescription(
+    orgId: string,
+    userId: string,
+    changeRoleDescriptionDTO: ChangeRoleDescriptionDTO,
+  ) {
+    /* if the new description is empty set the value to null*/
+    let newDescription = null;
+    if (changeRoleDescriptionDTO.description !== "") {
+      newDescription = changeRoleDescriptionDTO.description;
     }
+
+    return await this.prisma.userOrganizationRole.update({
+      where: {
+        organizationId_userId: {
+          organizationId: orgId,
+          userId: userId,
+        },
+      },
+      data: {
+        roleDescription: newDescription,
+      },
+    });
   }
 }

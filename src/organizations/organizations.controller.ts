@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { InvitationStatus, OrganizationRole, User } from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangersService } from "../arrangers/services";
 import { AuthenticatedGuard, OrganizationRolesGuard } from "../auth/guards";
@@ -19,7 +20,12 @@ import { CreateOrganizationInvitationDto } from "../invitations/dto/create-organ
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
-import { ChangeRoleDto, UpdateOrganizationDto } from "./dto";
+import { PrismaError } from "../prisma/prisma.constants";
+import {
+  ChangeRoleDescriptionDTO,
+  ChangeRoleDto,
+  UpdateOrganizationDto,
+} from "./dto";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationsService } from "./organizations.service";
@@ -99,7 +105,6 @@ export class OrganizationsController {
   @OrganizationRoles(OrganizationRole.ADMIN)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Post("/:id/invitations")
-  @UseGuards(AuthenticatedGuard)
   async sendInvitations(
     @Req() req: any,
     @Param("id") id: string,
@@ -120,6 +125,40 @@ export class OrganizationsController {
     @Body() changeRoleDto: ChangeRoleDto,
   ) {
     return this.organizationsService.changeUserRole(orgId, changeRoleDto);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Patch("/:orgId/roleDescription/:userId")
+  async updateRoleDescription(
+    @Req() req: any,
+    @Param("userId") userId: string,
+    @Param("orgId") orgId: string,
+    @Body() updateRoleDto: ChangeRoleDescriptionDTO,
+  ) {
+    /* update your own role description in an organization
+     */
+
+    if (req.user.id === userId) {
+      try {
+        return await this.organizationsService.changeUserRoleDescription(
+          orgId,
+          userId,
+          updateRoleDto,
+        );
+      } catch (exception) {
+        if (
+          exception instanceof PrismaClientKnownRequestError &&
+          exception.code === PrismaError.EntityNotFound
+        ) {
+          throw new BadRequestException(
+            "Cant find a user with a role in this organization",
+          );
+        }
+        throw exception;
+      }
+    } else {
+      throw new UnauthorizedException("You are not authorized to do this");
+    }
   }
 
   @UseGuards(AuthenticatedGuard)
