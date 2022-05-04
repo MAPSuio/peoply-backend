@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -27,6 +28,7 @@ import {
   UpdateOrganizationDto,
 } from "./dto";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
+import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationsService } from "./organizations.service";
 
@@ -53,6 +55,30 @@ export class OrganizationsController {
         Organization - the created organization
     */
     return this.organizationsService.create(req.user.id, createOrganizationDto);
+  }
+
+  /* endpoint to GET all orgs */
+  @Get()
+  async findAll(@Query() query: SearchOrganizationDto) {
+    const { skip, take } = query;
+    return this.organizationsService.findAll(query, skip, take);
+  }
+
+  @Get("/:orgId")
+  async getOrganization(@Param("orgId") orgId: string) {
+    try {
+      const org = await this.organizationsService.findOne(orgId);
+      if (!org) {
+        throw new OrganizationDoesNotExistException(orgId);
+      }
+      return org;
+    } catch (error) {
+      if (error.code === PrismaError.DoesNotExist) {
+        throw new OrganizationDoesNotExistException(orgId);
+      }
+
+      throw error;
+    }
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN)

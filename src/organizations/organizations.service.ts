@@ -12,6 +12,7 @@ import {
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from ".prisma/client";
 import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
+import { SearchOrganizationDto } from "./dto/search-organization.dto";
 
 @Injectable()
 export class OrganizationsService {
@@ -57,20 +58,19 @@ export class OrganizationsService {
     }
   }
 
-  async findOne(id: string) {
-    try {
-      return await this.prisma.organization.findUnique({
-        where: {
-          id,
-        },
-      });
-    } catch (error) {
-      if (error.code === PrismaError.DoesNotExist) {
-        throw new OrganizationDoesNotExistException(id);
-      }
+  async findAll(searchProps: SearchOrganizationDto = {}, skip = 0, take = 10) {
+    return await this.prisma.organization.findMany({
+      skip: skip,
+      take: take,
+    });
+  }
 
-      throw error;
-    }
+  async findOne(id: string) {
+    return this.prisma.organization.findUnique({
+      where: {
+        id,
+      },
+    });
   }
 
   async update(id: string, updateOrganizationDto: UpdateOrganizationDto) {
