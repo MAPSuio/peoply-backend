@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  Inject,
-  forwardRef,
-} from "@nestjs/common";
+import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { OrganizationRole } from "@prisma/client";
 import { OrganizationsService } from "../../organizations/organizations.service";
@@ -21,7 +15,6 @@ export class OrganizationRolesGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private readonly organizationsService: OrganizationsService,
-    @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}

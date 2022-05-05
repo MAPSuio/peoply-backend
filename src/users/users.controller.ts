@@ -11,12 +11,11 @@ import {
   Query,
   Req,
   Res,
-  UnauthorizedException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { AuthenticatedGuard } from "../auth/guards";
+import { AuthenticatedGuard, UserIdVerificationGuard } from "../auth/guards";
 import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
 import { FavoritesService } from "../favorites/favorites.service";
 import {
@@ -108,192 +107,107 @@ export class UsersController {
     }))(user);
   }
 
-  @UseGuards(AuthenticatedGuard)
-  @Get(":id/registrations")
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Get(":userId/registrations")
   async getRegistrations(
     @Req() req: any,
     @Query() query: SearchUserRegistrationDto,
-    @Param("id") id: string,
+    @Param("userId") id: string,
   ) {
-    const user: User = req.user;
-    if (id === user.id) {
-      return this.userRegistrationService.findAll(query, id);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to see this users registrations",
-      );
-    }
+    return this.userRegistrationService.findAll(query, id);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/registrations/:eventId")
   async getSingleRegistrations(
-    @Req() req: any,
-    @Query() query: SearchUserRegistrationDto,
     @Param("userId") userId: string,
     @Param("eventId") eventId: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user: User = req.user;
-    if (userId === user.id) {
-      const registration = await this.userRegistrationService.findOne(
-        eventId,
-        userId,
-      );
-      //the registration does not exist
-      if (!registration) {
-        res.status(HttpStatus.NO_CONTENT);
-      }
-      return registration;
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to see this users registrations",
-      );
+    const registration = await this.userRegistrationService.findOne(
+      eventId,
+      userId,
+    );
+    //the registration does not exist
+    if (!registration) {
+      res.status(HttpStatus.NO_CONTENT);
     }
+    return registration;
   }
 
-  @UseGuards(AuthenticatedGuard)
-  @Patch(":id/registrations")
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Patch(":userId/registrations")
   async updateRegistration(
-    @Req() req: any,
-    @Param("id") id: string,
+    @Param("userId") id: string,
     @Body() dto: UserUpdateRegistrationDto,
   ) {
-    const user: User = req.user;
-    if (id === user.id) {
-      // TODO check if the event exists
-      return this.userRegistrationService.update(id, dto);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to manipulate the registration for this user",
-      );
-    }
+    // TODO check if the event exists
+    return this.userRegistrationService.update(id, dto);
   }
 
-  @UseGuards(AuthenticatedGuard)
-  @Post(":id/registrations")
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Post(":userId/registrations")
   async createRegistration(
-    @Req() req: any,
-    @Param("id") id: string,
+    @Param("userId") id: string,
     @Body() dto: CreateRegistrationDto,
   ) {
-    const user: User = req.user;
-    if (id === user.id) {
-      // TODO check if the event exists
-      return this.userRegistrationService.create(id, dto);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to register this user",
-      );
-    }
+    // TODO check if the event exists
+    return this.userRegistrationService.create(id, dto);
   }
 
-  @UseGuards(AuthenticatedGuard)
-  @Delete(":id/registrations")
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Delete(":userId/registrations")
   async deleteRegistration(
-    @Req() req: any,
-    @Param("id") id: string,
+    @Param("userId") id: string,
     @Body() dto: DeleteRegistrationDto,
   ) {
-    const user: User = req.user;
-    if (id === user.id) {
-      // TODO check if the event exists
-      return this.userRegistrationService.remove(dto.eventId, id);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to delete the registration for this user",
-      );
-    }
+    // TODO check if the event exists
+    return this.userRegistrationService.remove(dto.eventId, id);
   }
 
-  @UseGuards(AuthenticatedGuard)
-  @Post(":id/favorites")
-  async makeFavorite(
-    @Req() req: any,
-    @Param("id") id: string,
-    @Body() dto: UuidDto,
-  ) {
-    const user: User = req.user;
-    if (id === user.id) {
-      return this.userFavoritesService.create(id, dto.id);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to add a favorite for this user",
-      );
-    }
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Post(":userId/favorites")
+  async makeFavorite(@Param("userId") id: string, @Body() dto: UuidDto) {
+    return this.userFavoritesService.create(id, dto.id);
   }
 
-  @UseGuards(AuthenticatedGuard)
-  @Get(":id/favorites")
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Get(":userId/favorites")
   async getFavorites(
-    @Req() req: any,
     @Query() query: SearchFavoritesDto,
-    @Param("id") id: string,
+    @Param("userId") id: string,
   ) {
-    const user: User = req.user;
-    if (id === user.id) {
-      return this.userFavoritesService.findAll(query, id);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to see this users registrations",
-      );
-    }
+    return this.userFavoritesService.findAll(query, id);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/favorites/:eventId")
   async getSpecificFavorite(
-    @Req() req: any,
     @Param("userId") userId: string,
     @Param("eventId") eventId: string,
     @Res({ passthrough: true }) res: Response, //passthrough is enabeled to allow both express and nestjs(next) handlers
   ) {
-    const user: User = req.user;
-    if (userId === user.id) {
-      const favorite = await this.userFavoritesService.findOne(userId, eventId);
+    const favorite = await this.userFavoritesService.findOne(userId, eventId);
 
-      if (!favorite) {
-        res.status(HttpStatus.NO_CONTENT);
-      }
-
-      return favorite;
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to see this users registrations",
-      );
+    if (!favorite) {
+      res.status(HttpStatus.NO_CONTENT);
     }
+    return favorite;
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Delete(":userId/favorites")
-  async deleteFavorite(
-    @Req() req: any,
-    @Body() dto: UuidDto,
-    @Param("userId") userId: string,
-  ) {
-    const user: User = req.user;
-    if (userId === user.id) {
-      return await this.userFavoritesService.remove(userId, dto.id);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to see delete this users registrations",
-      );
-    }
+  async deleteFavorite(@Body() dto: UuidDto, @Param("userId") userId: string) {
+    return await this.userFavoritesService.remove(userId, dto.id);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/arranging")
-  async getArrangedEvents(@Req() req: any, @Param("userId") id: string) {
+  async getArrangedEvents(@Req() req: any) {
     const user: User = req.user;
-    if (id === user.id) {
-      return this.eventArrangersService.findAllWithEvents(user.arrangerId);
-    } else {
-      throw new UnauthorizedException(
-        "You are not authorized to see what this arranger is arranging",
-      );
-    }
+    return this.eventArrangersService.findAllWithEvents(user.arrangerId);
   }
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/organizations")
   async getOrganizations(@Req() req: any, @Param("userId") userId: string) {
     /* gets all orgs that user is admin for
@@ -302,18 +216,12 @@ export class UsersController {
     Returns:
       list of orgs
     */
-    const user: User = req.user;
-    if (userId === user.id) {
-      return this.organizationsService.findOrgsByUserIdAndRole(user.id);
-    }
+    return this.organizationsService.findOrgsByUserIdAndRole(userId);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/notifications")
-  async getNotifications(@Req() req: any, @Param("userId") userId: string) {
-    const user: User = req.user;
-    if (userId === user.id) {
-      return this.notificationsService.findAllPendingByUserId(user.id);
-    }
+  async getNotifications(@Param("userId") userId: string) {
+    return this.notificationsService.findAllPendingByUserId(userId);
   }
 }

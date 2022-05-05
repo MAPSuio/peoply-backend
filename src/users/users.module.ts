@@ -1,4 +1,4 @@
-import { forwardRef, Module } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { UsersService } from "./users.service";
 import { UsersController } from "./users.controller";
 import { RegistrationsModule } from "../registrations/registrations.module";
@@ -8,6 +8,7 @@ import { AzureModule } from "../azure/azure.module";
 import { ArrangersModule } from "../arrangers/arrangers.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
   imports: [
@@ -16,8 +17,9 @@ import { NotificationsModule } from "../notifications/notifications.module";
     FavoritesModule,
     AzureModule,
     ArrangersModule,
-    forwardRef(() => OrganizationsModule),
+    OrganizationsModule,
     NotificationsModule,
+    AuthModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

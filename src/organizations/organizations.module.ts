@@ -12,7 +12,7 @@ import { UsersModule } from "../users/users.module";
     PrismaModule,
     ArrangersModule,
     InvitationsModule,
-    forwardRef(() => AuthModule),
+    AuthModule,
     forwardRef(() => UsersModule),
   ],
   controllers: [OrganizationsController],

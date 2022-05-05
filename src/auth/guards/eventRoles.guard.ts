@@ -2,8 +2,6 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  Inject,
-  forwardRef,
   NotFoundException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
@@ -24,7 +22,6 @@ export class EventRolesGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private readonly organizationsService: OrganizationsService,
-    @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
