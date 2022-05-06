@@ -1,19 +1,23 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsUrl } from "class-validator";
+import { IsBoolean, IsOptional, IsString } from "class-validator";
+import { ToBoolean } from "../../../decorators/transformers";
 import { CreateOrganizationDto } from "./create-organization.dto";
 
 export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {
-  @IsString()
-  @IsUrl()
+  @ToBoolean()
+  @IsBoolean()
+  @IsOptional()
   @ApiProperty()
-  image: string;
+  removeImage?: boolean;
 
   @IsString()
   @ApiProperty()
-  description: string;
+  @IsOptional()
+  description?: string;
 
   @IsString()
   @ApiProperty()
-  name: string;
+  @IsOptional()
+  name?: string;
 }

@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from "@nestjs/common";
+import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
@@ -12,11 +12,17 @@ import {
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from ".prisma/client";
 import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
+import { Organization } from "@prisma/client";
+import { AzureStorageService } from "../azure/azure-storage.service";
+import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly azureStorageService: AzureStorageService,
+  ) {}
   async create(
     creatorId: string, // id of the user creating the org
     createOrganizationDto: CreateOrganizationDto,
@@ -73,17 +79,76 @@ export class OrganizationsService {
     });
   }
 
-  async update(id: string, updateOrganizationDto: UpdateOrganizationDto) {
-    try {
-      return await this.prisma.organization.update({
-        where: { id },
-        data: updateOrganizationDto,
-      });
-    } catch (error) {
-      if (error.code === PrismaError.DoesNotExist) {
-        throw new OrganizationDoesNotExistException(id);
+  async update(
+    org: Organization,
+    updateOrganizationDto: UpdateOrganizationDto,
+    orgImage?: Express.Multer.File,
+  ) {
+    /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
+    const getImageFileName = async () => {
+      /* cannot remove and add an image at the same time... */
+      if (updateOrganizationDto.removeImage && orgImage) {
+        throw new HttpException(
+          { message: "The organization image must either be removed or added" },
+          409,
+        );
+      }
+      /* existing image must be deleted if either removing or uploading a new one*/
+      if (org.image && (updateOrganizationDto.removeImage || orgImage)) {
+        const imageName = org.image.slice(org.image.lastIndexOf("/") + 1); // remove url portion
+        await this.azureStorageService.delete(
+          imageName,
+          AzureStorageContainer.ORGANIZATION_IMAGES,
+        );
       }
 
+      /* upload image if one is provided */
+      if (orgImage) {
+        return await this.azureStorageService.upload(
+          this.azureStorageService.generateFileNameById(org.id, orgImage),
+          orgImage.buffer,
+          AzureStorageContainer.ORGANIZATION_IMAGES,
+        );
+      } else if (updateOrganizationDto.removeImage) {
+        return null;
+      }
+
+      return undefined;
+    };
+
+    const imageFileName = await getImageFileName();
+
+    /* delete removeImage before inserting to db */
+    delete updateOrganizationDto.removeImage;
+
+    try {
+      return await this.prisma.organization.update({
+        where: { id: org.id },
+        data: {
+          ...(imageFileName !== undefined && {
+            image: imageFileName,
+          }),
+          ...updateOrganizationDto,
+        },
+      });
+    } catch (error) {
+      /* delete uploaded image if anything fails */
+      if (imageFileName) {
+        this.azureStorageService.delete(
+          imageFileName.slice(imageFileName.lastIndexOf("/") + 1),
+          AzureStorageContainer.ORGANIZATION_IMAGES,
+        );
+      }
+
+      if (error instanceof PrismaClientKnownRequestError) {
+        switch (error.code) {
+          case PrismaError.EntityNotFound:
+            throw new BadRequestException("No such organization exists.");
+
+          default:
+            throw error;
+        }
+      }
       throw error;
     }
   }

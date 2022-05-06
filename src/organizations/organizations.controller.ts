@@ -10,8 +10,11 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { InvitationStatus, OrganizationRole, User } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
@@ -83,11 +86,30 @@ export class OrganizationsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseInterceptors(
+    FileInterceptor("orgImage", {
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
+          callback(
+            new BadRequestException("Only .jpeg and .png files are allowed!"),
+            false,
+          );
+        } else {
+          callback(null, true);
+        }
+      },
+      limits: {
+        // filesize limit 50 MB
+        fileSize: 50 * 1024 * 1024,
+      },
+    }),
+  )
   @Patch("/:orgId")
   async update(
     @Req() req: any,
     @Param("orgId") orgId: string,
     @Body() updateOrganizationDto: UpdateOrganizationDto,
+    @UploadedFile() orgImage?: Express.Multer.File,
   ) {
     /* update organization
     Args:
@@ -95,7 +117,15 @@ export class OrganizationsController {
     Returns:
         Organization - the updated organization
     */
-    return this.organizationsService.update(orgId, updateOrganizationDto);
+    const org = await this.organizationsService.findOne(orgId);
+    if (!org) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+    return this.organizationsService.update(
+      org,
+      updateOrganizationDto,
+      orgImage,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN)
