@@ -19,7 +19,11 @@ import { InvitationStatus, OrganizationRole, User } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangersService } from "../arrangers/services";
-import { AuthenticatedGuard, OrganizationRolesGuard } from "../auth/guards";
+import {
+  AuthenticatedGuard,
+  OrganizationRolesGuard,
+  UserIdVerificationGuard,
+} from "../auth/guards";
 import { CreateOrganizationInvitationDto } from "../invitations/dto/create-organizationInvitation.dto";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
@@ -183,7 +187,7 @@ export class OrganizationsController {
     return this.organizationsService.changeUserRole(orgId, changeRoleDto);
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Patch("/:orgId/roleDescription/:userId")
   async updateRoleDescription(
     @Req() req: any,
@@ -194,26 +198,22 @@ export class OrganizationsController {
     /* update your own role description in an organization
      */
 
-    if (req.user.id === userId) {
-      try {
-        return await this.organizationsService.changeUserRoleDescription(
-          orgId,
-          userId,
-          updateRoleDto,
+    try {
+      return await this.organizationsService.changeUserRoleDescription(
+        orgId,
+        userId,
+        updateRoleDto,
+      );
+    } catch (exception) {
+      if (
+        exception instanceof PrismaClientKnownRequestError &&
+        exception.code === PrismaError.EntityNotFound
+      ) {
+        throw new BadRequestException(
+          "Cant find a user with a role in this organization",
         );
-      } catch (exception) {
-        if (
-          exception instanceof PrismaClientKnownRequestError &&
-          exception.code === PrismaError.EntityNotFound
-        ) {
-          throw new BadRequestException(
-            "Cant find a user with a role in this organization",
-          );
-        }
-        throw exception;
       }
-    } else {
-      throw new UnauthorizedException("You are not authorized to do this");
+      throw exception;
     }
   }
 
