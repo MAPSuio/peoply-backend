@@ -45,6 +45,7 @@
     "@nestjs/platform-express": "^8.4.4",
     "@nestjs/swagger": "^5.2.1",
     "@prisma/client": "^3.12.0",
+    "azure-maps-rest": "^2.0.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.13.2",
     "cookie-parser": "^1.4.6",
