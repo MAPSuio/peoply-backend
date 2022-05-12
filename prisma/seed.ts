@@ -147,6 +147,7 @@ async function main() {
         description: eventDescriptions[i],
         capacity: capacities[i],
         visibility: visibility,
+        locationName: "locationName",
       },
     });
 

@@ -104,22 +104,36 @@ model Arranger {
 }
 
 model Event {
-  id               String            @id @default(uuid())
-  urlId            String            @unique @map("url_id")
-  startDate        DateTime          @map("start_date")
-  endDate          DateTime?         @map("end_date")
-  title            String            @db.VarChar(150)
-  description      String
-  capacity         Int?
-  visibility       Visibility
-  image            String?           @unique
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
-  eventArrangers   EventArranger[]
-  registrations    Registration[]
-  eventCategories  EventCategory[]
-  favorites        Favorite[]
-  eventInvitations EventInvitation[]
+  id                 String            @id @default(uuid())
+  urlId              String            @unique @map("url_id")
+  startDate          DateTime          @map("start_date")
+  endDate            DateTime?         @map("end_date")
+  title              String            @db.VarChar(150)
+  description        String
+  capacity           Int?
+  visibility         Visibility
+  image              String?           @unique
+  locationName       String            @map("location_name") @db.VarChar(100)
+  poiName            String?           @map("poi_name") @db.VarChar(100)
+  country            String?           @db.VarChar(100)
+  countryCode        String?           @map("country_code") @db.VarChar(2)
+  countryCodeISO3    String?           @map("country_code_iso3") @db.VarChar(3)
+  countrySubdivision String?           @map("country_subdivision") @db.VarChar(100)
+  localName          String?           @map("local_name") @db.VarChar(100)
+  municipality       String?           @db.VarChar(100)
+  postalCode         String?           @map("postal_code") @db.VarChar(20)
+  streetName         String?           @map("street_name") @db.VarChar(100)
+  streetNumber       String?           @map("street_number") @db.VarChar(20)
+  freeformAddress    String?           @map("free_form_address") @db.VarChar(100)
+  latitude           Float?
+  longitude          Float?
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at")
+  eventArrangers     EventArranger[]
+  registrations      Registration[]
+  eventCategories    EventCategory[]
+  favorites          Favorite[]
+  eventInvitations   EventInvitation[]
 
   @@index([urlId])
   @@map("events")

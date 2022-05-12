@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
@@ -64,4 +65,76 @@ export class CreateEventDto {
   @IsUUID(4)
   @ApiProperty()
   arrangerId?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @ApiProperty()
+  locationName: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  poiName?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  countryCodeISO3?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  countrySubdivision?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  localName?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  municipality?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  postalCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  streetName?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  streetNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  freeformAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @ApiProperty()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @ApiProperty()
+  longitude?: number;
 }
