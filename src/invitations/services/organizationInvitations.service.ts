@@ -22,6 +22,9 @@ export class OrganizationInvitationsService {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
+      include: {
+        organization: true,
+      },
     });
   }
 
