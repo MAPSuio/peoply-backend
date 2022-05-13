@@ -183,6 +183,18 @@ export class EventsService {
               }
             : undefined,
       },
+      include: {
+        eventArrangers: {
+          include: {
+            arranger: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+                organization: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
       orderBy: {
         [orderBy]: orderDirection,
       },
