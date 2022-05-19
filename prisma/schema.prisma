@@ -87,6 +87,7 @@ model UserOrganizationRole {
 enum OrganizationRole {
   ADMIN
   MEMBER
+  OWNER
 
   @@map("organization_roles")
 }

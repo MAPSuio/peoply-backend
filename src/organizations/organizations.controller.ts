@@ -30,6 +30,7 @@ import { OrganizationInvitationDoesNotExistException } from "../invitations/exce
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import {
+  ChangeOwnerDto,
   ChangeRoleDescriptionDTO,
   ChangeRoleDto,
   UpdateOrganizationDto,
@@ -88,7 +89,7 @@ export class OrganizationsController {
     }
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @UseInterceptors(
     FileInterceptor("orgImage", {
@@ -132,7 +133,7 @@ export class OrganizationsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Delete("/:orgId")
   async delete(@Req() req: any, @Param("orgId") orgId: string) {
@@ -145,7 +146,11 @@ export class OrganizationsController {
     return this.organizationsService.remove(orgId);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(
+    OrganizationRole.ADMIN,
+    OrganizationRole.OWNER,
+    OrganizationRole.MEMBER,
+  )
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/events")
   async getEvents(@Req() req: any, @Param("orgId") orgId: string) {
@@ -162,7 +167,7 @@ export class OrganizationsController {
     return await this.eventArrangersService.findAllWithEvents(arrangerID);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Post("/:id/invitations")
   async sendInvitations(
@@ -177,14 +182,68 @@ export class OrganizationsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Patch("/:orgId/roles")
   async changeUserRole(
     @Param("orgId") orgId: string,
     @Body() changeRoleDto: ChangeRoleDto,
   ) {
-    return this.organizationsService.changeUserRole(orgId, changeRoleDto);
+    if (
+      await this.organizationsService.checkUserRole(
+        changeRoleDto.userId,
+        orgId,
+        [OrganizationRole.OWNER],
+      )
+    ) {
+      throw new BadRequestException("Cannot change role of owner");
+    }
+
+    if (changeRoleDto.role === OrganizationRole.OWNER) {
+      throw new BadRequestException("Cannot change to owner");
+    }
+
+    try {
+      return await this.organizationsService.changeUserRole(
+        orgId,
+        changeRoleDto,
+      );
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === PrismaError.EntityNotFound
+      ) {
+        throw new BadRequestException("Can't find user in organization");
+      }
+      throw error;
+    }
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @Patch("/:orgId/owner")
+  async changeOwner(
+    @Req() req: any,
+    @Param("orgId") orgId: string,
+    @Body() changeOwnerDto: ChangeOwnerDto,
+  ) {
+    try {
+      return await this.organizationsService.changeOwner(
+        orgId,
+        req.user.id,
+        changeOwnerDto.newOwnerId,
+      );
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === PrismaError.EntityNotFound
+      ) {
+        throw new BadRequestException(
+          "New owner is not part of the organization",
+        );
+      }
+      throw error;
+    }
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)

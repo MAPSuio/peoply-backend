@@ -84,7 +84,10 @@ export class EventsController {
       if (org) {
         /* check if user is admin of org */
         const admin = org.organizationRoles.find(
-          (o) => o.userId === req.user.id && o.role === OrganizationRole.ADMIN,
+          (o) =>
+            o.userId === req.user.id &&
+            (o.role === OrganizationRole.ADMIN ||
+              o.role === OrganizationRole.OWNER),
         );
         if (!admin) {
           throw new UnauthorizedException(
@@ -123,7 +126,7 @@ export class EventsController {
     return this.eventsService.findOneByUrlId(urlId);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Patch(":urlId")
   async update(
@@ -134,7 +137,7 @@ export class EventsController {
     return this.eventsService.update(urlId, updateEventDto);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Delete(":urlId")
   async remove(@Req() @Param("urlId") urlId: string) {

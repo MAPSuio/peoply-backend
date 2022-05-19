@@ -44,7 +44,7 @@ export class OrganizationsService {
           data: {
             userId: creatorId,
             organizationId: newOrg.id,
-            role: OrganizationRole.ADMIN,
+            role: OrganizationRole.OWNER,
           },
         });
         return newOrg;
@@ -290,11 +290,50 @@ export class OrganizationsService {
     return userRole !== null;
   }
 
+  async changeOwner(orgId: string, oldOwnerId: string, newOwnerId: string) {
+    /* Change the owner of an org
+    Args:
+      orgId - org id
+      oldOwnerId - old owner id
+      newOwnerId - new owner id
+      newRole - new role in org, ADMIN by default
+    Returns:
+      the new owner - model User
+    */
+    // new role to old owner
+    return await this.prisma.$transaction(async (trx) => {
+      await trx.userOrganizationRole.update({
+        where: {
+          organizationId_userId: {
+            userId: oldOwnerId,
+            organizationId: orgId,
+          },
+        },
+        data: {
+          role: OrganizationRole.ADMIN,
+        },
+      });
+      return await trx.userOrganizationRole.update({
+        where: {
+          organizationId_userId: {
+            userId: newOwnerId,
+            organizationId: orgId,
+          },
+        },
+        data: {
+          role: OrganizationRole.OWNER,
+        },
+      });
+    });
+  }
+
   async changeUserRole(orgId: string, changeRoleDto: ChangeRoleDto) {
     /* Change the role of a user in an org
     Args:
       orgId - org id
       changeRoleDto - model ChangeRoleDto
+    Returns:
+      the new user - model User
     */
 
     return await this.prisma.userOrganizationRole.update({
