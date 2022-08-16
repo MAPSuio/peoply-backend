@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
-import { NotificationType } from "./notifications.constants";
+import {
+  PeoplyNotification,
+  NotificationType,
+} from "./notifications.constants";
 
 @Injectable()
 export class NotificationsService {
@@ -10,7 +13,7 @@ export class NotificationsService {
     private readonly organizationInvitationsService: OrganizationInvitationsService,
   ) {}
 
-  async findAllPendingByUserId(userId: string) {
+  async findAllPendingByUserId(userId: string): Promise<PeoplyNotification[]> {
     const eventInvitations =
       this.eventInvitationsService.findAllPendingInvitationsToUser(userId);
 
@@ -19,20 +22,22 @@ export class NotificationsService {
         userId,
       );
 
-    const eventNotifications = (await eventInvitations).map((invitation) => {
+    const eventNotifications: PeoplyNotification[] = (
+      await eventInvitations
+    ).map((invitation) => {
       return {
         type: NotificationType.INVITATION_EVENT,
         ...invitation,
       };
     });
-    const organizationNotifications = (await organizationInvitations).map(
-      (invitation) => {
-        return {
-          type: NotificationType.INVITATION_ORGANIZATION,
-          ...invitation,
-        };
-      },
-    );
+    const organizationNotifications: PeoplyNotification[] = (
+      await organizationInvitations
+    ).map((invitation) => {
+      return {
+        type: NotificationType.INVITATION_ORGANIZATION,
+        ...invitation,
+      };
+    });
 
     const notifications = [...eventNotifications, ...organizationNotifications];
 
