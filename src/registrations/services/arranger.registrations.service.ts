@@ -50,6 +50,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
                 firstName: true,
                 lastName: true,
                 image: true,
+                id: true,
               },
             }
           : false,

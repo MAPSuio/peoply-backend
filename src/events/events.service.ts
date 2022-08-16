@@ -240,7 +240,22 @@ export class EventsService {
     }
   }
 
-  async findOneWithArrangers(urlId: string) {
+  async findOneWithArrangers(id: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: id },
+      include: {
+        eventArrangers: true,
+      },
+    });
+
+    if (!event) {
+      throw new EventNotFoundException(id);
+    } else {
+      return event;
+    }
+  }
+
+  async findOneWithArrangersByUrlId(urlId: string) {
     const event = await this.prisma.event.findUnique({
       where: { urlId: urlId },
       include: {

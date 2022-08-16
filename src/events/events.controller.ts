@@ -24,6 +24,7 @@ import { EventInvitationDoesNotExistException } from "../invitations/exceptions/
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerRegistrationService } from "../registrations/services";
+import { isUUID } from "../util/uuid";
 import {
   CreateEventDto,
   SearchEventDto,
@@ -121,9 +122,13 @@ export class EventsController {
     );
   }
 
-  @Get(":urlId")
-  async findOne(@Param("urlId") urlId: string) {
-    return this.eventsService.findOneByUrlId(urlId);
+  @Get(":id")
+  async findOne(@Param("id") id: string) {
+    /* both urlId and id are valid here */
+    if (isUUID(id)) {
+      return this.eventsService.findOne(id);
+    }
+    return this.eventsService.findOneByUrlId(id);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -167,6 +172,15 @@ export class EventsController {
   ) {
     const user: User = req.user;
     return this.eventInvitationsService.createInvitations(id, user.id, userIds);
+  }
+
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
+  @Get(":id/invitations")
+  async getInvitations(@Param("id") id: string) {
+    return this.eventInvitationsService.findAllInvitationsForEventIncludingUsers(
+      id,
+    );
   }
 
   @UseGuards(AuthenticatedGuard)

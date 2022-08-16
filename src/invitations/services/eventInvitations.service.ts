@@ -19,6 +19,18 @@ export class EventInvitationsService {
     });
   }
 
+  async findAllInvitationsForEventIncludingUsers(eventId: string) {
+    return this.prisma.eventInvitation.findMany({
+      where: {
+        eventId: eventId,
+      },
+      include: {
+        toUser: true,
+        fromUser: true,
+      },
+    });
+  }
+
   async findAllPendingInvitationsToUser(userId: string) {
     return this.prisma.eventInvitation.findMany({
       where: {

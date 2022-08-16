@@ -40,13 +40,20 @@ export class EventRolesGuard implements CanActivate {
     const valid = this.authService.validateJWT(request.cookies.access);
     const user = await this.usersService.findById(valid.sub);
     const urlId = request.params.urlId;
-    if (!urlId) {
-      throw new NotFoundException(
-        "No urlId provided. Use urlId as param in function.",
-      );
-    }
+    const id = request.params.id;
+    let event;
 
-    const event = await this.eventsService.findOneWithArrangers(urlId);
+    if (!id) {
+      if (!urlId) {
+        throw new NotFoundException(
+          "No id or urlId provided. Use urlId as param in function.",
+        );
+      } else {
+        event = await this.eventsService.findOneWithArrangersByUrlId(urlId);
+      }
+    } else {
+      event = await this.eventsService.findOneWithArrangers(id);
+    }
 
     if (!user || !event) {
       return false;
