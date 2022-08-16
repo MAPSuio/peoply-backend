@@ -17,7 +17,7 @@ model Organization {
   arrangerId        String                 @unique @map("arranger_id")
   name              String
   orgNr             String?                @unique @map("org_nr") @db.VarChar(9)
-  image             String?                
+  image             String?
   description       String?                @db.Text
   createdAt         DateTime               @default(now()) @map("created_at")
   updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at")
@@ -258,6 +258,7 @@ model OrganizationInvitation {
   invitationStatus InvitationStatus @default(PENDING) @map("invitation_status")
 
   @@map("organization_invitations")
+  @@unique([organizationId, organizationRole, toUserId, invitationStatus])
 }
 
 enum InvitationStatus {

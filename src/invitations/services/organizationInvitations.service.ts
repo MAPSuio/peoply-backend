@@ -100,6 +100,7 @@ export class OrganizationInvitationsService {
             };
           },
         ),
+        skipDuplicates: true,
       });
       return await trx.organizationInvitation.findMany({
         where: {
