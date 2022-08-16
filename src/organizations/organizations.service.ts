@@ -290,6 +290,25 @@ export class OrganizationsService {
     return userRole !== null;
   }
 
+  async getOrganizationUser(userId: string, orgId: string) {
+    /* Find the user in an org
+    Args:
+      userId - user id
+      orgId - org id
+    Returns:
+      user - model User
+    */
+    const user = await this.prisma.userOrganizationRole.findUnique({
+      where: {
+        organizationId_userId: {
+          userId: userId,
+          organizationId: orgId,
+        },
+      },
+    });
+    return user;
+  }
+
   async changeOwner(orgId: string, oldOwnerId: string, newOwnerId: string) {
     /* Change the owner of an org
     Args:

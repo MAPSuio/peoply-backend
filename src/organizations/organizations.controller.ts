@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -186,21 +187,39 @@ export class OrganizationsController {
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Patch("/:orgId/roles")
   async changeUserRole(
+    @Req() req: any,
     @Param("orgId") orgId: string,
     @Body() changeRoleDto: ChangeRoleDto,
   ) {
-    if (
-      await this.organizationsService.checkUserRole(
+    /* fetch both organization users */
+    const organizationUser =
+      await this.organizationsService.getOrganizationUser(req.user.id, orgId);
+    const organizationUserToEdit =
+      await this.organizationsService.getOrganizationUser(
         changeRoleDto.userId,
         orgId,
-        [OrganizationRole.OWNER],
-      )
-    ) {
-      throw new BadRequestException("Cannot change role of owner");
+      );
+
+    if (organizationUserToEdit?.role === OrganizationRole.OWNER) {
+      throw new ForbiddenException("Cannot change role of owner");
     }
 
     if (changeRoleDto.role === OrganizationRole.OWNER) {
-      throw new BadRequestException("Cannot change to owner");
+      throw new ForbiddenException("Cannot change to owner");
+    }
+
+    const isEditingSelf =
+      organizationUser?.userId === organizationUserToEdit?.userId;
+
+    /* an admin can only edit members or themselves */
+    if (
+      !isEditingSelf &&
+      organizationUser?.role === OrganizationRole.ADMIN &&
+      organizationUserToEdit?.role !== OrganizationRole.MEMBER
+    ) {
+      throw new ForbiddenException(
+        "An admin can only edit users with the role of member",
+      );
     }
 
     try {
