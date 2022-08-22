@@ -218,8 +218,15 @@ export class EventsService {
           include: {
             arranger: {
               include: {
-                user: { select: { firstName: true, lastName: true, id: true } },
-                organization: { select: { id: true, name: true } },
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    id: true,
+                    image: true,
+                  },
+                },
+                organization: { select: { id: true, name: true, image: true } },
               },
             },
           },
