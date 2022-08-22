@@ -145,7 +145,8 @@ export class UserRegistrationService extends CommonRegistrationService {
           /* If change from NOT_GOING to GOING */
           if (
             userUpdateRegistrationDto.regStatus === RegStatus.GOING &&
-            existingReg.regStatus === RegStatus.NOT_GOING
+            (existingReg.regStatus === RegStatus.NOT_GOING ||
+              existingReg.regStatus === RegStatus.INVITED)
           ) {
             /* If event has no capacity or if there is free space
              * Just update registration status

@@ -3,6 +3,7 @@ import { InvitationStatus, RegStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
 import { v4 as uuidv4 } from "uuid";
+import { onErrorResumeNext } from "rxjs";
 
 @Injectable()
 export class EventInvitationsService {
@@ -37,43 +38,11 @@ export class EventInvitationsService {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
+      include: {
+        event: true,
+        fromUser: true,
+      },
     });
-  }
-
-  async createInvitation(
-    eventId: string,
-    fromUserId: string,
-    toUserId: string,
-  ) {
-    const invitation = this.prisma.$transaction(async (trx) => {
-      const invitation = await trx.eventInvitation.create({
-        data: {
-          eventId: eventId,
-          toUserId,
-          fromUserId,
-          invitationStatus: InvitationStatus.PENDING,
-        },
-      });
-      const registration = await trx.registration.findUnique({
-        where: {
-          eventId_userId: {
-            eventId: eventId,
-            userId: toUserId,
-          },
-        },
-      });
-      if (!registration) {
-        trx.registration.create({
-          data: {
-            eventId: eventId,
-            userId: toUserId,
-            regStatus: RegStatus.INVITED,
-          },
-        });
-      }
-      return invitation;
-    });
-    return invitation;
   }
 
   async createInvitations(
@@ -82,18 +51,6 @@ export class EventInvitationsService {
     toUserIds: string[],
   ) {
     const invitations = await this.prisma.$transaction(async (trx) => {
-      trx.eventInvitation.createMany({
-        data: toUserIds.map((userId) => {
-          const invitationId = uuidv4();
-          return {
-            id: invitationId,
-            eventId,
-            fromUserId,
-            toUserId: userId,
-            invitationStatus: InvitationStatus.PENDING,
-          };
-        }),
-      });
       const existingRegs = await trx.registration.findMany({
         where: {
           eventId,
@@ -102,10 +59,31 @@ export class EventInvitationsService {
           },
         },
       });
+
+      await trx.eventInvitation.createMany({
+        data: toUserIds.map((userId) => {
+          const invitationId = uuidv4();
+          const existingReg = existingRegs.find((reg) => reg.userId === userId);
+          return {
+            id: invitationId,
+            eventId,
+            fromUserId,
+            toUserId: userId,
+            invitationStatus:
+              existingReg?.regStatus === RegStatus.GOING ||
+              existingReg?.regStatus === RegStatus.WAITLISTED
+                ? InvitationStatus.ACCEPTED
+                : InvitationStatus.PENDING,
+          };
+        }),
+        skipDuplicates: true,
+      });
+
       const notRegistreredUserIds = toUserIds.filter(
         (userId) => !existingRegs.find((reg) => reg.userId === userId),
       );
-      trx.registration.createMany({
+
+      await trx.registration.createMany({
         data: notRegistreredUserIds.map((userId) => {
           return {
             eventId: eventId,
@@ -114,7 +92,8 @@ export class EventInvitationsService {
           };
         }),
       });
-      trx.eventInvitation.findMany({
+
+      return trx.eventInvitation.findMany({
         where: {
           eventId,
           fromUserId,
@@ -128,62 +107,60 @@ export class EventInvitationsService {
     return invitations;
   }
 
-  async acceptInvitation(invitationId: string) {
+  async acceptInvitationsToEvent(eventId: string, toUserId: string) {
     return this.prisma.$transaction(async (trx) => {
-      const invitation = await trx.eventInvitation.update({
+      await trx.eventInvitation.updateMany({
         where: {
-          id: invitationId,
+          eventId,
+          toUserId,
+          invitationStatus: InvitationStatus.PENDING,
         },
         data: {
           invitationStatus: InvitationStatus.ACCEPTED,
         },
       });
 
-      await this.userRegistrationsService.create(invitation.toUserId, {
-        eventId: invitation.eventId,
+      await this.userRegistrationsService.update(toUserId, {
+        eventId: eventId,
         regStatus: RegStatus.GOING,
       });
-
-      return invitation;
     });
   }
 
-  async declineInvitation(invitationId: string) {
+  async declineInvitationsToEvent(eventId: string, toUserId: string) {
     return this.prisma.$transaction(async (trx) => {
-      const invitation = await trx.eventInvitation.update({
+      await trx.eventInvitation.updateMany({
         where: {
-          id: invitationId,
+          eventId,
+          toUserId,
+          invitationStatus: InvitationStatus.PENDING,
         },
         data: {
           invitationStatus: InvitationStatus.DECLINED,
         },
       });
 
-      await trx.registration.upsert({
+      // Update many because prisma limits the where-clause on regular update
+      // eventId and userId will make this only update ONE unique registration
+      await trx.registration.updateMany({
         where: {
-          eventId_userId: {
-            eventId: invitation.eventId,
-            userId: invitation.toUserId,
-          },
+          eventId: eventId,
+          userId: toUserId,
+          regStatus: RegStatus.INVITED,
         },
-        create: {
-          userId: invitation.toUserId,
-          eventId: invitation.eventId,
-          regStatus: RegStatus.NOT_GOING,
-        },
-        update: {
+        data: {
           regStatus: RegStatus.NOT_GOING,
         },
       });
-
-      return invitation;
     });
   }
 
-  async ignoreInvitation(invitationId: string) {
-    return this.prisma.eventInvitation.update({
+  async ignoreInvitationsToEvent(eventId: string, toUserId: string) {
+    await this.prisma.eventInvitation.updateMany({
       where: {
-        id: invitationId,
+        eventId,
+        toUserId,
+        invitationStatus: InvitationStatus.PENDING,
       },
       data: {
         invitationStatus: InvitationStatus.IGNORED,

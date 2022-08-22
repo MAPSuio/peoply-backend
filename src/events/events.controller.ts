@@ -5,6 +5,9 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
+  NotImplementedException,
   Param,
   Patch,
   Post,
@@ -20,7 +23,6 @@ import { OrganizationRoles } from "../../decorators/organizationRoles.decorator"
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
-import { EventInvitationDoesNotExistException } from "../invitations/exceptions/eventInvitationDoesNotExistException.exception";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerRegistrationService } from "../registrations/services";
@@ -39,7 +41,7 @@ export class EventsController {
   constructor(
     private readonly organizationsService: OrganizationsService,
     private readonly eventsService: EventsService,
-    private readonly arrangerRegistrationServcice: ArrangerRegistrationService,
+    private readonly arrangerRegistrationService: ArrangerRegistrationService,
     private readonly eventInvitationsService: EventInvitationsService,
   ) {}
 
@@ -150,17 +152,19 @@ export class EventsController {
     return this.eventsService.remove(urlId);
   }
 
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Get(":id/registrations")
   async getRegistrations(
     @Query() query: SearchEventRegistrationDto,
     @Param("id") id: string,
   ) {
-    return this.arrangerRegistrationServcice.findAll(query, id);
+    return this.arrangerRegistrationService.findAll(query, id);
   }
 
   @Get(":id/registrations/number-going")
   async findNumberGoing(@Param("id") id: string) {
-    return this.arrangerRegistrationServcice.findNumberAttending(id, "GOING");
+    return this.arrangerRegistrationService.findNumberAttending(id, "GOING");
   }
 
   @UseGuards(AuthenticatedGuard)
@@ -184,68 +188,50 @@ export class EventsController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @Patch(":id/invitations/:invitationId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Patch(":id/invitations")
   async updateInvitation(
     @Req() req: any,
     @Param("id") id: string,
-    @Param("invitationId") invitationId: string,
     @Body() updateInvitationDto: UpdateInvitationDto,
   ) {
     /* The toUser can update to ACCEPTED, DECLINED, and IGNORED only if the status is PENDING
      * while the fromUser can update to CANCELLED only if the status is still PENDING
      */
     const user: User = req.user;
-    const event = await this.eventsService.findOne(id);
-    if (!event) {
-      throw new EventNotFoundException(id);
-    }
 
-    const invitation = await this.eventInvitationsService.findOne(invitationId);
-    if (!invitation) {
-      throw new EventInvitationDoesNotExistException(
-        "Invitation does not exist",
-      );
-    }
-
-    if (invitation.invitationStatus !== InvitationStatus.PENDING) {
-      throw new BadRequestException(
-        "You can only update to ACCEPTED, DECLINED, or IGNORED if the status is PENDING",
-      );
-    }
-
-    switch (updateInvitationDto.status) {
-      case InvitationStatus.ACCEPTED:
-        if (user.id === invitation.toUserId) {
-          return this.eventInvitationsService.acceptInvitation(invitationId);
-        }
-        throw new UnauthorizedException(
-          "You can only update to ACCEPTED if you are the toUser",
-        );
-      case InvitationStatus.DECLINED:
-        if (user.id === invitation.toUserId) {
-          return this.eventInvitationsService.declineInvitation(invitationId);
-        }
-        throw new UnauthorizedException(
-          "You can only update to DECLINED if you are the toUser",
-        );
-      case InvitationStatus.IGNORED:
-        if (user.id === invitation.toUserId) {
-          return this.eventInvitationsService.ignoreInvitation(invitationId);
-        }
-        throw new UnauthorizedException(
-          "You can only update to IGNORED if you are the toUser",
-        );
-      case InvitationStatus.CANCELLED:
-        if (user.id === invitation.fromUserId) {
-          return this.eventInvitationsService.cancelInvitation(invitationId);
-        }
-        throw new UnauthorizedException(
-          "You can only update to CANCELLED if you are the fromUser",
-        );
-      default:
-        throw new BadRequestException(
-          "You can only update to ACCEPTED, DECLINED, IGNORED, or CANCELLED",
-        );
+    try {
+      switch (updateInvitationDto.status) {
+        case InvitationStatus.ACCEPTED:
+          return this.eventInvitationsService.acceptInvitationsToEvent(
+            id,
+            user.id,
+          );
+        case InvitationStatus.DECLINED:
+          return this.eventInvitationsService.declineInvitationsToEvent(
+            id,
+            user.id,
+          );
+        case InvitationStatus.IGNORED:
+          return this.eventInvitationsService.ignoreInvitationsToEvent(
+            id,
+            user.id,
+          );
+        case InvitationStatus.CANCELLED:
+          throw new NotImplementedException(
+            "Not yet implemented cancelling invitations",
+          );
+        default:
+          throw new BadRequestException(
+            "You can only update to ACCEPTED, DECLINED, IGNORED, or CANCELLED",
+          );
+      }
+    } catch (err) {
+      const event = await this.eventsService.findOne(id);
+      if (!event) {
+        throw new EventNotFoundException(id);
+      }
+      throw err;
     }
   }
 }
