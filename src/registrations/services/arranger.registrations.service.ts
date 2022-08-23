@@ -61,15 +61,6 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     });
   }
 
-  async findNumberAttending(eventId: string, regStatus: RegStatus) {
-    return this.prismaService.registration.count({
-      where: {
-        eventId,
-        regStatus,
-      },
-    });
-  }
-
   async update(
     eventId: string,
     userId: string,

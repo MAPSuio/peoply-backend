@@ -3,7 +3,6 @@ import { InvitationStatus, RegStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
 import { v4 as uuidv4 } from "uuid";
-import { onErrorResumeNext } from "rxjs";
 
 @Injectable()
 export class EventInvitationsService {

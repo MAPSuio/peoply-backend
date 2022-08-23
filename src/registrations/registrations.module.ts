@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common";
-import { RegistrationsController } from "./registrations.controller";
 import { PrismaModule } from "../prisma/prisma.module";
 import {
   ArrangerRegistrationService,
@@ -9,7 +8,6 @@ import {
 
 @Module({
   imports: [PrismaModule],
-  controllers: [RegistrationsController],
   providers: [
     UserRegistrationService,
     ArrangerRegistrationService,

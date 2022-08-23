@@ -60,7 +60,7 @@ export class EventsController {
         }
       },
       limits: {
-        // filesize limit 50 MB
+        // file size limit 50 MB
         fileSize: 50 * 1024 * 1024,
       },
     }),
@@ -82,7 +82,7 @@ export class EventsController {
     let arrangerId;
     if (createEventDto.arrangerId) {
       arrangerId = createEventDto.arrangerId;
-      /* check if arrangerid is org */
+      /* check if arrangerId is org */
       const org = await this.organizationsService.findByArrangerId(arrangerId);
       if (org) {
         /* check if user is admin of org */
@@ -160,11 +160,6 @@ export class EventsController {
     @Param("id") id: string,
   ) {
     return this.arrangerRegistrationService.findAll(query, id);
-  }
-
-  @Get(":id/registrations/number-going")
-  async findNumberGoing(@Param("id") id: string) {
-    return this.arrangerRegistrationService.findNumberAttending(id, "GOING");
   }
 
   @UseGuards(AuthenticatedGuard)

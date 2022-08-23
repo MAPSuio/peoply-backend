@@ -14,7 +14,7 @@ export class AzureMapsController {
   ) {
     const q = params.query;
 
-    // options is the params object wihtout the query
+    // options is the params object without the query
     const options = Object.keys(params).reduce(
       (acc: Models.SearchGetSearchFuzzyOptionalParams, key) => {
         if (key !== "query") {
