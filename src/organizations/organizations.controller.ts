@@ -147,12 +147,6 @@ export class OrganizationsController {
     return this.organizationsService.remove(orgId);
   }
 
-  @OrganizationRoles(
-    OrganizationRole.ADMIN,
-    OrganizationRole.OWNER,
-    OrganizationRole.MEMBER,
-  )
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/events")
   async getEvents(@Req() req: any, @Param("orgId") orgId: string) {
     /* get events for organization
