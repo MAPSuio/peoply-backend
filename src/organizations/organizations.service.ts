@@ -16,6 +16,7 @@ import { EventArrangerRole, Organization } from "@prisma/client";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
+import { calculateEditDistance } from "../util/string";
 
 @Injectable()
 export class OrganizationsService {
@@ -65,10 +66,40 @@ export class OrganizationsService {
   }
 
   async findAll(searchProps: SearchOrganizationDto = {}, skip = 0, take = 10) {
-    return await this.prisma.organization.findMany({
+    const generateSearchQuery = (name: string) =>
+      name.toLowerCase().split(" ").join(" & ");
+
+    const orgs = await this.prisma.organization.findMany({
       skip: skip,
       take: take,
+      where: {
+        name: searchProps.name
+          ? { contains: searchProps.name, mode: "insensitive" }
+          : undefined,
+        description: searchProps.description
+          ? { search: generateSearchQuery(searchProps.description) }
+          : undefined,
+        orgNr: searchProps.orgNr ? { search: searchProps.orgNr } : undefined,
+      },
     });
+
+    if (searchProps.name) {
+      return orgs
+        .map((org) => {
+          const nameEditDistance = calculateEditDistance(
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            searchProps.name!,
+            org.name,
+          );
+          return {
+            org,
+            nameEditDistance,
+          };
+        })
+        .sort((a, b) => a.nameEditDistance - b.nameEditDistance)
+        .map((org) => org.org); // remove the nameEditDistance from the object
+    }
+    return orgs;
   }
 
   async findOne(id: string) {

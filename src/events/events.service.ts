@@ -11,6 +11,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from ".prisma/client";
+import { calculateEditDistance } from "../util/string";
 @Injectable()
 export class EventsService {
   constructor(
@@ -144,7 +145,10 @@ export class EventsService {
     orderBy = "startDate",
     orderDirection = "asc",
   ) {
-    return await this.prisma.event.findMany({
+    const generateSearchQuery = (name: string) =>
+      name.toLowerCase().split(" ").join(" & ");
+
+    const events = await this.prisma.event.findMany({
       skip,
       take,
       where: {
@@ -153,9 +157,11 @@ export class EventsService {
           gte: searchProps.afterDate,
           lte: searchProps.beforeDate,
         },
-        title: searchProps.title ? { search: searchProps.title } : undefined,
+        title: searchProps.title
+          ? { contains: searchProps.title, mode: "insensitive" }
+          : undefined,
         description: searchProps.description
-          ? { search: searchProps.description }
+          ? { search: generateSearchQuery(searchProps.description) }
           : undefined,
         capacity: searchProps.capacity,
         visibility: Visibility.PUBLIC,
@@ -201,6 +207,24 @@ export class EventsService {
         [orderBy]: orderDirection,
       },
     });
+
+    if (searchProps.title) {
+      return events
+        .map((event) => {
+          const titleEditDistance = calculateEditDistance(
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            searchProps.title!,
+            event.title,
+          );
+          return {
+            event,
+            titleEditDistance,
+          };
+        })
+        .sort((a, b) => a.titleEditDistance - b.titleEditDistance)
+        .map((event) => event.event);
+    }
+    return events;
   }
 
   async findOne(eventId: string) {
