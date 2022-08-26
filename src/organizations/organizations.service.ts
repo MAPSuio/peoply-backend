@@ -12,7 +12,7 @@ import {
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from ".prisma/client";
 import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
-import { Organization } from "@prisma/client";
+import { EventArrangerRole, Organization } from "@prisma/client";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
@@ -162,11 +162,28 @@ export class OrganizationsService {
       if (!org) {
         throw new OrganizationDoesNotExistException(id);
       }
-      await this.prisma.arranger.delete({
-        where: {
-          id: org.arrangerId,
-        },
+
+      await this.prisma.$transaction(async (trx) => {
+        //delete all events hosted by organization
+        await trx.event.deleteMany({
+          where: {
+            eventArrangers: {
+              some: {
+                arrangerId: org.arrangerId,
+                role: EventArrangerRole.ADMIN,
+              },
+            },
+          },
+        });
+
+        // delete arranger which automatically deletes organization because of ON DELETE CASCADE in schema.prisma
+        await trx.arranger.delete({
+          where: {
+            id: org.arrangerId,
+          },
+        });
       });
+
       return org;
     } catch (error) {
       if (error.code === PrismaError.DoesNotExist) {
