@@ -1,10 +1,18 @@
 // auth/auth.controller.ts
-import { Controller, Get, Req, Res, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Req,
+  Res,
+  UseFilters,
+  UseGuards,
+} from "@nestjs/common";
 import { Response } from "express";
 
 import { AuthService } from "./auth.service";
 import { ConfigService } from "@nestjs/config";
 import { AuthenticatedGuard, LoginGuard, RefreshGuard } from "./guards";
+import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFilter.filter";
 
 @Controller("auth")
 export class AuthController {
@@ -45,6 +53,7 @@ export class AuthController {
   }
 
   @UseGuards(LoginGuard)
+  @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/callback")
   async loginCallback(@Req() req: any, @Res() res: Response) {
     res.clearCookie("connect.sid"); // no need to send this
