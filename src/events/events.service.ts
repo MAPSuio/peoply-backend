@@ -166,6 +166,14 @@ export class EventsService {
         capacity: searchProps.capacity,
         visibility: Visibility.PUBLIC,
 
+        eventCategories: searchProps.categoryIds
+          ? {
+              some: {
+                categoryId: { in: searchProps.categoryIds },
+              },
+            }
+          : undefined,
+
         // find arranger if specified
         // if not specified, but user is, then find arranger using userId
         // if not specified, but organization is, then find arranger using organizationId
@@ -201,6 +209,9 @@ export class EventsService {
               },
             },
           },
+        },
+        eventCategories: {
+          select: { category: { select: { name: true } } },
         },
       },
       orderBy: {
