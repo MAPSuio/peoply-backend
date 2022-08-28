@@ -248,6 +248,7 @@ export class OrganizationsService {
             some: args,
           },
         },
+        include: { organizationRoles: { where: { userId: userId } } },
       });
     } catch (error) {
       throw error;
