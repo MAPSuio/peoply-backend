@@ -56,10 +56,9 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
       given_name: firstName,
       family_name: lastName,
       birthdate: birthDate,
-      address,
     } = userinfo;
 
-    if (!(email && phone && firstName && lastName && birthDate && address)) {
+    if (!(email && phone && firstName && lastName && birthDate)) {
       throw new UnauthorizedException("Missing user info");
     }
 
