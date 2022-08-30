@@ -88,6 +88,8 @@ export class UsersController {
   @UseGuards(AuthenticatedGuard)
   @Delete("me")
   async deleteUser(@Req() req: any, @Res() res: Response) {
+    await this.userService.remove(req.user.id);
+
     // delete access and refresh tokens
     const accessCookieOptions = this.authService.getAccessCookieOptions();
     const refreshCookieOptions = this.authService.getRefreshCookieOptions();
@@ -95,7 +97,6 @@ export class UsersController {
     res.clearCookie("refresh", refreshCookieOptions);
     res.clearCookie("access", accessCookieOptions);
 
-    await this.userService.remove(req.user.id);
     return res.sendStatus(200);
   }
 
