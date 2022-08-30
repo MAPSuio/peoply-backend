@@ -13,6 +13,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchUserDto } from "./dto/search-user.dto";
 import { calculateEditDistance } from "../util/string";
+import { EventArrangerRole } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
@@ -265,13 +266,42 @@ export class UsersService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.user.delete({
-        where: {
-          id,
-        },
+      // get arranger id
+      const user = await this.prisma.user.findUnique({
+        where: { id },
       });
+      if (!user) {
+        throw new UserDoesNotExistException(id);
+      }
+
+      await this.prisma.$transaction(async (trx) => {
+        //delete all events hosted by user
+        await trx.event.deleteMany({
+          where: {
+            eventArrangers: {
+              some: {
+                arrangerId: user.arrangerId,
+                role: EventArrangerRole.ADMIN,
+              },
+            },
+          },
+        });
+
+        // delete arranger which automatically deletes user because of ON DELETE CASCADE in schema.prisma
+        await trx.arranger.delete({
+          where: {
+            id: user.arrangerId,
+          },
+        });
+      });
+
+      return user;
     } catch (error) {
-      throw new UserDoesNotExistException(id);
+      if (error.code === PrismaError.DoesNotExist) {
+        throw new UserDoesNotExistException(id);
+      }
+
+      throw error;
     }
   }
 }

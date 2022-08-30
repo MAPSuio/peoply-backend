@@ -36,6 +36,7 @@ import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { SearchUserDto } from "./dto/search-user.dto";
 import { NotificationsService } from "../notifications/notifications.service";
+import { AuthService } from "../auth/auth.service";
 
 @Controller("users")
 export class UsersController {
@@ -46,6 +47,7 @@ export class UsersController {
     private readonly eventArrangersService: EventArrangersService,
     private readonly organizationsService: OrganizationsService,
     private readonly notificationsService: NotificationsService,
+    private readonly authService: AuthService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -81,6 +83,20 @@ export class UsersController {
   ) {
     const user: User = req.user;
     return this.userService.update(user, data, profileImage);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Delete("me")
+  async deleteUser(@Req() req: any, @Res() res: Response) {
+    // delete access and refresh tokens
+    const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
+
+    res.clearCookie("refresh", refreshCookieOptions);
+    res.clearCookie("access", accessCookieOptions);
+
+    await this.userService.remove(req.user.id);
+    return res.sendStatus(200);
   }
 
   @Get()
