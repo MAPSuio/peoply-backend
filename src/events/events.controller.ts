@@ -135,21 +135,40 @@ export class EventsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
-  @Patch(":urlId")
+  @Patch(":id")
+  @UseInterceptors(
+    FileInterceptor("eventImage", {
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
+          callback(
+            new BadRequestException("Only .jpeg and .png files are allowed!"),
+            false,
+          );
+        } else {
+          callback(null, true);
+        }
+      },
+      limits: {
+        // filesize limit 50 MB
+        fileSize: 50 * 1024 * 1024,
+      },
+    }),
+  )
   async update(
-    @Param("urlId") urlId: string,
+    @Param("id") id: string,
     @Body() updateEventDto: UpdateEventDto,
+    @UploadedFile() eventImage?: Express.Multer.File,
   ) {
     //the user has to be the arranger or the admin of the organization
-    return this.eventsService.update(urlId, updateEventDto);
+    return this.eventsService.update(updateEventDto, id, eventImage);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
-  @Delete(":urlId")
-  async remove(@Req() @Param("urlId") urlId: string) {
+  @Delete(":id")
+  async remove(@Req() @Param("id") id: string) {
     //the user has to be the arranger or the admin of the organization
-    return this.eventsService.remove(urlId);
+    return this.eventsService.remove(id);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)

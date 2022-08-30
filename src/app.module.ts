@@ -40,6 +40,7 @@ import { InvitationsModule } from "./invitations/invitations.module";
         CORS_ORIGIN: Joi.string().required(),
         AZURE_STORAGE_ACCOUNT: Joi.string().required(),
         AZURE_STORAGE_KEY: Joi.string().required(),
+        AZURE_MAPS_KEY: Joi.string().required(),
       }),
     }),
     AuthModule,

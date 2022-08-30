@@ -12,6 +12,7 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from ".prisma/client";
 import { calculateEditDistance } from "../util/string";
+import { Prisma } from "@prisma/client";
 @Injectable()
 export class EventsService {
   constructor(
@@ -314,29 +315,132 @@ export class EventsService {
     }
   }
 
-  async update(urlId: string, updateEventDto: UpdateEventDto) {
+  async update(
+    updateEventDto: UpdateEventDto,
+    id: string,
+    newImage?: Express.Multer.File,
+  ) {
+    const { categoryIds, ...rest } = updateEventDto;
+
+    let newImageUrl: string | null = null;
+    let deleteImage = updateEventDto.deleteImage;
+    // if endDate is not specified, set to null to delete from database
+    if (!rest.endDate) {
+      rest.endDate = null;
+    }
+
     try {
-      return await this.prisma.event.update({
-        where: { urlId: urlId },
-        data: { ...updateEventDto },
+      // get event
+      const oldEvent = await this.prisma.event.findUnique({
+        where: { id },
+      });
+
+      if (!oldEvent) {
+        throw new EventNotFoundException(id);
+      }
+
+      if (newImage) {
+        //upload new image
+        newImageUrl = await this.azureStorageService.upload(
+          this.azureStorageService.generateFileNameById(oldEvent.id, newImage),
+          newImage.buffer,
+          AzureStorageContainer.EVENT_IMAGES,
+        );
+
+        deleteImage = false;
+      }
+
+      delete rest.deleteImage;
+
+      return await this.prisma.$transaction(async (trx) => {
+        // update event
+
+        const event = await trx.event.update({
+          where: { id },
+          data: {
+            image: newImageUrl ?? oldEvent.image,
+            ...rest,
+          },
+        });
+
+        //update categories if specified
+        if (categoryIds) {
+          const oldCategories = await trx.eventCategory.findMany({
+            where: { eventId: event.id },
+          });
+
+          const oldCategoriesId = oldCategories.map(
+            (category) => category.categoryId,
+          );
+
+          const toDelete = oldCategoriesId.filter(
+            (id) => !categoryIds.includes(id),
+          );
+          const toAdd = categoryIds.filter(
+            (id) => !oldCategoriesId.includes(id),
+          );
+
+          await trx.eventCategory.deleteMany({
+            where: {
+              categoryId: {
+                in: toDelete,
+              },
+              eventId: event.id,
+            },
+          });
+
+          await trx.eventCategory.createMany({
+            data: toAdd.map((categoryId) => ({
+              categoryId,
+              eventId: event.id,
+            })),
+          });
+        }
+
+        //delete existing image if it exists
+        if (oldEvent.image && (deleteImage || newImage)) {
+          const imageName = oldEvent.image.slice(
+            oldEvent.image.lastIndexOf("/") + 1,
+          );
+          await this.azureStorageService.delete(
+            imageName,
+            AzureStorageContainer.EVENT_IMAGES,
+          );
+
+          if (deleteImage && !newImage) {
+            await trx.event.update({
+              where: { id },
+              data: { image: null },
+            });
+          }
+        }
+        return event;
       });
     } catch (error) {
+      //delete uploaded image if there was an error
+      if (newImageUrl) {
+        await this.azureStorageService.delete(
+          newImageUrl.slice(newImageUrl.lastIndexOf("/") + 1),
+          AzureStorageContainer.EVENT_IMAGES,
+        );
+      }
+
       if (
         error instanceof PrismaClientKnownRequestError &&
         error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
-        throw new EventNotFoundException(urlId);
+        throw new EventNotFoundException(id);
       } else {
         throw error;
       }
     }
   }
 
-  async remove(urlId: string) {
+  async remove(id: string) {
     try {
       return await this.prisma.event.delete({
-        where: { urlId: urlId },
+        where: { id },
       });
     } catch (error) {
       if (
@@ -344,7 +448,7 @@ export class EventsService {
         error.code === PrismaError.EntityNotFound
       ) {
         //errorcode 'P2025' event not found in database
-        throw new EventNotFoundException(urlId);
+        throw new EventNotFoundException(id);
       } else {
         throw error;
       }

@@ -4,31 +4,27 @@ import {
   ValidationArguments,
 } from "class-validator";
 
-export function IsLaterDateStringThan(
-  earliestDateVariableName: string,
+export function IsDateStringOrEmptyString(
   validationOptions?: ValidationOptions,
 ) {
   // eslint-disable-next-line @typescript-eslint/ban-types
   return function (object: Object, propertyName: string) {
     registerDecorator({
-      name: "IsLaterDateStringThan",
+      name: "IsDateStringOrEmptyString",
       target: object.constructor,
       propertyName: propertyName,
-      constraints: [earliestDateVariableName],
       options: validationOptions,
       validator: {
         validate(_value: any, args: ValidationArguments) {
           if (args.value === "") return true;
-          const earliestDate = (args.object as any)[earliestDateVariableName];
-          const latestDate = args.value;
-          return new Date(earliestDate) <= new Date(latestDate);
+          //check if it is a valid date string
+          if (isNaN(new Date(args.value).getTime())) {
+            return false;
+          }
+          return true;
         },
         defaultMessage() {
-          return (
-            "This the date must be later than the date defined in the column '" +
-            earliestDateVariableName +
-            "'"
-          );
+          return "This the date must be a valid date string or an empty string";
         },
       },
     });

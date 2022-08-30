@@ -2,15 +2,21 @@ import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import { Visibility } from "@prisma/client";
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
   MinLength,
 } from "class-validator";
-import { IsLaterDateStringThan } from "../../../decorators/validators";
+import { ToBoolean } from "../../../decorators/transformers";
+import {
+  IsDateStringOrEmptyString,
+  IsLaterDateStringThan,
+} from "../../../decorators/validators";
 import { CreateEventDto } from "./create-event.dto";
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {
@@ -39,9 +45,18 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiProperty()
   startDate: Date;
 
-  @IsNotEmpty()
-  @IsDateString()
+  @IsDateStringOrEmptyString()
   @IsLaterDateStringThan("startDate")
   @ApiProperty()
-  endDate: Date;
+  endDate?: Date | null;
+
+  @IsNotEmpty()
+  @ApiProperty()
+  categoryIds?: number[];
+
+  @ToBoolean()
+  @IsBoolean()
+  @IsOptional()
+  @ApiProperty()
+  deleteImage?: boolean;
 }
