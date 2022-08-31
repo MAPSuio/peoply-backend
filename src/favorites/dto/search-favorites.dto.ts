@@ -9,4 +9,8 @@ export class SearchFavoritesDto {
   @IsOptional()
   @ToBoolean()
   includeEvent?: boolean;
+
+  @IsOptional()
+  @ToBoolean()
+  includeArrangers?: boolean;
 }
