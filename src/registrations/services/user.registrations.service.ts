@@ -241,6 +241,21 @@ export class UserRegistrationService extends CommonRegistrationService {
               });
             }
             return registration;
+          } else if (
+            userUpdateRegistrationDto.regStatus === RegStatus.NOT_GOING &&
+            existingReg.regStatus === RegStatus.WAITLISTED
+          ) {
+            return trx.registration.update({
+              where: {
+                eventId_userId: {
+                  eventId: userUpdateRegistrationDto.eventId,
+                  userId,
+                },
+              },
+              data: {
+                regStatus: userUpdateRegistrationDto.regStatus,
+              },
+            });
           }
         } else {
           throw new ForeignKeyNotFoundException(

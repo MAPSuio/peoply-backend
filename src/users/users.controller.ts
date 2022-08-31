@@ -172,15 +172,15 @@ export class UsersController {
     return this.userRegistrationService.create(id, dto);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
-  @Delete(":userId/registrations")
-  async deleteRegistration(
-    @Param("userId") id: string,
-    @Body() dto: DeleteRegistrationDto,
-  ) {
-    // TODO check if the event exists
-    return this.userRegistrationService.remove(dto.eventId, id);
-  }
+  // @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  // @Delete(":userId/registrations")
+  // async deleteRegistration(
+  //   @Param("userId") id: string,
+  //   @Body() dto: DeleteRegistrationDto,
+  // ) {
+  //   // TODO check if the event exists
+  //   return this.userRegistrationService.remove(dto.eventId, id);
+  // }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Post(":userId/favorites")
