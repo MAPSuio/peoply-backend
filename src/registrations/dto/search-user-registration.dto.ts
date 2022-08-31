@@ -18,4 +18,9 @@ export class SearchUserRegistrationDto {
   @ToBoolean()
   @ApiProperty({ required: false })
   includeEvent?: boolean;
+
+  @IsOptional()
+  @ToBoolean()
+  @ApiProperty({ required: false })
+  includeArrangers?: boolean;
 }

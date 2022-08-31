@@ -110,7 +110,28 @@ export class UserRegistrationService extends CommonRegistrationService {
         regStatus: searchProps.regStatus,
       },
       include: {
-        event: new Boolean(searchProps.includeEvent).valueOf(),
+        event: new Boolean(searchProps.includeEvent).valueOf() && {
+          include: {
+            eventArrangers: new Boolean(
+              searchProps.includeArrangers,
+            ).valueOf() && {
+              include: {
+                arranger: {
+                  include: {
+                    user: {
+                      select: {
+                        firstName: true,
+                        lastName: true,
+                        image: true,
+                      },
+                    },
+                    organization: { select: { name: true, image: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: {
         [orderBy]: orderDirection,
