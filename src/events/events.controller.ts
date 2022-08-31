@@ -32,6 +32,7 @@ import {
   SearchEventDto,
   SearchEventRegistrationDto,
   UpdateEventDto,
+  SearchEventRegistrationCountDto,
 } from "./dto";
 import { EventsService } from "./events.service";
 import { EventNotFoundException } from "./exceptions";
@@ -179,6 +180,14 @@ export class EventsController {
     @Param("id") id: string,
   ) {
     return this.arrangerRegistrationService.findAll(query, id);
+  }
+
+  @Get(":id/registration-count")
+  async getRegistrationCount(
+    @Query() query: SearchEventRegistrationCountDto,
+    @Param("id") id: string,
+  ) {
+    return this.arrangerRegistrationService.getRegistrationCount(query, id);
   }
 
   @UseGuards(AuthenticatedGuard)

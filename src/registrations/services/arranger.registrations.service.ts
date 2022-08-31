@@ -1,13 +1,17 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { RegStatus } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { SearchEventRegistrationDto } from "../../events/dto";
+import {
+  SearchEventRegistrationDto,
+  SearchEventRegistrationCountDto,
+} from "../../events/dto";
 import { PrismaError } from "../../prisma/prisma.constants";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { RegistrationNotFoundException } from "../exceptions";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { Registration } from ".prisma/client";
+import { EventNotFoundException } from "../../events/exceptions";
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
@@ -77,6 +81,28 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
         error.code === PrismaError.EntityNotFound
       ) {
         throw new RegistrationNotFoundException(eventId, userId);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  async getRegistrationCount(
+    searchProps: SearchEventRegistrationCountDto,
+    eventId: string,
+  ) {
+    try {
+      return await this.prismaService.registration.count({
+        where: searchProps.regStatus
+          ? { eventId: eventId, regStatus: searchProps.regStatus }
+          : { eventId: eventId },
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === PrismaError.EntityNotFound
+      ) {
+        throw new EventNotFoundException(eventId);
       } else {
         throw error;
       }
