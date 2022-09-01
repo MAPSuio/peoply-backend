@@ -20,6 +20,23 @@ export class EventInvitationsService {
   }
 
   async findAllInvitationsForEventIncludingUsers(eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (event?.endDate && new Date() > event.endDate) {
+      // update invites to ignored for expired events
+      await this.prisma.eventInvitation.updateMany({
+        where: {
+          eventId,
+          invitationStatus: InvitationStatus.PENDING,
+        },
+        data: {
+          invitationStatus: InvitationStatus.IGNORED,
+        },
+      });
+    }
+
     return this.prisma.eventInvitation.findMany({
       where: {
         eventId: eventId,
@@ -32,6 +49,33 @@ export class EventInvitationsService {
   }
 
   async findAllPendingInvitationsToUser(userId: string) {
+    const invites = await this.prisma.eventInvitation.findMany({
+      where: {
+        toUserId: userId,
+        invitationStatus: InvitationStatus.PENDING,
+      },
+      include: {
+        event: true,
+        fromUser: true,
+      },
+    });
+
+    const expiredEvents = invites.filter((invite) => {
+      return invite.event?.endDate && new Date() > invite.event.endDate;
+    });
+
+    // update invites to ignored for expired events
+    if (expiredEvents.length > 0) {
+      await this.prisma.eventInvitation.updateMany({
+        where: {
+          id: { in: expiredEvents.map((event) => event.id) },
+        },
+        data: {
+          invitationStatus: InvitationStatus.IGNORED,
+        },
+      });
+    }
+
     return this.prisma.eventInvitation.findMany({
       where: {
         toUserId: userId,
@@ -50,6 +94,14 @@ export class EventInvitationsService {
     toUserIds: string[],
   ) {
     const invitations = await this.prisma.$transaction(async (trx) => {
+      const event = await trx.event.findUnique({
+        where: { id: eventId },
+      });
+
+      if (event?.endDate && new Date() > event.endDate) {
+        throw new Error("Event date has already passed");
+      }
+
       const existingRegs = await trx.registration.findMany({
         where: {
           eventId,
@@ -108,6 +160,14 @@ export class EventInvitationsService {
 
   async acceptInvitationsToEvent(eventId: string, toUserId: string) {
     return this.prisma.$transaction(async (trx) => {
+      const event = await trx.event.findUnique({
+        where: { id: eventId },
+      });
+
+      if (event?.endDate && new Date() > event.endDate) {
+        throw new Error("Event date has already passed");
+      }
+
       await trx.eventInvitation.updateMany({
         where: {
           eventId,
@@ -128,6 +188,14 @@ export class EventInvitationsService {
 
   async declineInvitationsToEvent(eventId: string, toUserId: string) {
     return this.prisma.$transaction(async (trx) => {
+      const event = await trx.event.findUnique({
+        where: { id: eventId },
+      });
+
+      if (event?.endDate && new Date() > event.endDate) {
+        throw new Error("Event date has already passed");
+      }
+
       await trx.eventInvitation.updateMany({
         where: {
           eventId,

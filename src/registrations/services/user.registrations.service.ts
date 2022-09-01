@@ -33,6 +33,10 @@ export class UserRegistrationService extends CommonRegistrationService {
             },
           });
 
+          if (event?.endDate && new Date() > event.endDate) {
+            throw new BadRequestException("Event has ended");
+          }
+
           if (event) {
             if (
               event.capacity === null ||
@@ -151,6 +155,10 @@ export class UserRegistrationService extends CommonRegistrationService {
             registrations: { orderBy: { updatedAt: "asc" } },
           },
         });
+
+        if (event?.endDate && new Date() > event.endDate) {
+          throw new BadRequestException("Event has ended");
+        }
 
         const existingReg = event?.registrations.find(
           (registration) =>
