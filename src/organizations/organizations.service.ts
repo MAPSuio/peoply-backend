@@ -79,7 +79,7 @@ export class OrganizationsService {
         description: searchProps.description
           ? { search: generateSearchQuery(searchProps.description) }
           : undefined,
-        orgNr: searchProps.orgNr ? { search: searchProps.orgNr } : undefined,
+        orgNr: searchProps.orgNrs ? { in: searchProps.orgNrs } : undefined,
       },
     });
 

@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsArray, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { ToArray } from "../../../decorators/transformers/string.to.array";
 
 export class SearchOrganizationDto {
   @IsOptional()
@@ -9,9 +10,10 @@ export class SearchOrganizationDto {
   name?: string;
 
   @IsOptional()
-  @IsString()
+  @ToArray()
+  @IsArray()
   @ApiProperty({ required: false })
-  orgNr?: string;
+  orgNrs?: string[];
 
   @IsOptional()
   @IsString()
