@@ -440,4 +440,15 @@ export class OrganizationsService {
       },
     });
   }
+
+  async deleteMember(orgId: string, userId: string) {
+    return await this.prisma.userOrganizationRole.delete({
+      where: {
+        organizationId_userId: {
+          organizationId: orgId,
+          userId: userId,
+        },
+      },
+    });
+  }
 }

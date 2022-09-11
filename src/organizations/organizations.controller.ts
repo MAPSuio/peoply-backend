@@ -369,4 +369,52 @@ export class OrganizationsController {
     );
     return organization?.organizationRoles;
   }
+
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @Delete(":orgId/members/:userId")
+  async deleteMember(
+    @Req() req: any,
+    @Param("orgId") orgId: string,
+    @Param("userId") userId: string,
+  ) {
+    // Delete a member from an organization
+    // an owner can delete an admin or member
+    // an admin can only delete a member
+    // You can't delete yourself if you are the owner
+    const organization = await this.organizationsService.findOrgWithUsers(
+      orgId,
+    );
+    if (!organization) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+
+    const isOwner = organization?.organizationRoles.some(
+      (role) =>
+        role.userId === req.user.id && role.role === OrganizationRole.OWNER,
+    );
+    const isAdmin = organization?.organizationRoles.some(
+      (role) =>
+        role.userId === req.user.id && role.role === OrganizationRole.ADMIN,
+    );
+
+    const userOrganizationRole = organization.organizationRoles.find(
+      (userOrgRole) => userOrgRole.userId === userId,
+    );
+    if (!userOrganizationRole) {
+      throw new BadRequestException("User is not part of the organization");
+    }
+    if (userOrganizationRole.role === OrganizationRole.OWNER) {
+      throw new BadRequestException("You can't delete the owner");
+    }
+    if (isOwner) {
+      return this.organizationsService.deleteMember(orgId, userId);
+    }
+    if (isAdmin && userOrganizationRole.role === OrganizationRole.MEMBER) {
+      return this.organizationsService.deleteMember(orgId, userId);
+    }
+    throw new UnauthorizedException(
+      "You don't have permission to delete this user",
+    );
+  }
 }
