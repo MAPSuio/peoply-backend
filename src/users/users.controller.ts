@@ -20,7 +20,6 @@ import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
 import { FavoritesService } from "../favorites/favorites.service";
 import {
   CreateRegistrationDto,
-  DeleteRegistrationDto,
   SearchUserRegistrationDto,
   UserUpdateRegistrationDto,
 } from "../registrations/dto";

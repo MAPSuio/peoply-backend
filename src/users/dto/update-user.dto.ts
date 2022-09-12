@@ -1,5 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
+import { FoodPreference } from "@prisma/client";
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
 
 export class UpdateUserDto {
@@ -14,4 +21,9 @@ export class UpdateUserDto {
   @MaxLength(120)
   @ApiProperty({ required: false })
   description?: string;
+
+  @IsOptional()
+  @IsEnum(FoodPreference)
+  @ApiProperty({ required: false })
+  foodPreference?: FoodPreference;
 }

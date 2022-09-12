@@ -38,6 +38,7 @@ model User {
   image                          String?
   birthDate                      DateTime?                @map("birth_date") @db.Date
   description                    String?                  @db.VarChar(120)
+  foodPreference                 FoodPreference?          @map("food_preference")
   createdAt                      DateTime                 @default(now()) @map("created_at")
   updatedAt                      DateTime                 @default(now()) @updatedAt @map("updated_at")
   organizationRoles              UserOrganizationRole[]
@@ -50,6 +51,15 @@ model User {
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
 
   @@map("users")
+}
+
+enum FoodPreference {
+  NO_PREFERENCE
+  PESCETARIAN
+  VEGETARIAN
+  VEGAN
+
+  @@map("food_preferences")
 }
 
 model ProviderUser {

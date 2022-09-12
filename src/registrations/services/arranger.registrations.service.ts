@@ -40,28 +40,52 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       throw new BadRequestException(`${orderBy} is not a key of Registration`);
     }
 
-    return await this.prismaService.registration.findMany({
+    if (searchProps.regStatus) {
+      return await this.prismaService.registration.findMany({
+        where: { eventId: eventId, regStatus: searchProps.regStatus },
+        skip,
+        take,
+        orderBy: { [orderBy]: orderDirection },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              image: true,
+              foodPreference: searchProps.regStatus === RegStatus.GOING,
+            },
+          },
+        },
+      });
+    }
+
+    const registrations = await this.prismaService.registration.findMany({
       skip,
       take,
-      where: {
-        eventId,
-        regStatus: searchProps.regStatus,
-      },
+      where: { eventId: eventId },
+      orderBy: { [orderBy]: orderDirection },
       include: {
         user: new Boolean(searchProps.includeUsers).valueOf()
           ? {
               select: {
+                id: true,
                 firstName: true,
                 lastName: true,
                 image: true,
-                id: true,
+                foodPreference: true,
               },
             }
-          : false,
+          : undefined,
       },
-      orderBy: {
-        [orderBy]: orderDirection,
-      },
+    });
+
+    // remove foodPreference if not going
+    return registrations.map((registration) => {
+      if (registration.regStatus !== RegStatus.GOING) {
+        registration.user.foodPreference = null;
+      }
+      return registration;
     });
   }
 
