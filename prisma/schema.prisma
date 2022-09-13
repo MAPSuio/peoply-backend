@@ -24,6 +24,7 @@ model Organization {
   organizationRoles UserOrganizationRole[]
 
   organizationInvitations OrganizationInvitation[]
+
   @@map("organizations")
 }
 
@@ -81,14 +82,14 @@ enum Provider {
 }
 
 model UserOrganizationRole {
-  organizationId String           @map("organization_id")
-  userId         String           @map("user_id")
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           OrganizationRole
-  roleDescription String?         @map("role_description")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at")
+  organizationId  String           @map("organization_id")
+  userId          String           @map("user_id")
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            OrganizationRole
+  roleDescription String?          @map("role_description")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
 
   @@id([organizationId, userId])
   @@map("user_organization_roles")
@@ -123,7 +124,8 @@ model Event {
   description        String
   capacity           Int?
   visibility         Visibility
-  hasFood            Boolean           @map("has_food") @default(false)
+  hasFood            Boolean           @default(false) @map("has_food")
+  featured           Boolean           @default(false)
   image              String?           @unique
   locationName       String            @map("location_name") @db.VarChar(100)
   poiName            String?           @map("poi_name") @db.VarChar(100)
@@ -219,7 +221,6 @@ model EventCategory {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
-
   @@id([categoryId, eventId])
   @@map("event_categories")
 }
@@ -268,8 +269,8 @@ model OrganizationInvitation {
   updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at")
   invitationStatus InvitationStatus @default(PENDING) @map("invitation_status")
 
-  @@map("organization_invitations")
   @@unique([organizationId, organizationRole, toUserId, invitationStatus])
+  @@map("organization_invitations")
 }
 
 enum InvitationStatus {

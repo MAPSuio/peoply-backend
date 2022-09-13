@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -11,6 +12,7 @@ import {
   Min,
   MinLength,
 } from "class-validator";
+import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import { IsUrlId } from "../../../decorators/validators/isUrlId.validator";
 import { PrismaOrderDirections } from "../../prisma/prisma.constants";
@@ -71,6 +73,12 @@ export class SearchEventDto {
   @IsInt({ each: true })
   @ApiProperty({ type: [Number], required: false })
   categoryIds?: number[];
+
+  @IsOptional()
+  @ToBoolean()
+  @IsBoolean()
+  @ApiProperty()
+  featured?: boolean;
 
   @IsOptional()
   @IsInt()

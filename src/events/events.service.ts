@@ -197,6 +197,7 @@ export class EventsService {
                 },
               }
             : undefined,
+        featured: searchProps.featured,
       },
       include: {
         eventArrangers: {
@@ -204,9 +205,14 @@ export class EventsService {
             arranger: {
               include: {
                 user: {
-                  select: { firstName: true, lastName: true, image: true },
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    image: true,
+                  },
                 },
-                organization: { select: { name: true, image: true } },
+                organization: { select: { id: true, name: true, image: true } },
               },
             },
           },
