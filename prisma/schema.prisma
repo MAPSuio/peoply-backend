@@ -123,6 +123,7 @@ model Event {
   description        String
   capacity           Int?
   visibility         Visibility
+  hasFood            Boolean           @map("has_food") @default(false)
   image              String?           @unique
   locationName       String            @map("location_name") @db.VarChar(100)
   poiName            String?           @map("poi_name") @db.VarChar(100)

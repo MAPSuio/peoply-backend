@@ -12,7 +12,6 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from ".prisma/client";
 import { calculateEditDistance } from "../util/string";
-import { Prisma } from "@prisma/client";
 @Injectable()
 export class EventsService {
   constructor(
@@ -74,6 +73,7 @@ export class EventsService {
             endDate: createEventDto.endDate,
             capacity: createEventDto.capacity,
             visibility: createEventDto.visibility,
+            hasFood: createEventDto.hasFood,
             image: imageUrl,
             locationName: createEventDto.locationName,
             country: createEventDto.country,

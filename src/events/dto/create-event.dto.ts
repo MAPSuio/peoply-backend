@@ -3,6 +3,7 @@ import { Visibility } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -13,6 +14,7 @@ import {
   IsUUID,
   MinLength,
 } from "class-validator";
+import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import {
   IsLaterDateStringThan,
@@ -60,6 +62,12 @@ export class CreateEventDto {
   @IsNotEmpty()
   @IsEnum(Visibility)
   visibility: Visibility;
+
+  @IsNotEmpty()
+  @ToBoolean()
+  @IsBoolean()
+  @ApiProperty()
+  hasFood: boolean;
 
   @IsOptional()
   @IsUUID(4)

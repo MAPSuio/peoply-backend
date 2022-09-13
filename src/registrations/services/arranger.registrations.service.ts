@@ -40,6 +40,13 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       throw new BadRequestException(`${orderBy} is not a key of Registration`);
     }
 
+    const eventHasFood = (
+      await this.prismaService.event.findUnique({
+        where: { id: eventId },
+        select: { hasFood: true },
+      })
+    )?.hasFood;
+
     if (searchProps.regStatus) {
       return await this.prismaService.registration.findMany({
         where: { eventId: eventId, regStatus: searchProps.regStatus },
@@ -53,7 +60,8 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
               firstName: true,
               lastName: true,
               image: true,
-              foodPreference: searchProps.regStatus === RegStatus.GOING,
+              foodPreference:
+                searchProps.regStatus === RegStatus.GOING && eventHasFood,
             },
           },
         },
@@ -73,7 +81,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
                 firstName: true,
                 lastName: true,
                 image: true,
-                foodPreference: true,
+                foodPreference: eventHasFood,
               },
             }
           : undefined,
@@ -81,12 +89,14 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     });
 
     // remove foodPreference if not going
-    return registrations.map((registration) => {
-      if (registration.regStatus !== RegStatus.GOING) {
-        registration.user.foodPreference = null;
-      }
-      return registration;
-    });
+    return eventHasFood
+      ? registrations.map((registration) => {
+          if (registration.regStatus !== RegStatus.GOING) {
+            registration.user.foodPreference = null;
+          }
+          return registration;
+        })
+      : registrations;
   }
 
   async update(
