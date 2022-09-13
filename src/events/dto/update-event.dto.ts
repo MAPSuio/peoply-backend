@@ -2,6 +2,7 @@ import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import { Visibility } from "@prisma/client";
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -13,6 +14,7 @@ import {
   MinLength,
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
+import { ToArray } from "../../../decorators/transformers/string.to.array";
 import {
   IsDateStringOrEmptyString,
   IsLaterDateStringThan,
@@ -51,6 +53,8 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   endDate?: Date | null;
 
   @IsNotEmpty()
+  @ToArray({ type: "int" })
+  @IsArray()
   @ApiProperty()
   categoryIds?: number[];
 
