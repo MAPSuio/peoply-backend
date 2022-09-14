@@ -15,11 +15,13 @@ import {
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
+import { EmptyStringToNull } from "../../../decorators/transformers/empty.string.to.null";
 import {
   IsDateStringOrEmptyString,
   IsLaterDateStringThan,
 } from "../../../decorators/validators";
 import { CreateEventDto } from "./create-event.dto";
+import { StringToNumberOrNull } from "../../../decorators/transformers/string.to.number.or.null";
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {
   @IsNotEmpty()
@@ -49,6 +51,7 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
 
   @IsDateStringOrEmptyString()
   @IsLaterDateStringThan("startDate")
+  @EmptyStringToNull()
   @ApiProperty()
   endDate?: Date | null;
 
@@ -63,4 +66,82 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @IsOptional()
   @ApiProperty()
   deleteImage?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  poiName?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  countryCodeISO3?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  countrySubdivision?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  localName?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  municipality?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  postalCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  streetName?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  streetNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @EmptyStringToNull()
+  @ApiProperty()
+  freeformAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @StringToNumberOrNull()
+  @ApiProperty()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @StringToNumberOrNull()
+  @ApiProperty()
+  longitude?: number;
 }

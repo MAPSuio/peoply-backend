@@ -330,10 +330,6 @@ export class EventsService {
 
     let newImageUrl: string | null = null;
     let deleteImage = updateEventDto.deleteImage;
-    // if endDate is not specified, set to null to delete from database
-    if (!rest.endDate) {
-      rest.endDate = null;
-    }
 
     try {
       // get event
@@ -355,12 +351,10 @@ export class EventsService {
 
         deleteImage = false;
       }
-
       delete rest.deleteImage;
 
       return await this.prisma.$transaction(async (trx) => {
         // update event
-
         const event = await trx.event.update({
           where: { id },
           data: {
