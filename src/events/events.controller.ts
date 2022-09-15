@@ -179,7 +179,12 @@ export class EventsController {
     @Query() query: SearchEventRegistrationDto,
     @Param("id") id: string,
   ) {
-    return this.arrangerRegistrationService.findAll(query, id);
+    return this.arrangerRegistrationService.findAll(
+      query,
+      id,
+      query.skip,
+      query.take,
+    );
   }
 
   @Get(":id/registration-count")
