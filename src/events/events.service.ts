@@ -212,7 +212,9 @@ export class EventsService {
                     image: true,
                   },
                 },
-                organization: { select: { id: true, name: true, image: true } },
+                organization: {
+                  select: { id: true, name: true, image: true, orgNr: true },
+                },
               },
             },
           },
@@ -268,7 +270,9 @@ export class EventsService {
                     image: true,
                   },
                 },
-                organization: { select: { id: true, name: true, image: true } },
+                organization: {
+                  select: { id: true, name: true, image: true, orgNr: true },
+                },
               },
             },
           },
