@@ -221,8 +221,11 @@ export class UsersController {
   @Get(":userId/arranging")
   async getArrangedEvents(@Req() req: any) {
     const user: User = req.user;
-    return this.eventArrangersService.findAllWithEvents(user.arrangerId);
+    return this.eventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsOfUser(
+      user.id,
+    );
   }
+
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/organizations")
   async getOrganizations(@Req() req: any, @Param("userId") userId: string) {
