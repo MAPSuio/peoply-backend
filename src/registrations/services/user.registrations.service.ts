@@ -24,20 +24,28 @@ export class UserRegistrationService extends CommonRegistrationService {
 
   async create(userId: string, createRegistrationDto: CreateRegistrationDto) {
     try {
-      if (createRegistrationDto.regStatus === RegStatus.GOING) {
-        return this.prismaService.$transaction(async (trx) => {
-          const event = await trx.event.findUnique({
-            where: { id: createRegistrationDto.eventId },
-            include: {
-              registrations: { where: { regStatus: RegStatus.GOING } },
-            },
-          });
+      return this.prismaService.$transaction(async (trx) => {
+        const event = await trx.event.findUnique({
+          where: { id: createRegistrationDto.eventId },
+          include: {
+            registrations: { where: { regStatus: RegStatus.GOING } },
+          },
+        });
 
-          if (event?.endDate && new Date() > event.endDate) {
-            throw new BadRequestException("Event has ended");
-          }
+        if (event?.endDate && new Date() > event.endDate) {
+          throw new BadRequestException("Event has ended");
+        }
 
-          if (event) {
+        if (event?.regStart && new Date() < event.regStart) {
+          throw new BadRequestException("Registration has not opened yet");
+        }
+
+        if (event?.regEnd && new Date() > event.regEnd) {
+          throw new BadRequestException("Registration has closed");
+        }
+
+        if (event) {
+          if (createRegistrationDto.regStatus === RegStatus.GOING) {
             if (
               event.capacity === null ||
               event.registrations.length < event.capacity
@@ -54,19 +62,19 @@ export class UserRegistrationService extends CommonRegistrationService {
                 },
               });
             }
+          } else if (createRegistrationDto.regStatus === RegStatus.INVITED) {
+            return trx.registration.create({
+              data: { ...createRegistrationDto, userId },
+            });
           } else {
-            throw new EventNotFoundException();
+            /* Not possible to create with NOT_GOING_ since this only makes sense if invited */
+            /* Also not possible with WAITLISTED, since this is handled in GOING case */
+            throw new BadRequestException("Invalid registration status");
           }
-        });
-      } else if (createRegistrationDto.regStatus === RegStatus.INVITED) {
-        return this.prismaService.registration.create({
-          data: { ...createRegistrationDto, userId },
-        });
-      } else {
-        /* Not possible to create with NOT_GOING_ since this only makes sense if invited */
-        /* Also not possible with WAITLISTED, since this is handled in GOING case */
-        throw new BadRequestException("Invalid registration status");
-      }
+        } else {
+          throw new EventNotFoundException();
+        }
+      });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === PrismaError.DuplicateUniqueValue) {
@@ -158,6 +166,14 @@ export class UserRegistrationService extends CommonRegistrationService {
 
         if (event?.endDate && new Date() > event.endDate) {
           throw new BadRequestException("Event has ended");
+        }
+
+        if (event?.regStart && new Date() < event.regStart) {
+          throw new BadRequestException("Registration has not opened yet");
+        }
+
+        if (event?.regEnd && new Date() > event.regEnd) {
+          throw new BadRequestException("Registration has closed");
         }
 
         const existingReg = event?.registrations.find(

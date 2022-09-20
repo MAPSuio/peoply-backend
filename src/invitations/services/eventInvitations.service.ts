@@ -102,6 +102,14 @@ export class EventInvitationsService {
         throw new Error("Event date has already passed");
       }
 
+      if (event?.regStart && new Date() < event.regStart) {
+        throw new Error("Event registration is not open yet");
+      }
+
+      if (event?.regEnd && new Date() > event.regEnd) {
+        throw new Error("Event registration is closed");
+      }
+
       const existingRegs = await trx.registration.findMany({
         where: {
           eventId,
@@ -168,6 +176,14 @@ export class EventInvitationsService {
         throw new Error("Event date has already passed");
       }
 
+      if (event?.regStart && new Date() < event.regStart) {
+        throw new Error("Event registration is not open yet");
+      }
+
+      if (event?.regEnd && new Date() > event.regEnd) {
+        throw new Error("Event registration is closed");
+      }
+
       await trx.eventInvitation.updateMany({
         where: {
           eventId,
@@ -194,6 +210,14 @@ export class EventInvitationsService {
 
       if (event?.endDate && new Date() > event.endDate) {
         throw new Error("Event date has already passed");
+      }
+
+      if (event?.regStart && new Date() < event.regStart) {
+        throw new Error("Event registration is not open yet");
+      }
+
+      if (event?.regEnd && new Date() > event.regEnd) {
+        throw new Error("Event registration is closed");
       }
 
       await trx.eventInvitation.updateMany({

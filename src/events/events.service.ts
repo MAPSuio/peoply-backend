@@ -71,6 +71,8 @@ export class EventsService {
             title: createEventDto.title,
             startDate: createEventDto.startDate,
             endDate: createEventDto.endDate,
+            regStart: createEventDto.regStart,
+            regEnd: createEventDto.regEnd,
             capacity: createEventDto.capacity,
             visibility: createEventDto.visibility,
             hasFood: createEventDto.hasFood,

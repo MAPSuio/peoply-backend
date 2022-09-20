@@ -18,6 +18,7 @@ import { ToArray } from "../../../decorators/transformers/string.to.array";
 import { EmptyStringToNull } from "../../../decorators/transformers/empty.string.to.null";
 import {
   IsDateStringOrEmptyString,
+  IsEarlierDateStringThan,
   IsLaterDateStringThan,
 } from "../../../decorators/validators";
 import { CreateEventDto } from "./create-event.dto";
@@ -54,6 +55,19 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @EmptyStringToNull()
   @ApiProperty()
   endDate?: Date | null;
+
+  @IsDateStringOrEmptyString()
+  @IsEarlierDateStringThan("startDate")
+  @EmptyStringToNull()
+  @ApiProperty()
+  regStart?: Date | null;
+
+  @IsDateStringOrEmptyString()
+  @IsLaterDateStringThan("regStart")
+  @IsEarlierDateStringThan("endDate")
+  @EmptyStringToNull()
+  @ApiProperty()
+  regEnd?: Date | null;
 
   @IsNotEmpty()
   @ToArray({ type: "int" })

@@ -17,6 +17,7 @@ import {
 import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import {
+  IsEarlierDateStringThan,
   IsLaterDateStringThan,
   MaxDateString,
   MinDateString,
@@ -33,6 +34,19 @@ export class CreateEventDto {
   @IsLaterDateStringThan("startDate")
   @ApiProperty()
   endDate?: Date | null;
+
+  @IsOptional()
+  @MaxDateString(new Date("2099-01-01T01:01:01.001Z"))
+  @IsEarlierDateStringThan("startDate")
+  @ApiProperty()
+  regStart?: Date | null;
+
+  @IsOptional()
+  @MaxDateString(new Date("2099-01-01T01:01:01.001Z"))
+  @IsLaterDateStringThan("regStart")
+  @IsEarlierDateStringThan("endDate")
+  @ApiProperty()
+  regEnd?: Date | null;
 
   @IsNotEmpty()
   @IsString()

@@ -29,6 +29,14 @@ export class CommonRegistrationService {
             include: { registrations: { orderBy: { updatedAt: "asc" } } },
           });
 
+          if (event?.regStart && new Date() < event.regStart) {
+            throw new Error("Registration is not open yet");
+          }
+
+          if (event?.regEnd && new Date() > event.regEnd) {
+            throw new Error("Registration closed");
+          }
+
           const existingReg = event?.registrations.find(
             (reg) => reg.userId === userId && reg.eventId === eventId,
           );
