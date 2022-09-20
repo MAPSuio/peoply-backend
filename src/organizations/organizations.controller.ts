@@ -370,7 +370,11 @@ export class OrganizationsController {
     return organization?.organizationRoles;
   }
 
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  @OrganizationRoles(
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+  )
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Delete(":orgId/members/:userId")
   async deleteMember(
@@ -413,6 +417,12 @@ export class OrganizationsController {
     if (isAdmin && userOrganizationRole.role === OrganizationRole.MEMBER) {
       return this.organizationsService.deleteMember(orgId, userId);
     }
+
+    // if myself, then delete
+    if (req.user.id === userId) {
+      return this.organizationsService.deleteMember(orgId, userId);
+    }
+
     throw new UnauthorizedException(
       "You don't have permission to delete this user",
     );
