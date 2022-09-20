@@ -304,4 +304,25 @@ export class UserRegistrationService extends CommonRegistrationService {
       }
     }
   }
+
+  async updateAllRegistrationsOfUserToNotGoing(userId: string) {
+    // get all registrations of user
+    this.prismaService.$transaction(async (trx) => {
+      const registrations = await trx.registration.findMany({
+        where: {
+          userId,
+        },
+      });
+
+      // update all registrations to not going
+      registrations.forEach(async (registration) => {
+        try {
+          await this.update(userId, {
+            eventId: registration.eventId,
+            regStatus: RegStatus.NOT_GOING,
+          });
+        } catch (error) {}
+      });
+    });
+  }
 }

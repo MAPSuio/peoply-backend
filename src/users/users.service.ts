@@ -14,12 +14,14 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchUserDto } from "./dto/search-user.dto";
 import { calculateEditDistance } from "../util/string";
 import { EventArrangerRole } from "@prisma/client";
+import { UserRegistrationService } from "../registrations/services";
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly azureStorageService: AzureStorageService,
+    private readonly userRegistrationService: UserRegistrationService,
   ) {}
 
   /* This will fail if uuid is a duplicate.
@@ -286,6 +288,10 @@ export class UsersService {
             },
           },
         });
+
+        this.userRegistrationService.updateAllRegistrationsOfUserToNotGoing(
+          user.id,
+        );
 
         // delete arranger which automatically deletes user because of ON DELETE CASCADE in schema.prisma
         await trx.arranger.delete({
