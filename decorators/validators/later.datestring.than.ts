@@ -20,6 +20,9 @@ export function IsLaterDateStringThan(
         validate(_value: any, args: ValidationArguments) {
           if (args.value === "") return true;
           const earliestDate = (args.object as any)[earliestDateVariableName];
+          if (!earliestDate) {
+            return true;
+          }
           const latestDate = args.value;
           return new Date(earliestDate) <= new Date(latestDate);
         },
