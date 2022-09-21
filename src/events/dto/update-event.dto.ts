@@ -36,10 +36,11 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiProperty()
   description: string;
 
+  @IsOptional()
   @IsNumber()
-  @Min(0)
+  @StringToNumberOrNull()
   @ApiProperty()
-  capacity: number;
+  capacity?: number;
 
   @IsEnum(Visibility)
   @ApiProperty()
