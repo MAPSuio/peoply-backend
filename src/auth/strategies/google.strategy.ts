@@ -12,20 +12,22 @@ import {
 } from "openid-client";
 import { UsersService } from "../../users/users.service";
 
-export const buildOpenIdClient = async (configService: ConfigService) => {
+export const buildGoogleClient = async (configService: ConfigService) => {
   const TrustIssuer = await Issuer.discover(
-    `${process.env.VIPPS_OIDC_ISSUER}/.well-known/openid-configuration`,
+    `${process.env.GOOGLE_OIDC_ISSUER}/.well-known/openid-configuration`,
   );
   const client = new TrustIssuer.Client({
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    client_id: configService.get<string>("VIPPS_OIDC_LOGIN_CLIENT_ID")!,
+    client_id: configService.get<string>("GOOGLE_OIDC_LOGIN_CLIENT_ID")!,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    client_secret: configService.get<string>("VIPPS_OIDC_LOGIN_CLIENT_SECRET")!,
+    client_secret: configService.get<string>(
+      "GOOGLE_OIDC_LOGIN_CLIENT_SECRET",
+    )!,
   });
   return client;
 };
 
-export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
+export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   client: Client;
 
   constructor(
@@ -37,9 +39,9 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
       client: client,
       params: {
         redirect_uri: configService.get<string>(
-          "VIPPS_OIDC_LOGIN_REDIRECT_URI",
+          "GOOGLE_OIDC_LOGIN_REDIRECT_URI",
         ),
-        scope: configService.get<string>("VIPPS_OIDC_LOGIN_SCOPE"),
+        scope: configService.get<string>("GOOGLE_OIDC_LOGIN_SCOPE"),
       },
     });
 
@@ -52,19 +54,22 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
 
     const {
       email,
-      phone_number: phone,
+      email_verified: emailVerified,
       given_name: firstName,
       family_name: lastName,
-      birthdate: birthDate,
     } = userinfo;
 
-    if (!(email && phone && firstName && lastName && birthDate)) {
+    if (!(email && firstName && lastName)) {
       throw new UnauthorizedException("Missing user info");
+    }
+
+    if (!emailVerified) {
+      throw new UnauthorizedException("Email not verified");
     }
 
     /* check if user exists */
     const user = await this.userService.findByProviderSub(
-      Provider.VIPPS,
+      Provider.GOOGLE,
       userinfo.sub,
     );
 
@@ -76,12 +81,10 @@ export class OidcStrategy extends PassportStrategy(Strategy, "oidc") {
       const newUser = await this.userService.create(
         {
           email,
-          phone,
           firstName,
           lastName,
-          birthDate: new Date(birthDate).toISOString(),
         },
-        Provider.VIPPS,
+        Provider.GOOGLE,
         userinfo.sub,
       );
 

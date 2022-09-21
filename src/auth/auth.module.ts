@@ -9,20 +9,35 @@ import { UsersModule } from "../users/users.module";
 import { UsersService } from "../users/users.service";
 import {
   AccessStrategy,
-  buildOpenIdClient,
-  OidcStrategy,
+  buildVippsClient,
+  buildGoogleClient,
+  VippsStrategy,
+  GoogleStrategy,
   RefreshStrategy,
 } from "./strategies";
 
-const OidcStrategyFactory = {
+const VippsStrategyFactory = {
   provide: "OidcStrategy",
   import: [UsersModule, ConfigModule],
   useFactory: async (
     userService: UsersService,
     configService: ConfigService,
   ) => {
-    const client = await buildOpenIdClient(configService); // secret sauce! build the dynamic client before injecting it into the strategy for use in the constructor super call.
-    const strategy = new OidcStrategy(client, userService, configService);
+    const client = await buildVippsClient(configService); // secret sauce! build the dynamic client before injecting it into the strategy for use in the constructor super call.
+    const strategy = new VippsStrategy(client, userService, configService);
+    return strategy;
+  },
+  inject: [UsersService, ConfigService],
+};
+const GoogleStrategyFactory = {
+  provide: "GoogleStrategy",
+  import: [UsersModule, ConfigModule],
+  useFactory: async (
+    userService: UsersService,
+    configService: ConfigService,
+  ) => {
+    const client = await buildGoogleClient(configService); // secret sauce! build the dynamic client before injecting it into the strategy for use in the constructor super call.
+    const strategy = new GoogleStrategy(client, userService, configService);
     return strategy;
   },
   inject: [UsersService, ConfigService],
@@ -48,7 +63,8 @@ const OidcStrategyFactory = {
   ],
   controllers: [AuthController],
   providers: [
-    OidcStrategyFactory,
+    VippsStrategyFactory,
+    GoogleStrategyFactory,
     AuthService,
     AccessStrategy,
     RefreshStrategy,

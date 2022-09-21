@@ -32,7 +32,7 @@ model User {
   id                             String                   @id @default(uuid())
   arranger                       Arranger                 @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
   arrangerId                     String                   @unique @map("arranger_id")
-  phone                          String                   @unique
+  phone                          String?                  @unique
   firstName                      String                   @map("first_name") @db.VarChar(100)
   lastName                       String                   @map("last_name") @db.VarChar(100)
   email                          String                   @unique
@@ -77,6 +77,7 @@ model ProviderUser {
 
 enum Provider {
   VIPPS
+  GOOGLE
 
   @@map("providers")
 }

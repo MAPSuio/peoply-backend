@@ -37,11 +37,14 @@ export class UsersService {
       },
     });
 
-    const phoneExists = await this.prisma.user.findUnique({
-      where: {
-        phone,
-      },
-    });
+    let phoneExists: User | null = null;
+    if (phone) {
+      phoneExists = await this.prisma.user.findUnique({
+        where: {
+          phone,
+        },
+      });
+    }
 
     const errors: { email?: string; phone?: string } = {};
 
