@@ -1,6 +1,6 @@
 import { RegStatus } from ".prisma/client";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsOptional } from "class-validator";
+import { IsEnum, IsInt, IsOptional } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
 
 export class SearchUserRegistrationDto {
@@ -23,4 +23,14 @@ export class SearchUserRegistrationDto {
   @ToBoolean()
   @ApiProperty({ required: false })
   includeArrangers?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @ApiProperty({ required: false })
+  skip?: number;
+
+  @IsOptional()
+  @IsInt()
+  @ApiProperty({ required: false })
+  take?: number;
 }

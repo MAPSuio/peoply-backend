@@ -130,7 +130,12 @@ export class UsersController {
     @Query() query: SearchUserRegistrationDto,
     @Param("userId") id: string,
   ) {
-    return this.userRegistrationService.findAll(query, id);
+    return this.userRegistrationService.findAll(
+      query,
+      id,
+      query.skip,
+      query.take,
+    );
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
