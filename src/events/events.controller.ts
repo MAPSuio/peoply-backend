@@ -25,6 +25,7 @@ import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
+import { ArrangerUpdateRegistrationDto } from "../registrations/dto";
 import { ArrangerRegistrationService } from "../registrations/services";
 import { isUUID } from "../util/uuid";
 import {
@@ -261,5 +262,16 @@ export class EventsController {
       }
       throw err;
     }
+  }
+
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
+  @Patch(":id/registrations")
+  async updateUserRegistration(
+    @Req() req: any,
+    @Param("id") eventId: string,
+    @Body() updateDTO: ArrangerUpdateRegistrationDto,
+  ) {
+    return this.arrangerRegistrationService.update(eventId, updateDTO);
   }
 }

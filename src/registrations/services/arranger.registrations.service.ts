@@ -101,13 +101,14 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
 
   async update(
     eventId: string,
-    userId: string,
     arrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
   ) {
+    const { userId, ...updateProps } = arrangerUpdateRegistrationDto;
+
     try {
       return await this.prismaService.registration.update({
         where: { eventId_userId: { eventId, userId } },
-        data: { ...arrangerUpdateRegistrationDto, eventId },
+        data: { ...updateProps, eventId },
       });
     } catch (error) {
       if (
