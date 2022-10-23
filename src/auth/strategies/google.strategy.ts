@@ -10,7 +10,7 @@ import {
   TokenSet,
   Issuer,
 } from "openid-client";
-import { UsersService } from "../../users/users.service";
+import { UsersService } from "../../users/services";
 
 export const buildGoogleClient = async (configService: ConfigService) => {
   const TrustIssuer = await Issuer.discover(

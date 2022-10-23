@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { UsersService } from "./users.service";
+import { UsersService, FollowService } from "./services";
 import { UsersController } from "./users.controller";
 import { RegistrationsModule } from "../registrations/registrations.module";
 import { PrismaModule } from "../prisma/prisma.module";
@@ -22,7 +22,7 @@ import { AuthModule } from "../auth/auth.module";
     AuthModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [UsersService],
+  providers: [UsersService, FollowService],
+  exports: [UsersService, FollowService],
 })
 export class UsersModule {}

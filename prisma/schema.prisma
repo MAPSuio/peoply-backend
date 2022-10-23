@@ -53,6 +53,7 @@ model User {
   eventInvitationsFromMe         EventInvitation[]        @relation("FromUserEventInvitations")
   origanizationInvitationsToMe   OrganizationInvitation[] @relation("ToUserOrganizationInvitations")
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
+  arrangerFollowers              ArrangerFollower[]
   eventUpdates EventUpdate[]
 
   @@map("users")
@@ -109,13 +110,14 @@ enum OrganizationRole {
 }
 
 model Arranger {
-  id             String          @id @default(uuid())
-  isBusiness     Boolean         @map("is_business")
-  organization   Organization?
-  user           User?
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
-  eventArrangers EventArranger[]
+  id                String             @id @default(uuid())
+  isBusiness        Boolean            @map("is_business")
+  organization      Organization?
+  user              User?
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at")
+  eventArrangers    EventArranger[]
+  arrangerFollowers ArrangerFollower[]
 
   @@map("arrangers")
 }
@@ -193,6 +195,18 @@ enum EventVisibility {
   UNLISTED
 
   @@map("event_visibility")
+}
+
+model ArrangerFollower {
+  arrangerId String   @map("arranger_id")
+  userId     String   @map("user_id")
+  arranger   Arranger @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@id([arrangerId, userId])
+  @@map("arranger_follower")
 }
 
 model EventArranger {

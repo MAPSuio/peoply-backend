@@ -1,25 +1,27 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
 import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
 import { Provider, User } from ".prisma/client";
-import { CreateUserDto, UpdateUserDto } from "./dto";
-import { PrismaError } from "../prisma/prisma.constants";
+import { CreateUserDto, UpdateUserDto } from "../dto";
+import { PrismaError } from "../../prisma/prisma.constants";
 import {
   UserAlreadyExistsException,
   UserDoesNotExistException,
-} from "./exceptions";
-import { AzureStorageService } from "../azure/azure-storage.service";
-import { AzureStorageContainer } from "../azure/azure-storage.constants";
-import { SearchUserDto } from "./dto/search-user.dto";
-import { calculateEditDistance } from "../util/string";
+} from "../exceptions";
+import { AzureStorageService } from "../../azure/azure-storage.service";
+import { AzureStorageContainer } from "../../azure/azure-storage.constants";
+import { SearchUserDto } from "../dto/search-user.dto";
+import { calculateEditDistance } from "../../util/string";
 import { EventArrangerRole } from "@prisma/client";
+import { UserRegistrationService } from "../../registrations/services";
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly azureStorageService: AzureStorageService,
+    private readonly userRegistrationService: UserRegistrationService,
   ) {}
 
   /* This will fail if uuid is a duplicate.
@@ -35,11 +37,14 @@ export class UsersService {
       },
     });
 
-    const phoneExists = await this.prisma.user.findUnique({
-      where: {
-        phone,
-      },
-    });
+    let phoneExists: User | null = null;
+    if (phone) {
+      phoneExists = await this.prisma.user.findUnique({
+        where: {
+          phone,
+        },
+      });
+    }
 
     const errors: { email?: string; phone?: string } = {};
 
@@ -286,6 +291,10 @@ export class UsersService {
             },
           },
         });
+
+        this.userRegistrationService.updateAllRegistrationsOfUserToNotGoing(
+          user.id,
+        );
 
         // delete arranger which automatically deletes user because of ON DELETE CASCADE in schema.prisma
         await trx.arranger.delete({

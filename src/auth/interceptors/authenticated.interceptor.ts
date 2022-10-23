@@ -5,7 +5,7 @@ import {
   CallHandler,
 } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { UsersService } from "../../users/users.service";
+import { UsersService } from "../../users/services";
 import { AuthService } from "../auth.service";
 
 @Injectable()

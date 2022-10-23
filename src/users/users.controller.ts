@@ -27,7 +27,7 @@ import { UserRegistrationService } from "../registrations/services";
 import { Response } from "express";
 import { UuidDto } from "../genericDTOs/uuid.dto";
 import { UpdateUserDto } from "./dto";
-import { UsersService } from "./users.service";
+import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { User } from ".prisma/client";
@@ -47,6 +47,7 @@ export class UsersController {
     private readonly organizationsService: OrganizationsService,
     private readonly notificationsService: NotificationsService,
     private readonly authService: AuthService,
+    private readonly followService: FollowService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -247,5 +248,23 @@ export class UsersController {
   @Get(":userId/notifications")
   async getNotifications(@Param("userId") userId: string) {
     return this.notificationsService.findAllPendingByUserId(userId);
+  }
+
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Post(":userId/following/:arrangerId")
+  async followArranger(
+    @Param("userId") userId: string,
+    @Param("arrangerId") arrangerId: string,
+  ) {
+    return this.followService.follow(userId, arrangerId);
+  }
+
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Delete(":userId/following/:arrangerId")
+  async unFollowArranger(
+    @Param("userId") userId: string,
+    @Param("arrangerId") arrangerId: string,
+  ) {
+    return this.followService.unFollow(userId, arrangerId);
   }
 }

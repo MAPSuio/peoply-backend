@@ -9,7 +9,7 @@ import { OrganizationRole } from "@prisma/client";
 import { EventsService } from "../../events/events.service";
 import { OrganizationsService } from "../../organizations/organizations.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { UsersService } from "../../users/users.service";
+import { UsersService } from "../../users/services";
 import { AuthService } from "../auth.service";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 

@@ -6,7 +6,7 @@ import { AuthController } from "./auth.controller";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { UsersModule } from "../users/users.module";
-import { UsersService } from "../users/users.service";
+import { UsersService } from "../users/services";
 import {
   AccessStrategy,
   buildVippsClient,
