@@ -516,7 +516,8 @@ export class EventsService {
       ).filter(({ user }) => user.allowEmailFromArranger);
 
       const toEmails: EmailRecipients = {
-        to: registrations.map(({ user }) => ({
+        to: [{ email: "no-reply@peoply.app" }],
+        bCC: registrations.map(({ user }) => ({
           email: user.email,
         })),
       };
