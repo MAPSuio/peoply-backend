@@ -7,11 +7,10 @@ import {
 } from "../../events/dto";
 import { PrismaError } from "../../prisma/prisma.constants";
 import { PrismaService } from "../../prisma/prisma.service";
-import { ArrangerUpdateRegistrationDto } from "../dto";
-import { RegistrationNotFoundException } from "../exceptions";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
+import { ArrangerUpdateRegistrationDto } from "../dto";
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
@@ -99,29 +98,6 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       : registrations;
   }
 
-  async update(
-    eventId: string,
-    arrangerUpdateRegistrationDto: ArrangerUpdateRegistrationDto,
-  ) {
-    const { userId, ...updateProps } = arrangerUpdateRegistrationDto;
-
-    try {
-      return await this.prismaService.registration.update({
-        where: { eventId_userId: { eventId, userId } },
-        data: { ...updateProps, eventId },
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        throw new RegistrationNotFoundException(eventId, userId);
-      } else {
-        throw error;
-      }
-    }
-  }
-
   async getRegistrationCount(
     searchProps: SearchEventRegistrationCountDto,
     eventId: string,
@@ -142,5 +118,13 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
         throw error;
       }
     }
+  }
+
+  async update(
+    userId: string,
+    eventId: string,
+    regStatus: ArrangerUpdateRegistrationDto,
+  ) {
+    return super.updateRegistration(userId, eventId, regStatus.regStatus);
   }
 }

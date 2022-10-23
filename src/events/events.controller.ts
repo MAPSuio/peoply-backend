@@ -268,13 +268,25 @@ export class EventsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
-  @Patch(":id/registrations")
+  @Patch(":id/registrations/:userId")
   async updateUserRegistration(
     @Req() req: any,
+    @Param("userId") userId: string,
     @Param("id") eventId: string,
     @Body() updateDTO: ArrangerUpdateRegistrationDto,
   ) {
-    return this.arrangerRegistrationService.update(eventId, updateDTO);
+    return this.arrangerRegistrationService.update(userId, eventId, updateDTO);
+  }
+
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
+  @Delete(":id/registrations/:userId")
+  async deleteUserRegistration(
+    @Req() req: any,
+    @Param("id") eventId: string,
+    @Param("userId") userId: string,
+  ) {
+    return this.arrangerRegistrationService.remove(eventId, userId);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)

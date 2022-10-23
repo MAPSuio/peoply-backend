@@ -11,7 +11,6 @@ import {
 import {
   DuplicateRegistrationException,
   ForeignKeyNotFoundException,
-  RegistrationNotFoundException,
 } from "../exceptions";
 import { RegStatus, Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
@@ -151,160 +150,6 @@ export class UserRegistrationService extends CommonRegistrationService {
     });
   }
 
-  async update(
-    userId: string,
-    userUpdateRegistrationDto: UserUpdateRegistrationDto,
-  ) {
-    try {
-      const registration = this.prismaService.$transaction(async (trx) => {
-        const event = await trx.event.findUnique({
-          where: { id: userUpdateRegistrationDto.eventId },
-          include: {
-            registrations: { orderBy: { updatedAt: "asc" } },
-          },
-        });
-
-        if (event?.endDate && new Date() > event.endDate) {
-          throw new BadRequestException("Event has ended");
-        }
-
-        if (event?.regStart && new Date() < event.regStart) {
-          throw new BadRequestException("Registration has not opened yet");
-        }
-
-        if (event?.regEnd && new Date() > event.regEnd) {
-          throw new BadRequestException("Registration has closed");
-        }
-
-        const existingReg = event?.registrations.find(
-          (registration) =>
-            registration.eventId === userUpdateRegistrationDto.eventId &&
-            registration.userId === userId,
-        );
-
-        if (event && existingReg) {
-          const going = event.registrations.filter(
-            (registration) => registration.regStatus === RegStatus.GOING,
-          );
-
-          /* If change from NOT_GOING to GOING */
-          if (
-            userUpdateRegistrationDto.regStatus === RegStatus.GOING &&
-            (existingReg.regStatus === RegStatus.NOT_GOING ||
-              existingReg.regStatus === RegStatus.INVITED)
-          ) {
-            /* If event has no capacity or if there is free space
-             * Just update registration status
-             */
-            if (event.capacity === null || going.length < event.capacity) {
-              return trx.registration.update({
-                where: {
-                  eventId_userId: {
-                    eventId: userUpdateRegistrationDto.eventId,
-                    userId,
-                  },
-                },
-                data: {
-                  regStatus: userUpdateRegistrationDto.regStatus,
-                },
-              });
-
-              /* Else add to waitlist */
-            } else {
-              return trx.registration.update({
-                where: {
-                  eventId_userId: {
-                    eventId: userUpdateRegistrationDto.eventId,
-                    userId,
-                  },
-                },
-                data: {
-                  regStatus: RegStatus.WAITLISTED,
-                },
-              });
-            }
-
-            /* If change from GOING to NOT_GOING
-             * Check if there is anyone on waitlist
-             */
-          } else if (
-            userUpdateRegistrationDto.regStatus === RegStatus.NOT_GOING &&
-            existingReg.regStatus === RegStatus.GOING
-          ) {
-            const waitlisted = event.registrations.filter(
-              (registration) => registration.regStatus === RegStatus.WAITLISTED,
-            );
-
-            /* Get current registration */
-            const registration = trx.registration.update({
-              where: {
-                eventId_userId: {
-                  eventId: userUpdateRegistrationDto.eventId,
-                  userId,
-                },
-              },
-              data: {
-                regStatus: userUpdateRegistrationDto.regStatus,
-              },
-            });
-
-            /* If there is someone in waitlist, give space to first on waitlist */
-            if (waitlisted.length !== 0) {
-              const nextGoing = waitlisted[0];
-
-              await trx.registration.update({
-                where: {
-                  eventId_userId: {
-                    eventId: userUpdateRegistrationDto.eventId,
-                    userId: nextGoing.userId,
-                  },
-                },
-                data: {
-                  regStatus: RegStatus.GOING,
-                },
-              });
-            }
-            return registration;
-          } else if (
-            userUpdateRegistrationDto.regStatus === RegStatus.NOT_GOING &&
-            existingReg.regStatus === RegStatus.WAITLISTED
-          ) {
-            return trx.registration.update({
-              where: {
-                eventId_userId: {
-                  eventId: userUpdateRegistrationDto.eventId,
-                  userId,
-                },
-              },
-              data: {
-                regStatus: userUpdateRegistrationDto.regStatus,
-              },
-            });
-          }
-        } else {
-          throw new ForeignKeyNotFoundException(
-            userUpdateRegistrationDto.eventId,
-            userId,
-          );
-        }
-      });
-      return registration;
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        //errorcode 'P2025' event not found in database
-        throw new RegistrationNotFoundException(
-          userUpdateRegistrationDto.eventId,
-          userId,
-        );
-      } else {
-        throw error;
-      }
-    }
-  }
-
   async updateAllRegistrationsOfUserToNotGoing(userId: string) {
     // get all registrations of user
     this.prismaService.$transaction(async (trx) => {
@@ -317,12 +162,17 @@ export class UserRegistrationService extends CommonRegistrationService {
       // update all registrations to not going
       registrations.forEach(async (registration) => {
         try {
-          await this.update(userId, {
-            eventId: registration.eventId,
-            regStatus: RegStatus.NOT_GOING,
-          });
+          await super.updateRegistration(
+            userId,
+            registration.eventId,
+            RegStatus.NOT_GOING,
+          );
         } catch (error) {}
       });
     });
+  }
+
+  async update(userId: string, dto: UserUpdateRegistrationDto) {
+    return super.updateRegistration(userId, dto.eventId, dto.regStatus);
   }
 }

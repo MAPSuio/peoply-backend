@@ -10,7 +10,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Min,
   MinLength,
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
