@@ -40,6 +40,9 @@ model User {
   birthDate                      DateTime?                @map("birth_date") @db.Date
   description                    String?                  @db.VarChar(120)
   foodPreference                 FoodPreference?          @map("food_preference")
+  allowEmailPromotions           Boolean                  @default(false) @map("allow_email_promotions")
+  allowEmailFromArranger         Boolean                  @default(true) @map("allow_email_from_arranger")
+  allowEmailOnWaitlist           Boolean                  @default(true) @map("allow_email_on_waitlist")
   createdAt                      DateTime                 @default(now()) @map("created_at")
   updatedAt                      DateTime                 @default(now()) @updatedAt @map("updated_at")
   organizationRoles              UserOrganizationRole[]
@@ -50,6 +53,7 @@ model User {
   eventInvitationsFromMe         EventInvitation[]        @relation("FromUserEventInvitations")
   origanizationInvitationsToMe   OrganizationInvitation[] @relation("ToUserOrganizationInvitations")
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
+  eventUpdates EventUpdate[]
 
   @@map("users")
 }
@@ -126,7 +130,7 @@ model Event {
   title              String            @db.VarChar(150)
   description        String
   capacity           Int?
-  visibility         Visibility
+  visibility         EventVisibility
   hasFood            Boolean           @default(false) @map("has_food")
   featured           Boolean           @default(false)
   image              String?           @unique
@@ -151,17 +155,44 @@ model Event {
   eventCategories    EventCategory[]
   favorites          Favorite[]
   eventInvitations   EventInvitation[]
+  eventUpdates       EventUpdate[]
 
   @@index([urlId])
   @@map("events")
 }
 
-enum Visibility {
+model EventUpdate {
+  id              String                @id @default(uuid())
+  visibility      EventUpdateVisibility
+  eventId         String                @map("event_id")
+  event           Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sendEmail       Boolean               @map("send_email")
+  azureMessageId  String?               @map("azure_message_id")
+  subject         String
+  body            String
+  replyTo         String?               @map("reply_to")
+  createdByUserId String                @map("created_by_user_id")
+  createdByUser   User                  @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  @@map("event_updates")
+}
+
+enum EventUpdateVisibility {
+  ALL
+  GOING
+  DELETED
+
+  @@map("event_update_visibility")
+}
+
+enum EventVisibility {
   PUBLIC
   PRIVATE
   UNLISTED
 
-  @@map("visibility")
+  @@map("event_visibility")
 }
 
 model EventArranger {

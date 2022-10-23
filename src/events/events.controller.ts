@@ -22,6 +22,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
+import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -35,6 +36,7 @@ import {
   UpdateEventDto,
   SearchEventRegistrationCountDto,
 } from "./dto";
+import { SendUpdateDto } from "./dto/send-update.dto";
 import { EventsService } from "./events.service";
 import { EventNotFoundException } from "./exceptions";
 
@@ -273,5 +275,40 @@ export class EventsController {
     @Body() updateDTO: ArrangerUpdateRegistrationDto,
   ) {
     return this.arrangerRegistrationService.update(eventId, updateDTO);
+  }
+
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
+  @Post(":id/update")
+  async sendUpdate(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() sendUpdateDto: SendUpdateDto,
+  ) {
+    const user: User = req.user;
+    return this.eventsService.sendUpdateToEventParticipants(
+      user.id,
+      id,
+      sendUpdateDto,
+    );
+  }
+
+  @UseInterceptors(AuthenticatedInterceptor)
+  @Get(":id/updates")
+  async getUpdates(@Req() req: any, @Param("id") id: string) {
+    const user: User | undefined = req.user;
+
+    return this.eventsService.getUpdatesForEvent(id, user?.id);
+  }
+
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
+  @Delete(":id/update/:updateId")
+  async deleteUpdate(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("updateId") updateId: string,
+  ) {
+    return this.eventsService.deleteUpdateForEvent(updateId);
   }
 }

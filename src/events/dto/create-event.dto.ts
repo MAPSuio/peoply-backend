@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Visibility } from "@prisma/client";
+import { EventVisibility } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -74,8 +74,8 @@ export class CreateEventDto {
   categoryIds: number[];
 
   @IsNotEmpty()
-  @IsEnum(Visibility)
-  visibility: Visibility;
+  @IsEnum(EventVisibility)
+  visibility: EventVisibility;
 
   @IsNotEmpty()
   @ToBoolean()

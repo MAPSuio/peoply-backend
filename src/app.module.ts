@@ -47,6 +47,7 @@ import { InvitationsModule } from "./invitations/invitations.module";
         AZURE_STORAGE_ACCOUNT: Joi.string().required(),
         AZURE_STORAGE_KEY: Joi.string().required(),
         AZURE_MAPS_KEY: Joi.string().required(),
+        AZURE_COMMUNICATION_CONNECTION_STRING: Joi.string().required(),
       }),
     }),
     AuthModule,

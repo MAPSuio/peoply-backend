@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { v4 as uuidv4 } from "uuid";
-import { EventArrangerRole, Visibility } from ".prisma/client";
+import { EventArrangerRole, EventVisibility } from ".prisma/client";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
@@ -12,12 +17,17 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from ".prisma/client";
 import { calculateEditDistance } from "../util/string";
+import { EventUpdateVisibility, RegStatus } from "@prisma/client";
+import { EmailRecipients } from "@azure/communication-email";
+import { SendUpdateDto } from "./dto/send-update.dto";
+import { AzureCommunicationService } from "../azure/azure-communication.service";
 @Injectable()
 export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
     private readonly azureStorageService: AzureStorageService,
+    private readonly azureCommunicationService: AzureCommunicationService,
   ) {}
 
   async create(
@@ -167,7 +177,7 @@ export class EventsService {
           ? { search: generateSearchQuery(searchProps.description) }
           : undefined,
         capacity: searchProps.capacity,
-        visibility: Visibility.PUBLIC,
+        visibility: EventVisibility.PUBLIC,
 
         eventCategories: searchProps.categoryIds
           ? {
@@ -461,6 +471,117 @@ export class EventsService {
     }
   }
 
+  async sendUpdateToEventParticipants(
+    createdByUserId: string,
+    eventId: string,
+    updateDto: SendUpdateDto,
+  ): Promise<void> {
+    const event = await this.findOneWithArrangers(eventId);
+
+    if (!event) {
+      throw new EventNotFoundException(eventId);
+    }
+
+    let azureMessageId: string | null = null;
+
+    if (updateDto.sendEmail) {
+      // get all exisitng updates within the last 24 hours
+      const existingUpdates = await this.prisma.eventUpdate.findMany({
+        where: {
+          eventId,
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          },
+          sendEmail: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const allowedToSendEmail = existingUpdates.length < 5;
+
+      if (!allowedToSendEmail) {
+        throw new HttpException(
+          "Too many updates sent",
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      const registrations = (
+        await this.prisma.registration.findMany({
+          where: { eventId, regStatus: RegStatus.GOING },
+          include: {
+            user: true,
+          },
+        })
+      ).filter(({ user }) => user.allowEmailFromArranger);
+
+      const toEmails: EmailRecipients = {
+        to: registrations.map(({ user }) => ({
+          email: user.email,
+        })),
+      };
+
+      if (toEmails.to.length > 0) {
+        const { messageId } = await this.azureCommunicationService.send({
+          sender: "no-reply@peoply.app",
+          recipients: toEmails,
+          content: {
+            subject: `Peoply: Oppdatering for "${event.title}"`,
+            html: this.buildEventUpdateHtmlEmail(updateDto, event),
+          },
+          replyTo: updateDto.replyTo
+            ? [{ email: updateDto.replyTo }]
+            : undefined,
+        });
+        azureMessageId = messageId;
+      }
+    }
+
+    await this.prisma.eventUpdate.create({
+      data: {
+        eventId,
+        body: updateDto.body,
+        subject: updateDto.subject,
+        replyTo: updateDto.replyTo,
+        azureMessageId: azureMessageId,
+        sendEmail: updateDto.sendEmail,
+        visibility: updateDto.visibility,
+        createdByUserId,
+      },
+    });
+  }
+
+  async getUpdatesForEvent(eventId: string, userId?: string) {
+    if (userId) {
+      // if user is GOING, show all updates
+      const registration = await this.prisma.registration.findUnique({
+        where: { eventId_userId: { eventId, userId } },
+      });
+      if (registration?.regStatus === RegStatus.GOING) {
+        return await this.prisma.eventUpdate.findMany({
+          where: {
+            eventId,
+            visibility: {
+              not: EventUpdateVisibility.DELETED,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+    }
+    return await this.prisma.eventUpdate.findMany({
+      where: { eventId, visibility: EventUpdateVisibility.ALL },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async deleteUpdateForEvent(updateId: string) {
+    return await this.prisma.eventUpdate.update({
+      where: { id: updateId },
+      data: { visibility: EventUpdateVisibility.DELETED },
+    });
+  }
+
   private generateUrlId() {
     const ID_LENGTH = 8;
     /* Generate a random string of 10 letters from A to Z */
@@ -471,5 +592,31 @@ export class EventsService {
     }
 
     return urlId;
+  }
+
+  private buildEventUpdateHtmlEmail(updateDto: SendUpdateDto, event: Event) {
+    return (
+      `<h1>${updateDto.subject}</h1>\n` +
+      `${updateDto.body
+        .split("\n")
+        .map((p) => `<p>${p}</p>`)
+        .join("")}\n` +
+      `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
+      `<p>
+      ${
+        updateDto.replyTo
+          ? "Svar på denne mailen eller send mail til e-posten under for å sende svar til arrangøren.\n" +
+            "<br>" +
+            `<a href="mailto:${updateDto.replyTo}?subject=SV: ${updateDto.subject}">${updateDto.replyTo}</a>`
+          : ""
+      }
+    </p>` +
+      "<p>" +
+      `Du mottar denne e-posten fordi du har meldt deg på <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      "</p>" +
+      "<p>" +
+      `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
+      "</p>"
+    );
   }
 }

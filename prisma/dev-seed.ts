@@ -3,7 +3,7 @@ import {
   EventArrangerRole,
   OrganizationRole,
   RegStatus,
-  Visibility,
+  EventVisibility,
 } from ".prisma/client";
 import { categories } from "./dbProdData";
 import {
@@ -121,9 +121,9 @@ async function main() {
       },
     });
 
-    let visibility: Visibility = Visibility.PUBLIC;
+    let visibility: EventVisibility = EventVisibility.PUBLIC;
     if (i % 2 === 0) {
-      visibility = Visibility.UNLISTED;
+      visibility = EventVisibility.UNLISTED;
     }
 
     await prisma.event.upsert({
