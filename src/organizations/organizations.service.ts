@@ -161,9 +161,12 @@ export class OrganizationsService {
       throw new BadRequestException("urlId can not be empty");
     }
 
-    const urlIdExists = await this.prisma.organization.findUnique({
-      where: { urlId: validUrlId },
-    });
+    const urlIdExists =
+      validUrlId === null
+        ? false
+        : await this.prisma.organization.findUnique({
+            where: { urlId: validUrlId },
+          });
     if (urlIdExists) {
       throw new ConflictException("urlId already exists");
     }
