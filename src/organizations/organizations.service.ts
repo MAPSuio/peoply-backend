@@ -1,4 +1,9 @@
-import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  Injectable,
+} from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
@@ -154,6 +159,13 @@ export class OrganizationsService {
       );
     } else if (validUrlId === "") {
       throw new BadRequestException("urlId can not be empty");
+    }
+
+    const urlIdExists = await this.prisma.organization.findUnique({
+      where: { urlId: validUrlId },
+    });
+    if (urlIdExists) {
+      throw new ConflictException("urlId already exists");
     }
 
     /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
