@@ -241,6 +241,12 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Get(":userId/following")
+  async getFollowing(@Param("userId") userId: string) {
+    return this.followService.findAll(userId);
+  }
+
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Post(":userId/following/:arrangerId")
   async followArranger(
     @Param("userId") userId: string,

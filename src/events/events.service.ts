@@ -187,28 +187,29 @@ export class EventsService {
             }
           : undefined,
 
-        // find arranger if specified
-        // if not specified, but user is, then find arranger using userId
-        // if not specified, but organization is, then find arranger using organizationId
-        eventArrangers:
-          searchProps.arrangerId ||
-          searchProps.userId ||
-          searchProps.organizationId
-            ? {
-                every: {
-                  arranger: searchProps.arrangerId
-                    ? { id: searchProps.arrangerId }
-                    : {
-                        user: searchProps.userId
-                          ? { id: searchProps.userId }
-                          : undefined,
-                        organization: searchProps.organizationId
-                          ? { id: searchProps.organizationId }
-                          : undefined,
-                      },
+        // If arrangerIds is provided, we should only return events with those arrangers.
+        // If not specified, but userId is, we should only return events with that user as an arranger.
+        // If not specified, but organizationId is, we should only return events with that organization as an arranger.
+        eventArrangers: searchProps.arrangerIds
+          ? {
+              some: {
+                arrangerId: { in: searchProps.arrangerIds },
+              },
+            }
+          : {
+              every: {
+                arranger: {
+                  user: searchProps.userId
+                    ? { id: searchProps.userId }
+                    : undefined,
+                  organization: searchProps.organizationId
+                    ? {
+                        id: searchProps.organizationId,
+                      }
+                    : undefined,
                 },
-              }
-            : undefined,
+              },
+            },
         featured: searchProps.featured,
       },
       include: {

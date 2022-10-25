@@ -13,6 +13,14 @@ import { UserDoesNotExistException } from "../exceptions";
 export class FollowService {
   constructor(private prisma: PrismaService) {}
 
+  async findAll(userId: string) {
+    return await this.prisma.arrangerFollower.findMany({
+      where: {
+        userId,
+      },
+    });
+  }
+
   async follow(userId: string, arrangerId: string) {
     // Get the user and check if it exists.
     const user = await this.prisma.user.findUnique({

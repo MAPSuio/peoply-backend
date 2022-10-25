@@ -63,9 +63,11 @@ export class SearchEventDto {
   organizationId?: string;
 
   @IsOptional()
-  @IsUUID(4)
-  @ApiProperty({ required: false })
-  arrangerId?: string;
+  @ToArray()
+  @IsArray()
+  @IsUUID(4, { each: true })
+  @ApiProperty({ type: [String], required: false })
+  arrangerIds?: string[];
 
   @IsOptional()
   @ToArray({ type: "int" })
