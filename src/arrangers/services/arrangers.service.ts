@@ -23,7 +23,7 @@ export class ArrangersService {
   }
 
   async findOrganization(id: string) {
-    /* finds the organization that the arranger is associated with 
+    /* finds the organization that the arranger is associated with
     Args: id - string
     Returns: Organization object
     */
@@ -31,7 +31,7 @@ export class ArrangersService {
       where: { id: id },
       include: {
         organization: {
-          select: { id: true },
+          select: { id: true, urlId: true },
         },
       },
     });

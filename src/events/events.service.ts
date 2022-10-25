@@ -226,7 +226,13 @@ export class EventsService {
                   },
                 },
                 organization: {
-                  select: { id: true, name: true, image: true, orgNr: true },
+                  select: {
+                    id: true,
+                    urlId: true,
+                    name: true,
+                    image: true,
+                    orgNr: true,
+                  },
                 },
               },
             },
@@ -284,7 +290,13 @@ export class EventsService {
                   },
                 },
                 organization: {
-                  select: { id: true, name: true, image: true, orgNr: true },
+                  select: {
+                    id: true,
+                    urlId: true,
+                    name: true,
+                    image: true,
+                    orgNr: true,
+                  },
                 },
               },
             },
