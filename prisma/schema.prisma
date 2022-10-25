@@ -12,17 +12,17 @@ datasource db {
 }
 
 model Organization {
-  id                String                 @id @default(uuid())
-  arranger          Arranger               @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
-  arrangerId        String                 @unique @map("arranger_id")
-  name              String
-  orgNr             String?                @unique @map("org_nr") @db.VarChar(9)
-  image             String?
-  description       String?                @db.Text
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at")
-  organizationRoles UserOrganizationRole[]
-
+  id                      String                   @id @default(uuid())
+  urlId                   String?                  @unique @map("url_id")
+  arranger                Arranger                 @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  arrangerId              String                   @unique @map("arranger_id")
+  name                    String
+  orgNr                   String?                  @unique @map("org_nr") @db.VarChar(9)
+  image                   String?
+  description             String?                  @db.Text
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @default(now()) @updatedAt @map("updated_at")
+  organizationRoles       UserOrganizationRole[]
   organizationInvitations OrganizationInvitation[]
 
   @@map("organizations")
@@ -54,7 +54,7 @@ model User {
   origanizationInvitationsToMe   OrganizationInvitation[] @relation("ToUserOrganizationInvitations")
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
   arrangerFollowers              ArrangerFollower[]
-  eventUpdates EventUpdate[]
+  eventUpdates                   EventUpdate[]
 
   @@map("users")
 }

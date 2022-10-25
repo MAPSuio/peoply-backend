@@ -36,9 +36,27 @@ export class OrganizationsService {
         await trx.arranger.create({
           data: { id: arrangerId, isBusiness: true },
         });
+
+        // urlId of name removing all spaces and special characters and change all to lowercase
+        let urlId: string | null = createOrganizationDto.name
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .toLowerCase();
+
+        // check if urlId is unique
+        const urlIdExists = await trx.organization.findUnique({
+          where: { urlId: urlId },
+        });
+        if (urlIdExists) {
+          urlId = null;
+        }
+
         //create organization
         const newOrg = await trx.organization.create({
-          data: { arrangerId, ...createOrganizationDto },
+          data: {
+            arrangerId,
+            ...createOrganizationDto,
+            urlId,
+          },
         });
         //create userOrganizationRole
         await trx.userOrganizationRole.create({
@@ -110,11 +128,34 @@ export class OrganizationsService {
     });
   }
 
+  async findOneByUrlId(urlId: string) {
+    return this.prisma.organization.findUnique({
+      where: {
+        urlId,
+      },
+    });
+  }
+
   async update(
     org: Organization,
     updateOrganizationDto: UpdateOrganizationDto,
     orgImage?: Express.Multer.File,
   ) {
+    const validUrlId =
+      updateOrganizationDto.urlId === null
+        ? null
+        : updateOrganizationDto?.urlId?.replace(/[^a-z0-9]/g, "");
+    if (
+      validUrlId !== undefined &&
+      validUrlId !== updateOrganizationDto.urlId
+    ) {
+      throw new BadRequestException(
+        "urlId can only contain letters from a-z and numbers",
+      );
+    } else if (validUrlId === "") {
+      throw new BadRequestException("urlId can not be empty");
+    }
+
     /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
     const getImageFileName = async () => {
       /* cannot remove and add an image at the same time... */

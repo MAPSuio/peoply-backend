@@ -30,6 +30,7 @@ import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
 import { PrismaError } from "../prisma/prisma.constants";
+import { isUUID } from "../util/uuid";
 import {
   ChangeOwnerDto,
   ChangeRoleDescriptionDTO,
@@ -76,7 +77,12 @@ export class OrganizationsController {
   @Get("/:orgId")
   async getOrganization(@Param("orgId") orgId: string) {
     try {
-      const org = await this.organizationsService.findOne(orgId);
+      let org;
+      if (isUUID(orgId)) {
+        org = await this.organizationsService.findOne(orgId);
+      } else {
+        org = await this.organizationsService.findOneByUrlId(orgId);
+      }
       if (!org) {
         throw new OrganizationDoesNotExistException(orgId);
       }
