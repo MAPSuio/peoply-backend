@@ -146,29 +146,34 @@ export class OrganizationsService {
     updateOrganizationDto: UpdateOrganizationDto,
     orgImage?: Express.Multer.File,
   ) {
-    const validUrlId =
-      updateOrganizationDto.urlId === null
-        ? null
-        : updateOrganizationDto?.urlId?.replace(/[^a-z0-9]/g, "");
     if (
-      validUrlId !== undefined &&
-      validUrlId !== updateOrganizationDto.urlId
+      updateOrganizationDto.urlId &&
+      org.urlId !== updateOrganizationDto.urlId
     ) {
-      throw new BadRequestException(
-        "urlId can only contain letters from a-z and numbers",
-      );
-    } else if (validUrlId === "") {
-      throw new BadRequestException("urlId can not be empty");
-    }
+      const validUrlId =
+        updateOrganizationDto.urlId === null
+          ? null
+          : updateOrganizationDto?.urlId?.replace(/[^a-z0-9]/g, "");
+      if (
+        validUrlId !== undefined &&
+        validUrlId !== updateOrganizationDto.urlId
+      ) {
+        throw new BadRequestException(
+          "urlId can only contain letters from a-z and numbers",
+        );
+      } else if (validUrlId === "") {
+        throw new BadRequestException("urlId can not be empty");
+      }
 
-    const urlIdExists =
-      validUrlId === null
-        ? false
-        : await this.prisma.organization.findUnique({
-            where: { urlId: validUrlId },
-          });
-    if (urlIdExists) {
-      throw new ConflictException("urlId already exists");
+      const urlIdExists =
+        validUrlId === null
+          ? false
+          : await this.prisma.organization.findUnique({
+              where: { urlId: validUrlId },
+            });
+      if (urlIdExists) {
+        throw new ConflictException("urlId already exists");
+      }
     }
 
     /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
