@@ -18,6 +18,14 @@ export class FollowService {
       where: {
         userId,
       },
+      include: {
+        arranger: {
+          include: {
+            organization: true,
+            user: true,
+          },
+        },
+      },
     });
   }
 

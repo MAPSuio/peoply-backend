@@ -512,4 +512,28 @@ export class OrganizationsService {
       },
     });
   }
+
+  async getFollowers(orgId: string) {
+    const org = await this.findOne(orgId);
+    if (!org) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+
+    return await this.prisma.arrangerFollower.findMany({
+      where: {
+        arrangerId: org.arrangerId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            image: true,
+            description: true,
+          },
+        },
+      },
+    });
+  }
 }

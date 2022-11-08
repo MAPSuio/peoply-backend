@@ -433,4 +433,9 @@ export class OrganizationsController {
       "You don't have permission to delete this user",
     );
   }
+
+  @Get(":orgId/followers")
+  async getFollowers(@Param("orgId") orgId: string) {
+    return this.organizationsService.getFollowers(orgId);
+  }
 }
