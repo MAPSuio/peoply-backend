@@ -166,7 +166,11 @@ export class EventInvitationsService {
     return invitations;
   }
 
-  async acceptInvitationsToEvent(eventId: string, toUserId: string) {
+  async acceptInvitationsToEvent(
+    eventId: string,
+    toUserId: string,
+    formAnswer?: string,
+  ) {
     return this.prisma.$transaction(async (trx) => {
       const event = await trx.event.findUnique({
         where: { id: eventId },
@@ -198,6 +202,7 @@ export class EventInvitationsService {
       await this.userRegistrationsService.update(toUserId, {
         eventId: eventId,
         regStatus: RegStatus.GOING,
+        formAnswer,
       });
     });
   }

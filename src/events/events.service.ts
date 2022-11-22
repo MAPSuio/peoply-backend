@@ -86,6 +86,7 @@ export class EventsService {
             capacity: createEventDto.capacity,
             visibility: createEventDto.visibility,
             hasFood: createEventDto.hasFood,
+            formQuestion: createEventDto.formQuestion,
             image: imageUrl,
             locationName: createEventDto.locationName,
             country: createEventDto.country,

@@ -237,6 +237,7 @@ export class EventsController {
           return this.eventInvitationsService.acceptInvitationsToEvent(
             id,
             user.id,
+            updateInvitationDto.formAnswer,
           );
         case InvitationStatus.DECLINED:
           return this.eventInvitationsService.declineInvitationsToEvent(

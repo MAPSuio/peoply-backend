@@ -1,7 +1,13 @@
 import { RegStatus } from ".prisma/client";
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsNotEmpty, IsUUID } from "class-validator";
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from "class-validator";
 import { UserAllowedRegStatus } from "../../users/user.constants";
 import { CreateRegistrationDto } from "./create-registration.dto";
 
@@ -17,4 +23,9 @@ export class UserUpdateRegistrationDto extends PartialType(
   @IsEnum(UserAllowedRegStatus)
   @ApiProperty()
   regStatus: RegStatus;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  formAnswer?: string;
 }

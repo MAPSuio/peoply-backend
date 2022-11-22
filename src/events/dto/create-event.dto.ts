@@ -66,6 +66,11 @@ export class CreateEventDto {
   @ApiProperty()
   capacity?: number;
 
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  formQuestion?: string;
+
   @IsNotEmpty()
   @ToArray({ type: "int" })
   @IsArray()

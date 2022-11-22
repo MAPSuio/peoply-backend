@@ -31,6 +31,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       eventId: "",
       userId: "",
       regStatus: RegStatus.GOING,
+      formAnswer: "",
       updatedAt: new Date(),
       createdAt: new Date(),
     };

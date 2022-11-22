@@ -90,6 +90,7 @@ export class CommonRegistrationService {
     userId: string,
     eventId: string,
     regStatus: RegStatus,
+    formAnswer?: string,
   ) {
     try {
       const registration = this.prismaService.$transaction(async (trx) => {
@@ -131,6 +132,12 @@ export class CommonRegistrationService {
             /* If event has no capacity or if there is free space
              * Just update registration status
              */
+            if (event.formQuestion && !formAnswer) {
+              throw new BadRequestException(
+                "Form answer is required for this event",
+              );
+            }
+
             if (event.capacity === null || going.length < event.capacity) {
               return trx.registration.update({
                 where: {
@@ -141,6 +148,7 @@ export class CommonRegistrationService {
                 },
                 data: {
                   regStatus: regStatus,
+                  formAnswer,
                 },
               });
 
@@ -155,6 +163,7 @@ export class CommonRegistrationService {
                 },
                 data: {
                   regStatus: RegStatus.WAITLISTED,
+                  formAnswer,
                 },
               });
             }
@@ -181,6 +190,7 @@ export class CommonRegistrationService {
               },
               data: {
                 regStatus: regStatus,
+                formAnswer: null,
               },
             });
 
@@ -214,6 +224,7 @@ export class CommonRegistrationService {
               },
               data: {
                 regStatus: regStatus,
+                formAnswer: null,
               },
             });
           }

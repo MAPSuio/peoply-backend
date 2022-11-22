@@ -134,6 +134,7 @@ model Event {
   capacity           Int?
   visibility         EventVisibility
   hasFood            Boolean           @default(false) @map("has_food")
+  formQuestion       String?           @map("form_question")
   featured           Boolean           @default(false)
   image              String?           @unique
   locationName       String            @map("location_name") @db.VarChar(100)
@@ -230,13 +231,14 @@ enum EventArrangerRole {
 }
 
 model Registration {
-  eventId   String    @map("event_id")
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId    String    @map("user_id")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
-  regStatus RegStatus @map("reg_status")
+  eventId     String    @map("event_id")
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formAnswer  String?   @map("form_answer")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  regStatus   RegStatus @map("reg_status")
 
   @@id([eventId, userId])
   @@map("registrations")

@@ -43,6 +43,10 @@ export class UserRegistrationService extends CommonRegistrationService {
           throw new BadRequestException("Registration has closed");
         }
 
+        if (event?.formQuestion && !createRegistrationDto.formAnswer) {
+          throw new BadRequestException("Form answer is required");
+        }
+
         if (event) {
           if (createRegistrationDto.regStatus === RegStatus.GOING) {
             if (
@@ -58,6 +62,7 @@ export class UserRegistrationService extends CommonRegistrationService {
                   eventId: createRegistrationDto.eventId,
                   userId,
                   regStatus: RegStatus.WAITLISTED,
+                  formAnswer: createRegistrationDto.formAnswer,
                 },
               });
             }
@@ -105,6 +110,7 @@ export class UserRegistrationService extends CommonRegistrationService {
       eventId: "",
       userId: "",
       regStatus: RegStatus.GOING,
+      formAnswer: "",
       updatedAt: new Date(),
       createdAt: new Date(),
     };
@@ -173,6 +179,11 @@ export class UserRegistrationService extends CommonRegistrationService {
   }
 
   async update(userId: string, dto: UserUpdateRegistrationDto) {
-    return super.updateRegistration(userId, dto.eventId, dto.regStatus);
+    return super.updateRegistration(
+      userId,
+      dto.eventId,
+      dto.regStatus,
+      dto.formAnswer,
+    );
   }
 }
