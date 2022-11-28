@@ -22,6 +22,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { calculateEditDistance } from "../util/string";
+import { isUUID } from "../util/uuid";
 
 @Injectable()
 export class OrganizationsService {
@@ -514,7 +515,12 @@ export class OrganizationsService {
   }
 
   async getFollowers(orgId: string) {
-    const org = await this.findOne(orgId);
+    let org: Organization | null;
+    if (isUUID(orgId)) {
+      org = await this.findOne(orgId);
+    } else {
+      org = await this.findOneByUrlId(orgId);
+    }
     if (!org) {
       throw new OrganizationDoesNotExistException(orgId);
     }
