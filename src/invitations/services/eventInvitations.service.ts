@@ -176,6 +176,10 @@ export class EventInvitationsService {
         where: { id: eventId },
       });
 
+      const user = await trx.user.findUnique({
+        where: { id: toUserId },
+      });
+
       if (event?.endDate && new Date() > event.endDate) {
         throw new Error("Event date has already passed");
       }
@@ -186,6 +190,10 @@ export class EventInvitationsService {
 
       if (event?.regEnd && new Date() > event.regEnd) {
         throw new Error("Event registration is closed");
+      }
+
+      if (event?.hasFood && !user?.foodPreference) {
+        throw new Error("User has not set food preference");
       }
 
       await trx.eventInvitation.updateMany({

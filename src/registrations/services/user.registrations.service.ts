@@ -14,6 +14,7 @@ import {
 } from "../exceptions";
 import { RegStatus, Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
+import { User } from "@prisma/client";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -31,6 +32,10 @@ export class UserRegistrationService extends CommonRegistrationService {
           },
         });
 
+        const user = await trx.user.findUnique({
+          where: { id: userId },
+        });
+
         if (event?.endDate && new Date() > event.endDate) {
           throw new BadRequestException("Event has ended");
         }
@@ -45,6 +50,10 @@ export class UserRegistrationService extends CommonRegistrationService {
 
         if (event?.formQuestion && !createRegistrationDto.formAnswer) {
           throw new BadRequestException("Form answer is required");
+        }
+
+        if (event?.hasFood && !user?.foodPreference) {
+          throw new BadRequestException("Food preference is required");
         }
 
         if (event) {
