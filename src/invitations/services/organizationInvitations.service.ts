@@ -45,6 +45,23 @@ export class OrganizationInvitationsService {
     });
   }
 
+  isUuid(id: string) {
+    const regexExp =
+      /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/gi;
+
+    return regexExp.test(id);
+  }
+
+  async findUuid(urlId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: {
+        urlId,
+      },
+    });
+
+    return org?.id;
+  }
+
   async createInvitations(
     organizationId: string,
     fromUserId: string,
@@ -54,6 +71,17 @@ export class OrganizationInvitationsService {
      *  this is because createMany doesnt return the created elements
      * ref: https://github.com/prisma/prisma/issues/8131
      */
+
+    // if organizationId is a urlId, get the uuid id instead
+    if (!this.isUuid(organizationId)) {
+      const uuidId = await this.findUuid(organizationId);
+      if (uuidId) {
+        organizationId = uuidId;
+      } else {
+        throw new Error("Invalid Organization url id");
+      }
+    }
+
     const invitations = await this.prisma.$transaction(async (trx) => {
       const usersWithExistingRoles = await trx.userOrganizationRole.findMany({
         where: {
