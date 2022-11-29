@@ -2,7 +2,6 @@ import { ApiProperty } from "@nestjs/swagger";
 import { FoodPreference } from "@prisma/client";
 import {
   IsBoolean,
-  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
@@ -22,11 +21,6 @@ export class UpdateUserDto {
   @MaxLength(120)
   @ApiProperty({ required: false })
   description?: string;
-
-  @IsOptional()
-  @IsEmail()
-  @ApiProperty({ required: false })
-  email?: string;
 
   @IsOptional()
   @IsEnum(FoodPreference)
