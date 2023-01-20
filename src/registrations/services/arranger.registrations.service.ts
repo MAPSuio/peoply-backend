@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { RegStatus } from ".prisma/client";
+import { Event, RegStatus } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import {
   SearchEventRegistrationDto,
@@ -11,10 +11,16 @@ import { CommonRegistrationService } from "./common.registrations.service";
 import { Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
 import { ArrangerUpdateRegistrationDto } from "../dto";
+import { AzureCommunicationService } from "../../azure/azure-communication.service";
+import { UserDoesNotExistException } from "../../users/exceptions";
+import { EmailRecipients } from "@azure/communication-email";
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
-  constructor(protected readonly prismaService: PrismaService) {
+  constructor(
+    protected readonly prismaService: PrismaService,
+    private readonly azureCommunicationService: AzureCommunicationService,
+  ) {
     super(prismaService);
   }
 
@@ -126,6 +132,88 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     eventId: string,
     regStatus: ArrangerUpdateRegistrationDto,
   ) {
-    return super.updateRegistration(userId, eventId, regStatus.regStatus);
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: { email: true, allowEmailFromArranger: true },
+    });
+
+    const event = await this.prismaService.event.findUnique({
+      where: { id: eventId },
+      select: { title: true, urlId: true },
+    });
+
+    if (!event) {
+      throw new EventNotFoundException(eventId);
+    }
+
+    if (!user) {
+      throw new UserDoesNotExistException(userId);
+    }
+
+    const toEmails: EmailRecipients = { to: [{ email: user.email }] };
+
+    const updated = await super.updateRegistration(
+      userId,
+      eventId,
+      regStatus.regStatus,
+    );
+
+    if (user.allowEmailFromArranger) {
+      switch (regStatus.regStatus) {
+        case RegStatus.NOT_GOING:
+          await this.azureCommunicationService.send({
+            sender: "no-reply@peoply.app",
+            recipients: toEmails,
+            content: {
+              subject: `Peoply: Du har blitt avmeldt "${event.title}"`,
+              html: this.buildEventUnregisterHtmlEmail(event),
+            },
+          });
+          break;
+
+        case RegStatus.BANNED:
+          await this.azureCommunicationService.send({
+            sender: "no-reply@peoply.app",
+            recipients: toEmails,
+            content: {
+              subject: `Peoply: Du har blitt utestengt fra "${event.title}"`,
+              html: this.buildEventBannedHtmlEmail(event),
+            },
+          });
+          break;
+
+        default:
+          break;
+      }
+    }
+    return updated;
+  }
+
+  private buildEventUnregisterHtmlEmail(event: Partial<Event>) {
+    return (
+      `<h1>Du har blitt avmeldt fra ${event.title}</h1>\n` +
+      `<p>Arrangøren har meldt deg av arrangementet, og du må melde deg på nytt hvis de skal være påmeldt. Da kan det være du havner på venteliste.</p>\n` +
+      `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
+      "<p>" +
+      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      "</p>" +
+      "<p>" +
+      `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
+      "</p>"
+    );
+  }
+
+  private buildEventBannedHtmlEmail(event: Partial<Event>) {
+    return (
+      `<h1>Du har blitt utestengt fra ${event.title}</h1>\n` +
+      `<p>Arrangøren har utestengt deg fra arrangementet, og du kan ikke melde deg på på nytt.</p>\n` +
+      `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
+      "<p>" +
+      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      "</p>" +
+      "<p>" +
+      `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
+      "</p>"
+    );
   }
 }

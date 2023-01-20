@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AzureModule } from "../azure/azure.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import {
   ArrangerRegistrationService,
@@ -7,7 +8,7 @@ import {
 } from "./services";
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AzureModule],
   providers: [
     UserRegistrationService,
     ArrangerRegistrationService,

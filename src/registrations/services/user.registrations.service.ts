@@ -14,7 +14,6 @@ import {
 } from "../exceptions";
 import { RegStatus, Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
-import { User } from "@prisma/client";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
