@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -155,6 +156,24 @@ export class UsersController {
       res.status(HttpStatus.NO_CONTENT);
     }
     return registration;
+  }
+
+  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @Get(":userId/registrations/:eventId/waitlist-position")
+  async getWaitlistPosition(
+    @Param("userId") userId: string,
+    @Param("eventId") eventId: string,
+  ) {
+    const registration = await this.userRegistrationService.findOne(
+      eventId,
+      userId,
+    );
+    //the registration does not exist
+    if (!registration) {
+      throw new NotFoundException();
+    }
+
+    return this.userRegistrationService.getPositionInWaitlist(eventId, userId);
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)

@@ -194,4 +194,22 @@ export class UserRegistrationService extends CommonRegistrationService {
       dto.formAnswer,
     );
   }
+
+  async getPositionInWaitlist(eventId: string, userId: string) {
+    const registrations = await this.prismaService.registration.findMany({
+      where: {
+        eventId,
+        regStatus: RegStatus.WAITLISTED,
+      },
+      orderBy: {
+        updatedAt: "asc",
+      },
+    });
+
+    const index = registrations.findIndex(
+      (registration) => registration.userId === userId,
+    );
+
+    return index + 1;
+  }
 }
