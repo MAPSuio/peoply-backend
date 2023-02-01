@@ -1,8 +1,10 @@
 import { RegStatus } from ".prisma/client";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { PrismaError } from "../../prisma/prisma.constants";
 import { PrismaService } from "../../prisma/prisma.service";
+import { buildWaitlistedToGoingHtmlEmail } from "../../util/email";
 import {
   ForeignKeyNotFoundException,
   RegistrationNotFoundException,
@@ -10,7 +12,10 @@ import {
 
 @Injectable()
 export class CommonRegistrationService {
-  constructor(protected readonly prismaService: PrismaService) {}
+  constructor(
+    protected readonly prismaService: PrismaService,
+    protected readonly azureCommunicationService: AzureCommunicationService,
+  ) {}
 
   async findOne(eventId: string, userId: string) {
     const registration = await this.prismaService.registration.findUnique({
@@ -209,6 +214,25 @@ export class CommonRegistrationService {
                   regStatus: RegStatus.GOING,
                 },
               });
+
+              const nextGoingUser = await trx.user.findUnique({
+                where: { id: nextGoing.userId },
+              });
+
+              try {
+                if (nextGoingUser?.allowEmailFromArranger) {
+                  this.azureCommunicationService.send({
+                    sender: "no-reply@peoply.app",
+                    recipients: {
+                      to: [{ email: nextGoingUser.email }],
+                    },
+                    content: {
+                      subject: `Peoply: Du har fått plass på "${event.title}"`,
+                      html: buildWaitlistedToGoingHtmlEmail(event),
+                    },
+                  });
+                }
+              } catch (error) {}
             }
             return registration;
           } else if (

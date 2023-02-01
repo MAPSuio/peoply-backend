@@ -14,11 +14,15 @@ import {
 } from "../exceptions";
 import { RegStatus, Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
+import { AzureCommunicationService } from "../../azure/azure-communication.service";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
-  constructor(prismaService: PrismaService) {
-    super(prismaService);
+  constructor(
+    prismaService: PrismaService,
+    azureCommunicationService: AzureCommunicationService,
+  ) {
+    super(prismaService, azureCommunicationService);
   }
 
   async create(userId: string, createRegistrationDto: CreateRegistrationDto) {

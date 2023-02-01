@@ -18,10 +18,10 @@ import { EmailRecipients } from "@azure/communication-email";
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
   constructor(
-    protected readonly prismaService: PrismaService,
-    private readonly azureCommunicationService: AzureCommunicationService,
+    prismaService: PrismaService,
+    azureCommunicationService: AzureCommunicationService,
   ) {
-    super(prismaService);
+    super(prismaService, azureCommunicationService);
   }
 
   async findAll(
