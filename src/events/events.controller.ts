@@ -23,6 +23,7 @@ import { OrganizationRoles } from "../../decorators/organizationRoles.decorator"
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
+import { IsArrangerInterceptor } from "../auth/interceptors/isArranger.interceptor";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -306,12 +307,14 @@ export class EventsController {
     );
   }
 
-  @UseInterceptors(AuthenticatedInterceptor)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseInterceptors(AuthenticatedInterceptor, IsArrangerInterceptor)
   @Get(":id/updates")
   async getUpdates(@Req() req: any, @Param("id") id: string) {
     const user: User | undefined = req.user;
+    const isArranger: boolean | undefined = req.isArranger;
 
-    return this.eventsService.getUpdatesForEvent(id, user?.id);
+    return this.eventsService.getUpdatesForEvent(id, user?.id, isArranger);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)

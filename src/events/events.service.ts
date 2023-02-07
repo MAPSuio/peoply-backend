@@ -566,13 +566,17 @@ export class EventsService {
     });
   }
 
-  async getUpdatesForEvent(eventId: string, userId?: string) {
+  async getUpdatesForEvent(
+    eventId: string,
+    userId?: string,
+    isArranger?: boolean,
+  ) {
     if (userId) {
-      // if user is GOING, show all updates
+      // if user is GOING or arranger, show all updates
       const registration = await this.prisma.registration.findUnique({
         where: { eventId_userId: { eventId, userId } },
       });
-      if (registration?.regStatus === RegStatus.GOING) {
+      if (registration?.regStatus === RegStatus.GOING || isArranger) {
         return await this.prisma.eventUpdate.findMany({
           where: {
             eventId,
