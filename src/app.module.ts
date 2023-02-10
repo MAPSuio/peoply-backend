@@ -15,11 +15,13 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { FavoritesModule } from "./favorites/favorites.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { InvitationsModule } from "./invitations/invitations.module";
+import { ModerationModule } from "./moderation/moderation.module";
 
 @Module({
   imports: [
     EventsModule,
     UsersModule,
+    ModerationModule,
     OrganizationsModule,
     ArrangersModule,
     RegistrationsModule,
