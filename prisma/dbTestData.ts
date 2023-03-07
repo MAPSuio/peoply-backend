@@ -397,3 +397,20 @@ export const regDates = [
 ];
 
 export const capacities = [200, 150, 300, 50, 120, 70, 400, 325, 80, 30];
+
+export const allergens = [
+  { name: "Gluten" },
+  { name: "Skalldyr" },
+  { name: "Egg" },
+  { name: "Fisk" },
+  { name: "Peanøtter" },
+  { name: "Soya" },
+  { name: "Melk" },
+  { name: "Nøtter" },
+  { name: "Selleri" },
+  { name: "Sennep" },
+  { name: "Sesamfrø" },
+  { name: "Svoveldioksid og sulfitter" },
+  { name: "Lupin" },
+  { name: "Bløtdyr" },
+];

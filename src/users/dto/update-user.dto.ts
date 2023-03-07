@@ -1,8 +1,10 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { FoodPreference } from "@prisma/client";
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -26,6 +28,12 @@ export class UpdateUserDto {
   @IsEnum(FoodPreference)
   @ApiProperty({ required: false })
   foodPreference?: FoodPreference;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true }) // validates that each value in array is a number
+  @ApiProperty({ type: [Number] })
+  allergens?: number[];
 
   @ToBoolean()
   @IsBoolean()

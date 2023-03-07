@@ -23,6 +23,7 @@ import {
   endDates,
   birthDates,
   eventIDs,
+  allergens,
 } from "./dbTestData";
 
 const prisma = new PrismaClient();
@@ -221,6 +222,11 @@ async function main() {
   /* add sample categories */
   await prisma.category.createMany({
     data: categories,
+    skipDuplicates: true,
+  });
+
+  await prisma.allergen.createMany({
+    data: allergens,
     skipDuplicates: true,
   });
 }

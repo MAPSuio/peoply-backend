@@ -165,6 +165,9 @@ export class UsersService {
       where: {
         id,
       },
+      include: {
+        userAllergens: true,
+      },
     });
     return user;
   }
@@ -236,16 +239,33 @@ export class UsersService {
 
     /* delete removeImage before inserting to db */
     delete updateUserDto.removeImage;
+    const allergens = updateUserDto.allergens;
+    delete updateUserDto.allergens;
 
     try {
-      return await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          ...(imageFileName !== undefined && {
-            image: imageFileName,
-          }),
-          ...updateUserDto,
-        },
+      return await this.prisma.$transaction(async (trx) => {
+        if (allergens) {
+          await trx.userAllergen.deleteMany({
+            where: {
+              userId: user.id,
+            },
+          });
+          await trx.userAllergen.createMany({
+            data: allergens.map((allergen) => ({
+              userId: user.id,
+              allergenId: allergen,
+            })),
+          });
+        }
+        return await trx.user.update({
+          where: { id: user.id },
+          data: {
+            ...(imageFileName !== undefined && {
+              image: imageFileName,
+            }),
+            ...updateUserDto,
+          },
+        });
       });
     } catch (error) {
       /* delete uploaded image if anything fails */

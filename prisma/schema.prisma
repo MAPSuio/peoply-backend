@@ -55,6 +55,7 @@ model User {
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
   arrangerFollowers              ArrangerFollower[]
   eventUpdates                   EventUpdate[]
+  userAllergens                   UserAllergen[]
 
   @@map("users")
 }
@@ -66,6 +67,28 @@ enum FoodPreference {
   VEGAN
 
   @@map("food_preferences")
+}
+
+model Allergen {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at")
+  UserAllergen UserAllergen[]
+
+  @@map("allergens")
+}
+
+model UserAllergen {
+  userId     String   @map("user_id")
+  allergenId Int      @map("allergen_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allergen   Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([userId, allergenId])
+  @@map("user_allergens")
 }
 
 model ProviderUser {
@@ -231,14 +254,14 @@ enum EventArrangerRole {
 }
 
 model Registration {
-  eventId     String    @map("event_id")
-  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  formAnswer  String?   @map("form_answer")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
-  regStatus   RegStatus @map("reg_status")
+  eventId    String    @map("event_id")
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formAnswer String?   @map("form_answer")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+  regStatus  RegStatus @map("reg_status")
 
   @@id([eventId, userId])
   @@map("registrations")

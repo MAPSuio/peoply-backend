@@ -16,6 +16,7 @@ import { FavoritesModule } from "./favorites/favorites.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { InvitationsModule } from "./invitations/invitations.module";
 import { ModerationModule } from "./moderation/moderation.module";
+import { AllergensModule } from "./allergens/allergens.module";
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ModerationModule } from "./moderation/moderation.module";
     FavoritesModule,
     NotificationsModule,
     InvitationsModule,
+    AllergensModule,
   ],
   controllers: [AppController],
   providers: [AppService],

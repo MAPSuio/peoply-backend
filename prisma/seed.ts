@@ -1,11 +1,15 @@
 import { PrismaClient } from "@prisma/client";
-import { categories } from "./dbProdData";
+import { allergens, categories } from "./dbProdData";
 
 const prisma = new PrismaClient();
 
 async function main() {
   await prisma.category.createMany({
     data: categories,
+    skipDuplicates: true,
+  });
+  await prisma.allergen.createMany({
+    data: allergens,
     skipDuplicates: true,
   });
 }

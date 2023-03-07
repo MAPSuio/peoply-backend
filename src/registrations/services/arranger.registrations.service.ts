@@ -68,6 +68,12 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
               image: true,
               foodPreference:
                 searchProps.regStatus === RegStatus.GOING && eventHasFood,
+              userAllergens:
+                searchProps.regStatus === RegStatus.GOING && eventHasFood
+                  ? {
+                      select: { allergen: true },
+                    }
+                  : undefined,
             },
           },
         },
@@ -88,6 +94,9 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
                 lastName: true,
                 image: true,
                 foodPreference: eventHasFood,
+                userAllergens: eventHasFood
+                  ? { select: { allergen: true } }
+                  : undefined,
               },
             }
           : undefined,
@@ -99,6 +108,9 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       ? registrations.map((registration) => {
           if (registration.regStatus !== RegStatus.GOING) {
             registration.user.foodPreference = null;
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            registration.user.userAllergens = [];
           }
           return registration;
         })

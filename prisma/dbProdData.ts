@@ -17,3 +17,20 @@ export const categories = [
   { name: "Spill" },
   { name: "Musikk" },
 ];
+
+export const allergens = [
+  { name: "Gluten" },
+  { name: "Skalldyr" },
+  { name: "Egg" },
+  { name: "Fisk" },
+  { name: "Peanøtter" },
+  { name: "Soya" },
+  { name: "Melk" },
+  { name: "Nøtter" },
+  { name: "Selleri" },
+  { name: "Sennep" },
+  { name: "Sesamfrø" },
+  { name: "Svoveldioksid og sulfitter" },
+  { name: "Lupin" },
+  { name: "Bløtdyr" },
+];
