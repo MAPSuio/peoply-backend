@@ -55,9 +55,25 @@ model User {
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
   arrangerFollowers              ArrangerFollower[]
   eventUpdates                   EventUpdate[]
-  userAllergens                   UserAllergen[]
+  userAllergens                  UserAllergen[]
+  userSeenUpdates                UserSeenUpdate[]
 
   @@map("users")
+}
+
+model UserSeenUpdate {
+  userId    String             @map("user_id")
+  update    UserSeenUpdateType
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @default(now()) @updatedAt @map("updated_at")
+
+  @@id([userId, update])
+  @@map("user_seen_updates")
+}
+
+enum UserSeenUpdateType {
+  HAS_SET_ALLERGENS
 }
 
 enum FoodPreference {

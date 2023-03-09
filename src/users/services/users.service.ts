@@ -13,7 +13,7 @@ import { AzureStorageService } from "../../azure/azure-storage.service";
 import { AzureStorageContainer } from "../../azure/azure-storage.constants";
 import { SearchUserDto } from "../dto/search-user.dto";
 import { calculateEditDistance } from "../../util/string";
-import { EventArrangerRole } from "@prisma/client";
+import { EventArrangerRole, UserSeenUpdateType } from "@prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
 
 @Injectable()
@@ -167,6 +167,7 @@ export class UsersService {
       },
       include: {
         userAllergens: true,
+        userSeenUpdates: true,
       },
     });
     return user;
@@ -332,5 +333,42 @@ export class UsersService {
 
       throw error;
     }
+  }
+
+  async findUpdatesSeenByUser(userId: string) {
+    const res = await this.prisma.userSeenUpdate.findMany({
+      where: {
+        userId,
+      },
+    });
+
+    return res.map((r) => r.update);
+  }
+
+  async userSeenUpdate(userId: string, update: UserSeenUpdateType) {
+    const res = await this.prisma.userSeenUpdate.findUnique({
+      where: {
+        userId_update: {
+          userId,
+          update,
+        },
+      },
+    });
+
+    if (res) {
+      return true;
+    }
+    return false;
+  }
+
+  async markUserSeenUpdate(userId: string, update: UserSeenUpdateType) {
+    const res = await this.prisma.userSeenUpdate.create({
+      data: {
+        userId,
+        update,
+      },
+    });
+
+    return res;
   }
 }

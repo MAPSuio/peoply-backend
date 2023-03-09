@@ -31,7 +31,7 @@ import { UpdateUserDto } from "./dto";
 import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { User } from ".prisma/client";
+import { User, UserSeenUpdateType } from ".prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { SearchUserDto } from "./dto/search-user.dto";
@@ -281,5 +281,31 @@ export class UsersController {
     @Param("arrangerId") arrangerId: string,
   ) {
     return this.followService.unFollow(userId, arrangerId);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get("me/seenUpdate/:update")
+  async seenUpdate(
+    @Req() req: any,
+    @Param("update") update: UserSeenUpdateType,
+  ) {
+    const user: User = req.user;
+    return this.userService.userSeenUpdate(user.id, update);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get("me/seenUpdates")
+  async seenUpdates(@Req() req: any) {
+    const user: User = req.user;
+    return this.userService.findUpdatesSeenByUser(user.id);
+  }
+  @UseGuards(AuthenticatedGuard)
+  @Post("me/seenUpdate/:update")
+  async markUserSeenUpdate(
+    @Req() req: any,
+    @Param("update") update: UserSeenUpdateType,
+  ) {
+    const user: User = req.user;
+    return this.userService.markUserSeenUpdate(user.id, update);
   }
 }
