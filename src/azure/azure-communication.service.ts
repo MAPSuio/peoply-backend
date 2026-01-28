@@ -1,7 +1,6 @@
 import { EmailClient } from "@azure/communication-email";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { User } from "@prisma/client";
 
 @Injectable()
 export class AzureCommunicationService extends EmailClient {
