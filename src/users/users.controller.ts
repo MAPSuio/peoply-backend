@@ -101,6 +101,7 @@ export class UsersController {
     return res.sendStatus(200);
   }
 
+  @UseGuards(AuthenticatedGuard)
   @Get()
   async findAll(@Query() query: SearchUserDto) {
     const { skip, take } = query;

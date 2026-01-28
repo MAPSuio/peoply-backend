@@ -128,6 +128,13 @@ export class UsersService {
           ],
         }),
       },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        image: true,
+        description: true,
+      },
       skip,
       take,
     });
