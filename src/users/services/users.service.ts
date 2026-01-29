@@ -369,11 +369,18 @@ export class UsersService {
   }
 
   async markUserSeenUpdate(userId: string, update: UserSeenUpdateType) {
-    const res = await this.prisma.userSeenUpdate.create({
-      data: {
+    const res = await this.prisma.userSeenUpdate.upsert({
+      where: {
+        userId_update: {
+          userId,
+          update,
+        },
+      },
+      create: {
         userId,
         update,
       },
+      update: {},
     });
 
     return res;
