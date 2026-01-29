@@ -1,12 +1,7 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy Node.js app to Azure Web App - peoply
+name: Build and test Node.js app
 
 env:
-  AZURE_WEBAPP_NAME: peoply-backend   # set this to your application's name
-  AZURE_WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '16.x'                # set this to the node version to use
+  NODE_VERSION: '16.x'
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 on:
@@ -34,24 +29,3 @@ jobs:
         run: npm run build --if-present
       - name: npm test
         run: npm run test --if-present
-
-  deploy:
-    runs-on: ubuntu-latest
-
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Node.js version ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          slot-name: 'Production'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
