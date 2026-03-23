@@ -321,6 +321,39 @@ export class EventsService {
     }
   }
 
+  async findOneVisibleToUser(
+    eventId: string,
+    userId?: string,
+    isArranger = false,
+  ) {
+    const event = await this.findOne(eventId);
+
+    if (
+      !event ||
+      !(await this.canViewEvent(event.id, event.visibility, userId, isArranger))
+    ) {
+      throw new EventNotFoundException(eventId);
+    }
+
+    return event;
+  }
+
+  async findOneByUrlIdVisibleToUser(
+    urlId: string,
+    userId?: string,
+    isArranger = false,
+  ) {
+    const event = await this.findOneByUrlId(urlId);
+
+    if (
+      !(await this.canViewEvent(event.id, event.visibility, userId, isArranger))
+    ) {
+      throw new EventNotFoundException(urlId);
+    }
+
+    return event;
+  }
+
   async findOneWithArrangers(id: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: id },
@@ -584,14 +617,70 @@ export class EventsService {
               not: EventUpdateVisibility.DELETED,
             },
           },
+          select: {
+            id: true,
+            visibility: true,
+            eventId: true,
+            sendEmail: true,
+            subject: true,
+            body: true,
+            replyTo: true,
+            createdAt: true,
+            updatedAt: true,
+          },
           orderBy: { createdAt: "desc" },
         });
       }
     }
     return await this.prisma.eventUpdate.findMany({
       where: { eventId, visibility: EventUpdateVisibility.ALL },
+      select: {
+        id: true,
+        visibility: true,
+        subject: true,
+        body: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  private async canViewEvent(
+    eventId: string,
+    visibility: EventVisibility,
+    userId?: string,
+    isArranger = false,
+  ) {
+    if (visibility === EventVisibility.PUBLIC) {
+      return true;
+    }
+
+    if (!userId) {
+      return false;
+    }
+
+    if (isArranger) {
+      return true;
+    }
+
+    const registration = await this.prisma.registration.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+      select: {
+        regStatus: true,
+      },
+    });
+
+    return (
+      registration?.regStatus === RegStatus.INVITED ||
+      registration?.regStatus === RegStatus.GOING ||
+      registration?.regStatus === RegStatus.WAITLISTED
+    );
   }
 
   async deleteUpdateForEvent(updateId: string) {

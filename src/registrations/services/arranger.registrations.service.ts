@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Event, RegStatus } from ".prisma/client";
+import { Event, EventVisibility, RegStatus } from ".prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import {
   SearchEventRegistrationDto,
@@ -120,8 +120,22 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   async getRegistrationCount(
     searchProps: SearchEventRegistrationCountDto,
     eventId: string,
+    isArranger = false,
   ) {
     try {
+      const event = await this.prismaService.event.findUnique({
+        where: { id: eventId },
+        select: { visibility: true },
+      });
+
+      if (!event) {
+        throw new EventNotFoundException(eventId);
+      }
+
+      if (!isArranger && event.visibility !== EventVisibility.PUBLIC) {
+        throw new EventNotFoundException(eventId);
+      }
+
       return await this.prismaService.registration.count({
         where: searchProps.regStatus
           ? { eventId: eventId, regStatus: searchProps.regStatus }

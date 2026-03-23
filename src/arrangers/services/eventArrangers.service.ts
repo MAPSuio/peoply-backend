@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { OrganizationRole } from "@prisma/client";
+import { EventVisibility, OrganizationRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
@@ -19,6 +19,48 @@ export class EventArrangersService {
                   include: {
                     user: true,
                     organization: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findAllPublicWithEvents(arrangerId: string) {
+    return await this.prismaService.eventArranger.findMany({
+      where: {
+        arrangerId,
+        event: {
+          visibility: EventVisibility.PUBLIC,
+        },
+      },
+      include: {
+        event: {
+          include: {
+            eventArrangers: {
+              include: {
+                arranger: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        image: true,
+                      },
+                    },
+                    organization: {
+                      select: {
+                        id: true,
+                        urlId: true,
+                        name: true,
+                        image: true,
+                        orgNr: true,
+                      },
+                    },
                   },
                 },
               },

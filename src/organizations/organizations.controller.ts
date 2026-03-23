@@ -165,7 +165,7 @@ export class OrganizationsController {
     if (!arrangerID) {
       return;
     }
-    return await this.eventArrangersService.findAllWithEvents(arrangerID);
+    return await this.eventArrangersService.findAllPublicWithEvents(arrangerID);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -362,6 +362,12 @@ export class OrganizationsController {
     }
   }
 
+  @OrganizationRoles(
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+  )
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/members")
   async getMembers(@Req() req: any, @Param("orgId") orgId: string) {
     /* get events for organization
@@ -434,6 +440,8 @@ export class OrganizationsController {
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/followers")
   async getFollowers(@Param("orgId") orgId: string) {
     return this.organizationsService.getFollowers(orgId);

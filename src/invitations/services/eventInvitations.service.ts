@@ -1,5 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InvitationStatus, RegStatus } from "@prisma/client";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InvitationStatus, OrganizationRole, RegStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
 import { v4 as uuidv4 } from "uuid";
@@ -41,9 +45,30 @@ export class EventInvitationsService {
       where: {
         eventId: eventId,
       },
-      include: {
-        toUser: true,
-        fromUser: true,
+      select: {
+        id: true,
+        eventId: true,
+        fromUserId: true,
+        toUserId: true,
+        invitationStatus: true,
+        createdAt: true,
+        updatedAt: true,
+        toUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            image: true,
+          },
+        },
+        fromUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            image: true,
+          },
+        },
       },
     });
   }
@@ -94,9 +119,54 @@ export class EventInvitationsService {
     toUserIds: string[],
   ) {
     const invitations = await this.prisma.$transaction(async (trx) => {
+      const sender = await trx.user.findUnique({
+        where: { id: fromUserId },
+        select: { arrangerId: true },
+      });
+
+      if (!sender) {
+        throw new NotFoundException("User not found");
+      }
+
       const event = await trx.event.findUnique({
         where: { id: eventId },
+        select: { endDate: true, regStart: true, regEnd: true },
       });
+
+      if (!event) {
+        throw new NotFoundException("Event not found");
+      }
+
+      const isDirectArranger = await trx.eventArranger.count({
+        where: {
+          eventId,
+          arrangerId: sender.arrangerId,
+        },
+      });
+
+      const isOrganizationAdmin = await trx.userOrganizationRole.count({
+        where: {
+          userId: fromUserId,
+          role: {
+            in: [OrganizationRole.ADMIN, OrganizationRole.OWNER],
+          },
+          organization: {
+            arranger: {
+              eventArrangers: {
+                some: {
+                  eventId,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!isDirectArranger && !isOrganizationAdmin) {
+        throw new ForbiddenException(
+          "User is not allowed to invite users to this event",
+        );
+      }
 
       if (event?.endDate && new Date() > event.endDate) {
         throw new Error("Event date has already passed");

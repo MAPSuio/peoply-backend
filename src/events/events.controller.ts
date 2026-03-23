@@ -132,12 +132,21 @@ export class EventsController {
   }
 
   @Get(":id")
-  async findOne(@Param("id") id: string) {
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseInterceptors(AuthenticatedInterceptor, IsArrangerInterceptor)
+  async findOne(@Req() req: any, @Param("id") id: string) {
+    const user: User | undefined = req.user;
+    const isArranger: boolean | undefined = req.isArranger;
+
     /* both urlId and id are valid here */
     if (isUUID(id)) {
-      return this.eventsService.findOne(id);
+      return this.eventsService.findOneVisibleToUser(id, user?.id, isArranger);
     }
-    return this.eventsService.findOneByUrlId(id);
+    return this.eventsService.findOneByUrlIdVisibleToUser(
+      id,
+      user?.id,
+      isArranger,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -193,15 +202,23 @@ export class EventsController {
     );
   }
 
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseInterceptors(AuthenticatedInterceptor, IsArrangerInterceptor)
   @Get(":id/registration-count")
   async getRegistrationCount(
+    @Req() req: any,
     @Query() query: SearchEventRegistrationCountDto,
     @Param("id") id: string,
   ) {
-    return this.arrangerRegistrationService.getRegistrationCount(query, id);
+    return this.arrangerRegistrationService.getRegistrationCount(
+      query,
+      id,
+      req.isArranger,
+    );
   }
 
-  @UseGuards(AuthenticatedGuard)
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Post(":id/invitations")
   async sendInvitations(
     @Req() req: any,
