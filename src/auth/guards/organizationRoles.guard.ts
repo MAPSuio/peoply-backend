@@ -1,10 +1,11 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { OrganizationRole } from "@prisma/client";
+import { OrganizationRole } from ".prisma/client";
 import { OrganizationsService } from "../../organizations/organizations.service";
 import { UsersService } from "../../users/services";
 import { AuthService } from "../auth.service";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
+import { isUUID } from "../../util/uuid";
 
 /*
   To use this guard, one must also specify which org roles that can access, e.g. ADMIN. This is done by adding the decorator @OrganizationRoles(OrganizationRole.ADMIN) to the controller method, before the @UseGuards(OrganizationRolesGuard). This example uses the ADMIN role, but other or more roles can be added.
@@ -30,15 +31,28 @@ export class OrganizationRolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const valid = this.authService.validateJWT(request.cookies.access);
     const user = await this.usersService.findById(valid.sub);
-    const orgId = request.params.orgId;
+    const requestedOrgId = request.params.orgId;
 
     if (!user) {
       return false;
     }
+
+    if (!requestedOrgId) {
+      return false;
+    }
+
+    const organization = isUUID(requestedOrgId)
+      ? await this.organizationsService.findOne(requestedOrgId)
+      : await this.organizationsService.findOneByUrlId(requestedOrgId);
+
+    if (!organization) {
+      return false;
+    }
+
     // is the user a <role> of the organization?
     const res = await this.organizationsService.checkUserRole(
       user.id,
-      orgId,
+      organization.id,
       roles,
     );
     return res;

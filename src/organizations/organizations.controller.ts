@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UnauthorizedException,
   UploadedFile,
   UseGuards,
@@ -41,6 +42,10 @@ import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationsService } from "./organizations.service";
+import {
+  createOrganizationCalendarIcs,
+  getOrganizationCalendarFileName,
+} from "./organization-calendar";
 
 @Controller("organizations")
 export class OrganizationsController {
@@ -166,6 +171,62 @@ export class OrganizationsController {
       return;
     }
     return await this.eventArrangersService.findAllPublicWithEvents(arrangerID);
+  }
+
+  @Get(":orgId/calendar.ics")
+  async getOrganizationCalendar(
+    @Param("orgId") orgId: string,
+    @Res() res: any,
+  ) {
+    const organization = isUUID(orgId)
+      ? await this.organizationsService.findOne(orgId)
+      : await this.organizationsService.findOneByUrlId(orgId);
+
+    if (!organization) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+
+    const arrangerId = organization.arrangerId;
+    if (!arrangerId) {
+      const emptyCalendar = createOrganizationCalendarIcs(
+        organization,
+        [],
+        process.env.FRONTEND_URL,
+      );
+
+      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${getOrganizationCalendarFileName(organization)}"`,
+      );
+      return res.status(200).send(emptyCalendar);
+    }
+
+    const eventRelations =
+      await this.eventArrangersService.findAllPublicWithEvents(arrangerId);
+    const events = eventRelations
+      .map(({ event }: { event: any }) => event)
+      .filter((event: any) => new Date(event.startDate) >= new Date())
+      .sort((a: any, b: any) => +new Date(a.startDate) - +new Date(b.startDate))
+      .filter(
+        (event: any, index: number, collection: any[]) =>
+          collection.findIndex(
+            (candidate: any) => candidate.id === event.id,
+          ) === index,
+      );
+
+    const calendar = createOrganizationCalendarIcs(
+      organization,
+      events,
+      process.env.FRONTEND_URL,
+    );
+
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${getOrganizationCalendarFileName(organization)}"`,
+    );
+    return res.status(200).send(calendar);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
