@@ -1,0 +1,93 @@
+name: Backend Verification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - session-handling
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: pg
+          POSTGRES_PASSWORD: pg
+          POSTGRES_DB: pg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U pg -d pg"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      NODE_VERSION: 16.20.2
+      DATABASE_URL: postgresql://pg:pg@localhost:5432/pg?schema=public
+      SESSION_SECRET: test-session-secret
+      JWT_ACCESS_TOKEN_SECRET: test-access-token-secret
+      JWT_ACCESS_TOKEN_EXP_TIME: 3600
+      JWT_REFRESH_TOKEN_SECRET: test-refresh-token-secret
+      JWT_REFRESH_TOKEN_EXP_TIME: 86400
+      JWT_VERIFICATION_TOKEN_SECRET: test-verification-token-secret
+      JWT_VERIFICATION_TOKEN_EXP_TIME: 86400
+      CORS_ORIGIN: http://localhost:3001
+      FRONTEND_URL: http://localhost:3001
+      # CI only needs a valid OIDC discovery document so the app can boot.
+      VIPPS_OIDC_ISSUER: https://accounts.google.com
+      VIPPS_OIDC_LOGIN_CLIENT_ID: test-vipps-client-id
+      VIPPS_OIDC_LOGIN_CLIENT_SECRET: test-vipps-client-secret
+      VIPPS_OIDC_LOGIN_REDIRECT_URI: http://localhost:3000/auth/callback
+      VIPPS_OIDC_POST_LOGIN_REDIRECT_URI: http://localhost:3001/login/callback
+      VIPPS_OIDC_LOGIN_SCOPE: openid
+      GOOGLE_OIDC_ISSUER: https://accounts.google.com
+      GOOGLE_OIDC_LOGIN_CLIENT_ID: test-google-client-id
+      GOOGLE_OIDC_LOGIN_CLIENT_SECRET: test-google-client-secret
+      GOOGLE_OIDC_LOGIN_REDIRECT_URI: http://localhost:3000/auth/callback/google
+      GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI: http://localhost:3001/login/callback
+      GOOGLE_OIDC_LOGIN_SCOPE: openid profile email
+      AZURE_STORAGE_ACCOUNT: test-storage-account
+      AZURE_STORAGE_KEY: test-storage-key
+      AZURE_STORAGE_SKIP_INIT: "true"
+      AZURE_MAPS_KEY: test-maps-key
+      AZURE_COMMUNICATION_CONNECTION_STRING: endpoint=https://example.communication.azure.com/;accesskey=test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+
+      - name: Verify local startup wrapper tests
+        run: |
+          if npm run | grep -q "test:dev-script"; then
+            npm run test:dev-script
+          else
+            echo "Skipping test:dev-script because it is not available on this branch"
+          fi
+
+      - name: Run unit tests
+        run: npm test -- --runInBand
+
+      - name: Lint backend
+        run: npm run lint
+
+      - name: Build backend
+        run: npm run build:dev
+
+      - name: Smoke test built backend
+        run: npm run test:smoke

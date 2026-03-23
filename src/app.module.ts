@@ -49,6 +49,7 @@ import { AllergensModule } from "./allergens/allergens.module";
         CORS_ORIGIN: Joi.string().required(),
         AZURE_STORAGE_ACCOUNT: Joi.string().required(),
         AZURE_STORAGE_KEY: Joi.string().required(),
+        AZURE_STORAGE_SKIP_INIT: Joi.boolean().optional(),
         AZURE_MAPS_KEY: Joi.string().required(),
         AZURE_COMMUNICATION_CONNECTION_STRING: Joi.string().required(),
       }),

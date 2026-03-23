@@ -11,6 +11,8 @@ export class AzureStorageService
   extends BlobServiceClient
   implements OnModuleInit
 {
+  private readonly skipInit: boolean;
+
   constructor(configService: ConfigService) {
     super(
       `https://${configService.get<string>(
@@ -21,9 +23,18 @@ export class AzureStorageService
         `${configService.get<string>("AZURE_STORAGE_KEY")}`,
       ),
     );
+
+    const skipInit = configService.get<boolean | string>(
+      "AZURE_STORAGE_SKIP_INIT",
+    );
+    this.skipInit = skipInit === true || skipInit === "true";
   }
 
   async onModuleInit() {
+    if (this.skipInit) {
+      return;
+    }
+
     await this.createContainersIfNotExists();
   }
 
