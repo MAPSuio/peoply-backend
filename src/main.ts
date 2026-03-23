@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
+import * as crypto from "crypto";
 
 import * as passport from "passport";
 import * as expressSession from "express-session";
@@ -10,6 +11,13 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
+  const webcrypto = (crypto as typeof crypto & { webcrypto?: unknown })
+    .webcrypto;
+
+  if (webcrypto && !(globalThis as { crypto?: unknown }).crypto) {
+    (globalThis as { crypto?: unknown }).crypto = webcrypto;
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.use(

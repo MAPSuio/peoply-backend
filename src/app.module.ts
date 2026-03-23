@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
@@ -17,6 +18,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { InvitationsModule } from "./invitations/invitations.module";
 import { ModerationModule } from "./moderation/moderation.module";
 import { AllergensModule } from "./allergens/allergens.module";
+import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
 
 @Module({
   imports: [
@@ -26,6 +28,7 @@ import { AllergensModule } from "./allergens/allergens.module";
     OrganizationsModule,
     ArrangersModule,
     RegistrationsModule,
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       validationSchema: Joi.object({
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),
@@ -62,6 +65,7 @@ import { AllergensModule } from "./allergens/allergens.module";
     NotificationsModule,
     InvitationsModule,
     AllergensModule,
+    IcsFeedsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

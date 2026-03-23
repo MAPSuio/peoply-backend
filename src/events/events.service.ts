@@ -178,6 +178,7 @@ export class EventsService {
           ? { search: generateSearchQuery(searchProps.description) }
           : undefined,
         capacity: searchProps.capacity,
+        archivedAt: null,
         visibility: EventVisibility.PUBLIC,
 
         eventCategories: searchProps.categoryIds
@@ -271,7 +272,7 @@ export class EventsService {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
-    return event;
+    return event?.archivedAt ? null : event;
   }
 
   async findOneByUrlId(urlId: string) {
@@ -314,7 +315,7 @@ export class EventsService {
       },
     });
 
-    if (!event) {
+    if (!event || event.archivedAt) {
       throw new EventNotFoundException(urlId);
     } else {
       return event;
@@ -362,7 +363,7 @@ export class EventsService {
       },
     });
 
-    if (!event) {
+    if (!event || event.archivedAt) {
       throw new EventNotFoundException(id);
     } else {
       return event;
@@ -377,7 +378,7 @@ export class EventsService {
       },
     });
 
-    if (!event) {
+    if (!event || event.archivedAt) {
       throw new EventNotFoundException(urlId);
     } else {
       return event;
@@ -402,6 +403,12 @@ export class EventsService {
 
       if (!oldEvent) {
         throw new EventNotFoundException(id);
+      }
+
+      if (oldEvent.readOnly) {
+        throw new BadRequestException(
+          "Imported ICS events can not be edited manually",
+        );
       }
 
       if (newImage) {
@@ -502,6 +509,17 @@ export class EventsService {
 
   async remove(id: string) {
     try {
+      const event = await this.prisma.event.findUnique({
+        where: { id },
+        select: { readOnly: true },
+      });
+
+      if (event?.readOnly) {
+        throw new BadRequestException(
+          "Imported ICS events can not be deleted manually",
+        );
+      }
+
       return await this.prisma.event.delete({
         where: { id },
       });

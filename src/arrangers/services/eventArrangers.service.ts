@@ -9,7 +9,12 @@ export class EventArrangersService {
   //find all events arranged by a given arrangerID
   async findAllWithEvents(arrangerId: string) {
     return await this.prismaService.eventArranger.findMany({
-      where: { arrangerId },
+      where: {
+        arrangerId,
+        event: {
+          archivedAt: null,
+        },
+      },
       include: {
         event: {
           include: {
@@ -34,6 +39,7 @@ export class EventArrangersService {
       where: {
         arrangerId,
         event: {
+          archivedAt: null,
           visibility: EventVisibility.PUBLIC,
         },
       },
@@ -103,6 +109,9 @@ export class EventArrangersService {
       where: {
         arrangerId: {
           in: arrangerIds,
+        },
+        event: {
+          archivedAt: null,
         },
       },
       include: {

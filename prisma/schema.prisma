@@ -22,6 +22,7 @@ model Organization {
   description             String?                  @db.Text
   createdAt               DateTime                 @default(now()) @map("created_at")
   updatedAt               DateTime                 @default(now()) @updatedAt @map("updated_at")
+  icsFeed                 OrganizationIcsFeed?
   organizationRoles       UserOrganizationRole[]
   organizationInvitations OrganizationInvitation[]
 
@@ -163,45 +164,76 @@ model Arranger {
 }
 
 model Event {
-  id                 String            @id @default(uuid())
-  urlId              String            @unique @map("url_id")
-  startDate          DateTime          @map("start_date")
-  endDate            DateTime?         @map("end_date")
-  regStart           DateTime?         @map("reg_start")
-  regEnd             DateTime?         @map("reg_end")
-  title              String            @db.VarChar(150)
-  description        String
-  capacity           Int?
-  visibility         EventVisibility
-  hasFood            Boolean           @default(false) @map("has_food")
-  formQuestion       String?           @map("form_question")
-  featured           Boolean           @default(false)
-  image              String?           @unique
-  locationName       String            @map("location_name") @db.VarChar(100)
-  poiName            String?           @map("poi_name") @db.VarChar(500)
-  country            String?           @db.VarChar(500)
-  countryCode        String?           @map("country_code") @db.VarChar(500)
-  countryCodeISO3    String?           @map("country_code_iso3") @db.VarChar(500)
-  countrySubdivision String?           @map("country_subdivision") @db.VarChar(500)
-  localName          String?           @map("local_name") @db.VarChar(500)
-  municipality       String?           @db.VarChar(500)
-  postalCode         String?           @map("postal_code") @db.VarChar(500)
-  streetName         String?           @map("street_name") @db.VarChar(500)
-  streetNumber       String?           @map("street_number") @db.VarChar(500)
-  freeformAddress    String?           @map("free_form_address") @db.VarChar(500)
-  latitude           Float?
-  longitude          Float?
-  createdAt          DateTime          @default(now()) @map("created_at")
-  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at")
-  eventArrangers     EventArranger[]
-  registrations      Registration[]
-  eventCategories    EventCategory[]
-  favorites          Favorite[]
-  eventInvitations   EventInvitation[]
-  eventUpdates       EventUpdate[]
+  id                    String               @id @default(uuid())
+  urlId                 String               @unique @map("url_id")
+  startDate             DateTime             @map("start_date")
+  endDate               DateTime?            @map("end_date")
+  regStart              DateTime?            @map("reg_start")
+  regEnd                DateTime?            @map("reg_end")
+  title                 String               @db.VarChar(150)
+  description           String
+  capacity              Int?
+  visibility            EventVisibility
+  hasFood               Boolean              @default(false) @map("has_food")
+  formQuestion          String?              @map("form_question")
+  featured              Boolean              @default(false)
+  image                 String?              @unique
+  locationName          String               @map("location_name") @db.VarChar(100)
+  poiName               String?              @map("poi_name") @db.VarChar(500)
+  country               String?              @db.VarChar(500)
+  countryCode           String?              @map("country_code") @db.VarChar(500)
+  countryCodeISO3       String?              @map("country_code_iso3") @db.VarChar(500)
+  countrySubdivision    String?              @map("country_subdivision") @db.VarChar(500)
+  localName             String?              @map("local_name") @db.VarChar(500)
+  municipality          String?              @db.VarChar(500)
+  postalCode            String?              @map("postal_code") @db.VarChar(500)
+  streetName            String?              @map("street_name") @db.VarChar(500)
+  streetNumber          String?              @map("street_number") @db.VarChar(500)
+  freeformAddress       String?              @map("free_form_address") @db.VarChar(500)
+  latitude              Float?
+  longitude             Float?
+  source                EventSource          @default(MANUAL)
+  externalId            String?              @map("external_id")
+  externalUrl           String?              @map("external_url")
+  externalUpdatedAt     DateTime?            @map("external_updated_at")
+  archivedAt            DateTime?            @map("archived_at")
+  readOnly              Boolean              @default(false) @map("read_only")
+  organizationIcsFeedId String?              @map("organization_ics_feed_id")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @default(now()) @updatedAt @map("updated_at")
+  organizationIcsFeed   OrganizationIcsFeed? @relation(fields: [organizationIcsFeedId], references: [id], onDelete: Cascade)
+  eventArrangers        EventArranger[]
+  registrations         Registration[]
+  eventCategories       EventCategory[]
+  favorites             Favorite[]
+  eventInvitations      EventInvitation[]
+  eventUpdates          EventUpdate[]
 
+  @@unique([organizationIcsFeedId, externalId])
   @@index([urlId])
+  @@index([archivedAt])
   @@map("events")
+}
+
+model OrganizationIcsFeed {
+  id                   String            @id @default(uuid())
+  organizationId       String            @unique @map("organization_id")
+  organization         Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  url                  String
+  enabled              Boolean           @default(true)
+  syncIntervalMinutes  Int               @default(60) @map("sync_interval_minutes")
+  lastSyncedAt         DateTime?         @map("last_synced_at")
+  lastSuccessfulSyncAt DateTime?         @map("last_successful_sync_at")
+  lastSyncStatus       IcsFeedSyncStatus @default(PENDING) @map("last_sync_status")
+  lastSyncError        String?           @map("last_sync_error") @db.Text
+  consecutiveFailures  Int               @default(0) @map("consecutive_failures")
+  disabledAt           DateTime?         @map("disabled_at")
+  syncStartedAt        DateTime?         @map("sync_started_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
+  importedEvents       Event[]
+
+  @@map("organization_ics_feeds")
 }
 
 model EventUpdate {
@@ -236,6 +268,23 @@ enum EventVisibility {
   UNLISTED
 
   @@map("event_visibility")
+}
+
+enum EventSource {
+  MANUAL
+  ICS
+
+  @@map("event_sources")
+}
+
+enum IcsFeedSyncStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  DISABLED
+
+  @@map("ics_feed_sync_status")
 }
 
 model ArrangerFollower {
