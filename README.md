@@ -29,37 +29,56 @@
 ## Installation
 
 ```bash
+$ nvm use 16.20.2
 $ npm install
 ```
+
+The project is pinned to Node 16 and npm 8 in `package.json`.
 
 ## Running the app
 
 ```bash
-# development
+# watch mode
+$ npm run dev
+
+# build without running Prisma deploy/seed hooks
+$ npm run build:dev
+
+# run compiled app
 $ npm run start
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# production build pipeline
+$ npm run build
 ```
 
 ## Running the database in development
 
 Do the following steps to start the db in your local environment:
 
-- Start the db with `npm run start:dev-db`.
-- Create a `.env` file containing `DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"`
-- Run the Prisma migration with `npx prisma migrate dev`, this will also run the seed script.
+- Start Docker Desktop or another Docker daemon first.
+- Create a `.env` file from `.env.example` and set `DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"`.
+- Start the db with `docker-compose up -d` from `dev-db/`, or run `npm run start:dev-db`.
+- Run `npx prisma migrate dev` to apply migrations.
+- Run `npm run seed:dev-db` to load local test users, organizations, and events.
+
+Quick start:
+
+```bash
+$ nvm use 16.20.2
+$ cp .env.example .env
+$ docker-compose -f dev-db/docker-compose.yml up -d
+$ npx prisma migrate dev
+$ npm run seed:dev-db
+$ npm run dev
+```
 
 When you modify the schema, you must create a new migration:
 
 - Modify `schema.prisma` with desired changes, then run `npx prisma format`.
-- Run `npx prisma migrade dev --name what_you_have_changed`, to generate SQL and apply them to the DB.
+- Run `npx prisma migrate dev --name what_you_have_changed` to generate SQL and apply it to the DB.
 - Run `npx prisma generate` to update the Prisma client code that we use in the app.
 
-If you make changes to the `seed.ts` script, you run the scipt manually: `npx prisma db seed`.
+If you make changes to the production seed script, run it manually with `npx prisma db seed`.
 
 ## Test
 

@@ -17,9 +17,10 @@
     "postbuild": "npm run prisma:deploy && npm run seed:prod-db",
     "build:dev": "npm run prebuild && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "dev": "nest start --watch",
+    "dev": "node scripts/run-dev.js",
+    "dev:raw": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start": "node dist/src/main",
+    "start": "node scripts/run-start.js",
     "start:dev-db": "cd dev-db && sudo make start",
     "stop:dev-db": "cd dev-db && sudo make stop",
     "restart:dev-db": "cd dev-db && sudo make restart",
@@ -33,7 +34,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:db": "jest --config test/jest-db-tests.json"
+    "test:db": "jest --config test/jest-db-tests.json",
+    "test:dev-script": "node scripts/run-dev.test.js"
   },
   "dependencies": {
     "@azure/communication-email": "^1.0.0-beta.1",
