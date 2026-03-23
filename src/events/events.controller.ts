@@ -166,9 +166,6 @@ export class EventsController {
     @Body() updateEventDto: UpdateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
-    if (!eventImage) {
-      throw new BadRequestException("File is invalid or too large!");
-    }
     //the user has to be the arranger or the admin of the organization
     return this.eventsService.update(updateEventDto, id, eventImage);
   }

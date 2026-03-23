@@ -10,12 +10,10 @@ import {
   arrangerIDs,
   userIDs,
   organisationIDs,
-  organisationNumbers,
   phoneNumbers,
   firstNames,
   lastNames,
   eventNames,
-  companyNames,
   emails,
   capacities,
   eventDescriptions,
@@ -23,9 +21,37 @@ import {
   eventIDs,
   allergens,
 } from "./dbTestData";
-import { randomInt } from "crypto";
-
 const prisma = new PrismaClient();
+
+const ifiOrganizations = [
+  { name: "CYB", orgNr: "990110352" },
+  { name: "Navet", orgNr: "990995303" },
+  { name: "Dagen", orgNr: "987042583" },
+  { name: "Ifi-Progsys", orgNr: "911594242" },
+  { name: "Defi", orgNr: "915439721" },
+  { name: "Digitus", orgNr: "919650354" },
+  { name: "Språktek", orgNr: "997875400" },
+  { name: "Mikro", orgNr: "991739815" },
+  { name: "MAPS", orgNr: "995251884" },
+  { name: "Toastjærn", orgNr: "920547230" },
+];
+
+function getFutureEventDates(index: number) {
+  const startDate = new Date();
+  startDate.setHours(16 + (index % 3), 0, 0, 0);
+  startDate.setDate(startDate.getDate() + index + 1);
+
+  const endDate = new Date(startDate);
+  endDate.setHours(endDate.getHours() + 4);
+
+  const regStart = new Date(startDate);
+  regStart.setDate(regStart.getDate() - 14);
+
+  const regEnd = new Date(startDate);
+  regEnd.setHours(regEnd.getHours() - 2);
+
+  return { startDate, endDate, regStart, regEnd };
+}
 
 async function main() {
   for (let i = 0; i < 10; i++) {
@@ -112,29 +138,42 @@ async function main() {
       where: {
         id: organisationIDs[i],
       },
-      update: {},
+      update: {
+        name: ifiOrganizations[i].name,
+        orgNr: ifiOrganizations[i].orgNr,
+      },
       create: {
         id: organisationIDs[i],
         arrangerId: arrangerIDs[i],
-        name: companyNames[i],
-        orgNr: organisationNumbers[i],
+        name: ifiOrganizations[i].name,
+        orgNr: ifiOrganizations[i].orgNr,
       },
     });
 
     let visibility: EventVisibility = EventVisibility.PUBLIC;
-    if (i % 2 === 0) {
+    if (i !== 0 && i % 2 === 0) {
       visibility = EventVisibility.UNLISTED;
     }
 
-    const startDate = new Date().getTime() + randomInt(1000 * 60 * 60 * 9);
-    const endDate =
-      new Date(startDate).getTime() + randomInt(1000 * 60 * 60 * 3);
+    const { startDate, endDate, regStart, regEnd } = getFutureEventDates(i);
 
     await prisma.event.upsert({
       where: {
         id: eventIDs[i],
       },
-      update: {},
+      update: {
+        startDate,
+        endDate,
+        regStart,
+        regEnd,
+        title: eventNames[i],
+        description: eventDescriptions[i],
+        capacity: capacities[i],
+        visibility,
+        featured: i === 0,
+        locationName: "Forskningsparken, Oslo",
+        freeformAddress: "Gaustadalleen 21, 0349 Oslo",
+      },
       create: {
         id: eventIDs[i],
         urlId: (() => {
@@ -146,13 +185,17 @@ async function main() {
 
           return urlId;
         })(),
-        startDate: new Date(startDate).toISOString(),
-        endDate: new Date(endDate).toISOString(),
+        startDate,
+        endDate,
+        regStart,
+        regEnd,
         title: eventNames[i],
         description: eventDescriptions[i],
         capacity: capacities[i],
-        visibility: visibility,
-        locationName: "locationName",
+        visibility,
+        featured: i === 0,
+        locationName: "Forskningsparken, Oslo",
+        freeformAddress: "Gaustadalleen 21, 0349 Oslo",
       },
     });
 
