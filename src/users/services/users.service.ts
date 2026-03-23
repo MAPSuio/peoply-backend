@@ -1,5 +1,6 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../../prisma/prisma.service";
+import { randomUUID } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
 import { Provider, User } from ".prisma/client";
@@ -204,6 +205,17 @@ export class UsersService {
     });
 
     return user?.user;
+  }
+
+  async rotateRefreshTokenId(userId: string) {
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        refreshTokenId: randomUUID(),
+      },
+    });
   }
 
   async update(

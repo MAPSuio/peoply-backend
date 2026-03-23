@@ -2,6 +2,7 @@
 import {
   Controller,
   Get,
+  Post,
   Req,
   Res,
   UseFilters,
@@ -14,12 +15,14 @@ import { ConfigService } from "@nestjs/config";
 import { AuthenticatedGuard, VippsGuard, RefreshGuard } from "./guards";
 import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFilter.filter";
 import { GoogleGuard } from "./guards/google.guard";
+import { UsersService } from "../users/services";
 
 @Controller("auth")
 export class AuthController {
   constructor(
     private authService: AuthService,
     private configService: ConfigService,
+    private usersService: UsersService,
   ) {}
 
   @UseGuards(VippsGuard)
@@ -33,11 +36,15 @@ export class AuthController {
   async loginGoogle() {}
 
   @UseGuards(RefreshGuard)
-  @Get("/refresh")
+  @Post("/refresh")
   async refresh(@Req() req: any, @Res() res: any) {
+    this.authService.assertTrustedOrigin(req.headers.origin);
+
+    const user = await this.usersService.rotateRefreshTokenId(req.user.id);
+
     /* create new access token cookie */
-    const newAccessToken = this.authService.getAccessToken(req.user);
-    const newRefreshToken = this.authService.getRefreshToken(req.user);
+    const newAccessToken = this.authService.getAccessToken(user);
+    const newRefreshToken = this.authService.getRefreshToken(user);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
     const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
@@ -64,9 +71,11 @@ export class AuthController {
   async loginCallback(@Req() req: any, @Res() res: Response) {
     res.clearCookie("connect.sid"); // no need to send this
 
+    const user = await this.usersService.rotateRefreshTokenId(req.user.id);
+
     /* create access and refresh tokens + cookie options */
-    const accessToken = this.authService.getAccessToken(req.user);
-    const refreshToken = this.authService.getRefreshToken(req.user);
+    const accessToken = this.authService.getAccessToken(user);
+    const refreshToken = this.authService.getRefreshToken(user);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
     const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
@@ -91,9 +100,11 @@ export class AuthController {
   async loginGoogleCallback(@Req() req: any, @Res() res: Response) {
     res.clearCookie("connect.sid"); // no need to send this
 
+    const user = await this.usersService.rotateRefreshTokenId(req.user.id);
+
     /* create access and refresh tokens + cookie options */
-    const accessToken = this.authService.getAccessToken(req.user);
-    const refreshToken = this.authService.getRefreshToken(req.user);
+    const accessToken = this.authService.getAccessToken(user);
+    const refreshToken = this.authService.getRefreshToken(user);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
     const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
@@ -112,8 +123,12 @@ export class AuthController {
     return res.redirect(redirectURI ? redirectURI : "");
   }
 
-  @Get("/logout")
+  @UseGuards(AuthenticatedGuard)
+  @Post("/logout")
   async logout(@Req() req: any, @Res() res: Response) {
+    this.authService.assertTrustedOrigin(req.headers.origin);
+    await this.usersService.rotateRefreshTokenId(req.user.id);
+
     /* cookie options should also be sent to make sure that cookie is cleared */
     const accessCookieOptions = this.authService.getAccessCookieOptions();
     const refreshCookieOptions = this.authService.getRefreshCookieOptions();

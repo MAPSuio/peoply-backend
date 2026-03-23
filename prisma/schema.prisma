@@ -43,6 +43,7 @@ model User {
   allowEmailPromotions           Boolean                  @default(false) @map("allow_email_promotions")
   allowEmailFromArranger         Boolean                  @default(true) @map("allow_email_from_arranger")
   allowEmailOnWaitlist           Boolean                  @default(true) @map("allow_email_on_waitlist")
+  refreshTokenId                 String?                  @map("refresh_token_id")
   createdAt                      DateTime                 @default(now()) @map("created_at")
   updatedAt                      DateTime                 @default(now()) @updatedAt @map("updated_at")
   organizationRoles              UserOrganizationRole[]

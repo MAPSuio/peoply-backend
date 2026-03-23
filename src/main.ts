@@ -1,6 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
+import { NextFunction, Request, Response } from "express";
 
 import * as passport from "passport";
 import * as expressSession from "express-session";
@@ -23,6 +24,34 @@ async function bootstrap() {
   // { whitelist : true } this strips any atributes in a dto that has no decorator.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const trustedOrigins = process.env.CORS_ORIGIN?.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+    const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+    const usesCookieAuth = Boolean(req.cookies?.access || req.cookies?.refresh);
+    let requestOrigin = req.headers.origin;
+
+    if (!requestOrigin && req.headers.referer) {
+      try {
+        requestOrigin = new URL(req.headers.referer).origin;
+      } catch {
+        requestOrigin = undefined;
+      }
+    }
+
+    if (
+      isStateChanging &&
+      usesCookieAuth &&
+      requestOrigin &&
+      trustedOrigins?.length &&
+      !trustedOrigins.includes(requestOrigin)
+    ) {
+      return res.status(403).send("Untrusted origin");
+    }
+
+    next();
+  });
   app.use(passport.initialize());
   app.use(passport.session());
 

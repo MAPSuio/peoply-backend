@@ -25,7 +25,7 @@ export class RefreshStrategy extends PassportStrategy(
   async validate(payload: any) {
     const user = await this.userService.findById(payload.sub);
 
-    if (!user) {
+    if (!user || !payload.tokenId || user.refreshTokenId !== payload.tokenId) {
       throw new UnauthorizedException();
     }
 
