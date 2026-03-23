@@ -19,12 +19,11 @@ import {
   emails,
   capacities,
   eventDescriptions,
-  startDates,
-  endDates,
   birthDates,
   eventIDs,
   allergens,
 } from "./dbTestData";
+import { randomInt } from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -127,6 +126,10 @@ async function main() {
       visibility = EventVisibility.UNLISTED;
     }
 
+    const startDate = new Date().getTime() + randomInt(1000 * 60 * 60 * 9);
+    const endDate =
+      new Date(startDate).getTime() + randomInt(1000 * 60 * 60 * 3);
+
     await prisma.event.upsert({
       where: {
         id: eventIDs[i],
@@ -143,8 +146,8 @@ async function main() {
 
           return urlId;
         })(),
-        startDate: startDates[i],
-        endDate: endDates[i],
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
         title: eventNames[i],
         description: eventDescriptions[i],
         capacity: capacities[i],

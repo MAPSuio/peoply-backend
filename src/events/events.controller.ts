@@ -41,6 +41,9 @@ import { SendUpdateDto } from "./dto/send-update.dto";
 import { EventsService } from "./events.service";
 import { EventNotFoundException } from "./exceptions";
 
+// file size limit 50 MB
+const MAX_FILE_SIZE_MB: number = 50 * 1024 * 1024;
+
 @Controller("events")
 export class EventsController {
   constructor(
@@ -65,8 +68,7 @@ export class EventsController {
         }
       },
       limits: {
-        // file size limit 50 MB
-        fileSize: 50 * 1024 * 1024,
+        fileSize: MAX_FILE_SIZE_MB,
       },
     }),
   )
@@ -91,13 +93,13 @@ export class EventsController {
       const org = await this.organizationsService.findByArrangerId(arrangerId);
       if (org) {
         /* check if user is admin of org */
-        const admin = org.organizationRoles.find(
+        const isAdmin = org.organizationRoles.find(
           (o) =>
             o.userId === req.user.id &&
             (o.role === OrganizationRole.ADMIN ||
               o.role === OrganizationRole.OWNER),
         );
-        if (!admin) {
+        if (!isAdmin) {
           throw new UnauthorizedException(
             "User is not an admin of the organization",
           );
@@ -155,7 +157,7 @@ export class EventsController {
       },
       limits: {
         // filesize limit 50 MB
-        fileSize: 50 * 1024 * 1024,
+        fileSize: MAX_FILE_SIZE_MB,
       },
     }),
   )
@@ -164,6 +166,9 @@ export class EventsController {
     @Body() updateEventDto: UpdateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
+    if (!eventImage) {
+      throw new BadRequestException("File is invalid or too large!");
+    }
     //the user has to be the arranger or the admin of the organization
     return this.eventsService.update(updateEventDto, id, eventImage);
   }
