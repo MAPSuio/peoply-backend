@@ -8,6 +8,7 @@ import * as passport from "passport";
 import * as expressSession from "express-session";
 import * as cookieParser from "cookie-parser";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
@@ -33,20 +34,10 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const trustedOrigins = process.env.CORS_ORIGIN?.split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean);
+    const trustedOrigins = parseTrustedOrigins(process.env.CORS_ORIGIN);
     const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     const usesCookieAuth = Boolean(req.cookies?.access || req.cookies?.refresh);
-    let requestOrigin = req.headers.origin;
-
-    if (!requestOrigin && req.headers.referer) {
-      try {
-        requestOrigin = new URL(req.headers.referer).origin;
-      } catch {
-        requestOrigin = undefined;
-      }
-    }
+    const requestOrigin = extractRequestOrigin(req.headers);
 
     if (
       isStateChanging &&
@@ -64,7 +55,7 @@ async function bootstrap() {
   app.use(passport.session());
 
   app.enableCors({
-    origin: [`${process.env.CORS_ORIGIN}`],
+    origin: parseTrustedOrigins(process.env.CORS_ORIGIN),
     credentials: true,
   });
 

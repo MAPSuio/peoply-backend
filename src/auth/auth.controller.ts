@@ -38,7 +38,7 @@ export class AuthController {
   @UseGuards(RefreshGuard)
   @Post("/refresh")
   async refresh(@Req() req: any, @Res() res: any) {
-    this.authService.assertTrustedOrigin(req.headers.origin);
+    this.authService.assertTrustedOrigin(req.headers);
 
     const user = await this.usersService.rotateRefreshTokenId(req.user.id);
 
@@ -126,7 +126,7 @@ export class AuthController {
   @UseGuards(AuthenticatedGuard)
   @Post("/logout")
   async logout(@Req() req: any, @Res() res: Response) {
-    this.authService.assertTrustedOrigin(req.headers.origin);
+    this.authService.assertTrustedOrigin(req.headers);
     await this.usersService.rotateRefreshTokenId(req.user.id);
 
     /* cookie options should also be sent to make sure that cookie is cleared */

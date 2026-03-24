@@ -3,6 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { User } from ".prisma/client";
 import { CookieOptions } from "express";
+import { extractRequestOrigin, parseTrustedOrigins } from "./auth-origin";
 
 @Injectable()
 export class AuthService {
@@ -67,23 +68,18 @@ export class AuthService {
     };
   }
 
-  assertTrustedOrigin(origin?: string) {
-    const trustedOrigin = this.configService.get<string | string[]>(
-      "CORS_ORIGIN",
+  assertTrustedOrigin(headers: { origin?: string; referer?: string }) {
+    const trustedOrigins = parseTrustedOrigins(
+      this.configService.get<string>("CORS_ORIGIN"),
     );
 
-    if (!trustedOrigin) {
+    if (!trustedOrigins.length) {
       throw new Error("CORS_ORIGIN not configured");
     }
 
-    const trustedOrigins = Array.isArray(trustedOrigin)
-      ? trustedOrigin
-      : trustedOrigin
-          .split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean);
+    const requestOrigin = extractRequestOrigin(headers);
 
-    if (!origin || !trustedOrigins.includes(origin)) {
+    if (!requestOrigin || !trustedOrigins.includes(requestOrigin)) {
       throw new ForbiddenException("Untrusted origin");
     }
   }
