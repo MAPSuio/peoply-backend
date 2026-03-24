@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import {
   EventArrangerRole,
+  EventRegistrationMode,
   EventSource,
   EventVisibility,
   IcsFeedSyncStatus,
@@ -59,6 +60,8 @@ export class IcsFeedsService {
         url: fetchedCalendar.url,
         syncIntervalMinutes:
           dto.syncIntervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES,
+        registrationMode:
+          dto.registrationMode ?? EventRegistrationMode.EXTERNAL,
         enabled: true,
         disabledAt: null,
         lastSyncError: null,
@@ -68,6 +71,8 @@ export class IcsFeedsService {
         url: fetchedCalendar.url,
         syncIntervalMinutes:
           dto.syncIntervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES,
+        registrationMode:
+          dto.registrationMode ?? EventRegistrationMode.EXTERNAL,
         enabled: true,
         disabledAt: null,
         lastSyncError: null,
@@ -248,6 +253,7 @@ export class IcsFeedsService {
           visibility: EventVisibility.PUBLIC,
           hasFood: false,
           source: EventSource.ICS,
+          registrationMode: feed.registrationMode,
           readOnly: true,
           externalId: parsedEvent.externalId,
           externalUrl: parsedEvent.externalUrl,
@@ -268,6 +274,7 @@ export class IcsFeedsService {
           locationName: parsedEvent.locationName,
           visibility: EventVisibility.PUBLIC,
           source: EventSource.ICS,
+          registrationMode: feed.registrationMode,
           readOnly: true,
           externalUrl: parsedEvent.externalUrl,
           externalUpdatedAt: parsedEvent.externalUpdatedAt,

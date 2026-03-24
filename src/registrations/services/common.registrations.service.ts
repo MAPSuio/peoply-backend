@@ -1,4 +1,4 @@
-import { RegStatus } from ".prisma/client";
+import { EventRegistrationMode, RegStatus } from ".prisma/client";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
@@ -116,6 +116,12 @@ export class CommonRegistrationService {
 
         if (event?.regEnd && new Date() > event.regEnd) {
           throw new BadRequestException("Registration has closed");
+        }
+
+        if (event && event.registrationMode !== EventRegistrationMode.PEOPLY) {
+          throw new BadRequestException(
+            "Registration for this event does not happen in Peoply",
+          );
         }
 
         const existingReg = event?.registrations.find(

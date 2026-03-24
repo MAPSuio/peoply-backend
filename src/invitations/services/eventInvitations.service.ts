@@ -3,7 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { InvitationStatus, OrganizationRole, RegStatus } from "@prisma/client";
+import {
+  EventRegistrationMode,
+  InvitationStatus,
+  OrganizationRole,
+  RegStatus,
+} from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
 import { v4 as uuidv4 } from "uuid";
@@ -130,7 +135,12 @@ export class EventInvitationsService {
 
       const event = await trx.event.findUnique({
         where: { id: eventId },
-        select: { endDate: true, regStart: true, regEnd: true },
+        select: {
+          endDate: true,
+          regStart: true,
+          regEnd: true,
+          registrationMode: true,
+        },
       });
 
       if (!event) {
@@ -178,6 +188,12 @@ export class EventInvitationsService {
 
       if (event?.regEnd && new Date() > event.regEnd) {
         throw new Error("Event registration is closed");
+      }
+
+      if (event?.registrationMode !== EventRegistrationMode.PEOPLY) {
+        throw new Error(
+          "Registration for this event does not happen in Peoply",
+        );
       }
 
       const existingRegs = await trx.registration.findMany({
@@ -260,6 +276,12 @@ export class EventInvitationsService {
 
       if (event?.regEnd && new Date() > event.regEnd) {
         throw new Error("Event registration is closed");
+      }
+
+      if (event?.registrationMode !== EventRegistrationMode.PEOPLY) {
+        throw new Error(
+          "Registration for this event does not happen in Peoply",
+        );
       }
 
       if (event?.hasFood && !user?.foodPreference) {

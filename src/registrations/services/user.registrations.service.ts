@@ -12,7 +12,7 @@ import {
   DuplicateRegistrationException,
   ForeignKeyNotFoundException,
 } from "../exceptions";
-import { RegStatus, Registration } from ".prisma/client";
+import { EventRegistrationMode, RegStatus, Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 
@@ -60,6 +60,12 @@ export class UserRegistrationService extends CommonRegistrationService {
         }
 
         if (event) {
+          if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
+            throw new BadRequestException(
+              "Registration for this event does not happen in Peoply",
+            );
+          }
+
           if (createRegistrationDto.regStatus === RegStatus.GOING) {
             if (
               event.capacity === null ||
