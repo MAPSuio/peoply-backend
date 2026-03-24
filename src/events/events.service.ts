@@ -411,6 +411,24 @@ export class EventsService {
         );
       }
 
+      if (
+        typeof updateEventDto.capacity === "number" &&
+        updateEventDto.capacity > 0
+      ) {
+        const goingCount = await this.prisma.registration.count({
+          where: {
+            eventId: id,
+            regStatus: RegStatus.GOING,
+          },
+        });
+
+        if (updateEventDto.capacity < goingCount) {
+          throw new BadRequestException(
+            `Capacity can not be lower than the ${goingCount} registered attendees`,
+          );
+        }
+      }
+
       if (newImage) {
         //upload new image
         newImageUrl = await this.azureStorageService.upload(
