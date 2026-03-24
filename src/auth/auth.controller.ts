@@ -40,19 +40,11 @@ export class AuthController {
   async refresh(@Req() req: any, @Res() res: any) {
     this.authService.assertTrustedOrigin(req.headers);
 
-    const user = await this.usersService.rotateRefreshTokenId(req.user.id);
-
-    /* create new access token cookie */
-    const newAccessToken = this.authService.getAccessToken(user);
-    const newRefreshToken = this.authService.getRefreshToken(user);
+    const newAccessToken = this.authService.getAccessToken(req.user);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
-    /* set headers related to token and cookie */
-    res.cookie("refresh", newRefreshToken, refreshCookieOptions);
     res.cookie("access", newAccessToken, accessCookieOptions);
 
-    /* headers telling the browser to save the cookies */
     res.set("Access-Control-Allow-Credentials", "true");
     res.set("Credentials", "true");
 
