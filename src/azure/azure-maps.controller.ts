@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { Models } from "azure-maps-rest";
+import { AuthenticatedGuard } from "../auth/guards";
 import { AzureMapsService } from "./azure-maps.service";
 import { AzureMapsFuzzySearchParams } from "./types/fuzzy-search.type";
 
@@ -7,6 +8,7 @@ import { AzureMapsFuzzySearchParams } from "./types/fuzzy-search.type";
 export class AzureMapsController {
   constructor(private readonly azureMaps: AzureMapsService) {}
 
+  @UseGuards(AuthenticatedGuard)
   @Get("/fuzzySearch")
   async searchFuzzy(
     @Query()
