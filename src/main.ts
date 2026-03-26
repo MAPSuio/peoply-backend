@@ -7,6 +7,10 @@ import * as crypto from "crypto";
 import * as passport from "passport";
 import * as expressSession from "express-session";
 import * as cookieParser from "cookie-parser";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const helmet = require("helmet");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const connectPgSimple = require("connect-pg-simple");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
 
@@ -21,12 +25,25 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Trust the first proxy hop (Cloudflare → DO App Platform) so req.ip
+  // reflects the real client IP rather than the proxy address.
+  app.getHttpAdapter().getInstance().set("trust proxy", 1);
+
+  // HTTP security headers
+  app.use(helmet());
+
+  const PgSession = connectPgSimple(expressSession);
   app.use(
     expressSession({
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       secret: process.env.SESSION_SECRET!, // to sign session id
-      resave: false, // will default to false in near future: https://github.com/expressjs/session#resave
-      saveUninitialized: false, // will default to false in near future: https://github.com/expressjs/session#saveuninitialized
+      resave: false,
+      saveUninitialized: false,
+      store: new PgSession({
+        conString: process.env.DATABASE_URL,
+        tableName: "session",
+        createTableIfMissing: true,
+      }),
     }),
   );
 
@@ -59,15 +76,18 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const config = new DocumentBuilder()
-    .setTitle("Peoply API")
-    .setDescription("The Peoply API description")
-    .setVersion("1.0")
-    .addTag("peoply")
-    .build();
+  // Only expose API docs outside production
+  if (process.env.NODE_ENV !== "production") {
+    const config = new DocumentBuilder()
+      .setTitle("Peoply API")
+      .setDescription("The Peoply API description")
+      .setVersion("1.0")
+      .addTag("peoply")
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api", app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("api", app, document);
+  }
 
   await app.listen(PORT);
 }

@@ -8,6 +8,7 @@ import {
   UseFilters,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Response } from "express";
 
 import { AuthService } from "./auth.service";
@@ -25,16 +26,19 @@ export class AuthController {
     private usersService: UsersService,
   ) {}
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(VippsGuard)
   @Get("/login")
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   async login() {}
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(GoogleGuard)
   @Get("/login/google")
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   async loginGoogle() {}
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @UseGuards(RefreshGuard)
   @Post("/refresh")
   async refresh(@Req() req: any, @Res() res: any) {

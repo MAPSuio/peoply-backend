@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { APP_GUARD } from "@nestjs/core";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
@@ -19,6 +21,7 @@ import { InvitationsModule } from "./invitations/invitations.module";
 import { ModerationModule } from "./moderation/moderation.module";
 import { AllergensModule } from "./allergens/allergens.module";
 import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
+import { CfThrottlerGuard } from "./cf-throttler.guard";
 
 @Module({
   imports: [
@@ -29,6 +32,14 @@ import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
     ArrangersModule,
     RegistrationsModule,
     ScheduleModule.forRoot(),
+    // Global rate limit: 100 requests per IP per minute
+    ThrottlerModule.forRoot([
+      {
+        name: "default",
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     ConfigModule.forRoot({
       validationSchema: Joi.object({
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),
@@ -68,6 +79,13 @@ import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
     IcsFeedsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Apply rate limiting globally, using CF-Connecting-IP when available
+    {
+      provide: APP_GUARD,
+      useClass: CfThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
