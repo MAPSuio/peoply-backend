@@ -22,6 +22,7 @@ import { ModerationModule } from "./moderation/moderation.module";
 import { AllergensModule } from "./allergens/allergens.module";
 import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
 import { CfThrottlerGuard } from "./cf-throttler.guard";
+import { ThreatDetectionModule } from "./threat-detection/threat-detection.module";
 
 @Module({
   imports: [
@@ -66,9 +67,13 @@ import { CfThrottlerGuard } from "./cf-throttler.guard";
         AZURE_STORAGE_SKIP_INIT: Joi.boolean().optional(),
         AZURE_MAPS_KEY: Joi.string().required(),
         AZURE_COMMUNICATION_CONNECTION_STRING: Joi.string().required(),
+        DISCORD_ALERT_WEBHOOK_URL: Joi.string().uri().optional(),
+        THREAT_DETECTION_ENABLED: Joi.boolean().default(true),
+        THREAT_ALERT_COOLDOWN_MS: Joi.number().default(300000),
       }),
     }),
     AuthModule,
+    ThreatDetectionModule,
     AzureModule,
     CategoriesModule,
     PrismaModule,

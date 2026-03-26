@@ -1,6 +1,6 @@
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import * as crypto from "crypto";
 
@@ -13,6 +13,7 @@ const helmet = require("helmet");
 const connectPgSimple = require("connect-pg-simple");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
+import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
@@ -24,10 +25,32 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
+  const threatDetection = app.get(ThreatDetectionService);
 
   // Trust the first proxy hop (Cloudflare → DO App Platform) so req.ip
   // reflects the real client IP rather than the proxy address.
   app.getHttpAdapter().getInstance().set("trust proxy", 1);
+
+  // Log every inbound request (method, path, status, duration, client IP).
+  // Placed before helmet so the entire request lifecycle is captured,
+  // including bot probes to paths like /.env that never reach NestJS routing.
+  const httpLogger = new Logger("HTTP");
+  const SKIP_PATHS = new Set(["/_health", "/readiness"]);
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (SKIP_PATHS.has(req.path)) return next();
+    const start = Date.now();
+    res.on("finish", () => {
+      const ms = Date.now() - start;
+      const cfIp = req.headers["cf-connecting-ip"];
+      const ip = cfIp
+        ? Array.isArray(cfIp) ? cfIp[0] : cfIp
+        : req.ip ?? "unknown";
+      httpLogger.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${ip}`);
+      threatDetection.analyzeRequest(req.method, req.path, res.statusCode, ip);
+    });
+    next();
+  });
 
   // HTTP security headers
   app.use(helmet());
