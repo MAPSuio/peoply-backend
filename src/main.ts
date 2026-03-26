@@ -76,18 +76,15 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Only expose API docs outside production
-  if (process.env.NODE_ENV !== "production") {
-    const config = new DocumentBuilder()
-      .setTitle("Peoply API")
-      .setDescription("The Peoply API description")
-      .setVersion("1.0")
-      .addTag("peoply")
-      .build();
+  const config = new DocumentBuilder()
+    .setTitle("Peoply API")
+    .setDescription("The Peoply API description")
+    .setVersion("1.0")
+    .addTag("peoply")
+    .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup("api", app, document);
-  }
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api", app, document);
 
   await app.listen(PORT);
 }
