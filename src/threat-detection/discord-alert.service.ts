@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { postDiscordWebhook } from "./discord-webhook";
 
 interface EmbedField {
   name: string;
@@ -36,7 +37,7 @@ export class DiscordAlertService implements OnModuleInit {
 
     if (!this.webhookUrl) return;
 
-    const body = {
+    const body = JSON.stringify({
       embeds: [
         {
           title,
@@ -45,28 +46,19 @@ export class DiscordAlertService implements OnModuleInit {
           timestamp: new Date().toISOString(),
         },
       ],
-    };
+    });
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5_000);
+      const res = await postDiscordWebhook(this.webhookUrl, body);
 
-      const res = await fetch(this.webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!res.ok) {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
         this.logger.error(
-          `Discord webhook responded ${res.status}: ${await res
-            .text()
-            .catch(() => "")}`,
+          `Discord webhook responded ${res.statusCode}: ${res.body}`,
         );
+        return;
       }
+
+      this.logger.log(`Discord alert sent: ${title}`);
     } catch (err) {
       this.logger.error(
         `Failed to send Discord alert: ${

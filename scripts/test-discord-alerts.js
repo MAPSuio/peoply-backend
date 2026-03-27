@@ -11,6 +11,8 @@
  */
 
 const path = require("path");
+const https = require("https");
+const http = require("http");
 
 // Load .env from project root
 try {
@@ -60,7 +62,7 @@ const ALERTS = [
 ];
 
 async function sendAlert(alert) {
-  const body = {
+  const body = JSON.stringify({
     embeds: [
       {
         title: alert.title,
@@ -69,24 +71,48 @@ async function sendAlert(alert) {
         timestamp: new Date().toISOString(),
       },
     ],
-  };
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  const res = await fetch(WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: controller.signal,
   });
 
-  clearTimeout(timeout);
+  const url = new URL(WEBHOOK_URL);
+  const transport = url.protocol === "http:" ? http : https;
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Discord responded ${res.status}: ${text}`);
-  }
+  await new Promise((resolve, reject) => {
+    const req = transport.request(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || undefined,
+        path: `${url.pathname}${url.search}`,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve();
+            return;
+          }
+
+          reject(new Error(`Discord responded ${res.statusCode}: ${text}`));
+        });
+      },
+    );
+
+    req.setTimeout(5000, () => {
+      req.destroy(new Error("Request timed out after 5000ms"));
+    });
+
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+
 }
 
 async function main() {

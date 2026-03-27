@@ -8,11 +8,14 @@ import { ConfigService } from "@nestjs/config";
 import { DiscordAlertService } from "./discord-alert.service";
 import {
   AUTH_FAIL_THRESHOLD,
+  AUTH_FAIL_LOG_THRESHOLD,
   AUTH_PATHS,
   BURST_404_THRESHOLD,
+  BURST_404_LOG_THRESHOLD,
   CLEANUP_INTERVAL_MS,
   DEFAULT_ALERT_COOLDOWN_MS,
   REQUEST_RATE_THRESHOLD,
+  REQUEST_RATE_LOG_THRESHOLDS,
   SAFE_PATHS,
   SLIDING_WINDOW_MS,
   SUSPICIOUS_PATH_PATTERNS,
@@ -33,6 +36,8 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
   private readonly globalRequestWindow: number[] = [];
   /** "ip:pattern" → last alert timestamp */
   private readonly alertCooldowns = new Map<string, number>();
+  /** "key" -> last activity log timestamp */
+  private readonly activityLogCooldowns = new Map<string, number>();
 
   private cleanupTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -90,6 +95,15 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
       this.globalRequestWindow.shift();
     }
     const rpm = this.globalRequestWindow.length;
+    for (const threshold of REQUEST_RATE_LOG_THRESHOLDS) {
+      if (rpm >= threshold) {
+        this.logActivityIfNotCooling(
+          `_global:rate:${threshold}`,
+          `Elevated request rate: ${rpm} requests in the last 60s (threshold ${threshold}) | Last path: ${path} | Last IP: ${ip}`,
+        );
+      }
+    }
+
     if (rpm >= REQUEST_RATE_THRESHOLD) {
       this.alertIfNotCooling(
         "_global",
@@ -131,6 +145,12 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     // 2. Burst 404 detection
     if (statusCode === 404) {
       const hits = this.pushAndTrim(this.notFoundWindows, ip, now);
+      if (hits >= BURST_404_LOG_THRESHOLD) {
+        this.logActivityIfNotCooling(
+          `${ip}:burst404:log`,
+          `Repeated 404s from ${ip}: ${hits} in ${SLIDING_WINDOW_MS / 1000}s | Last path: ${path}`,
+        );
+      }
       if (hits >= BURST_404_THRESHOLD) {
         this.alertIfNotCooling(
           ip,
@@ -154,6 +174,12 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     // 3. Auth brute-force detection
     if (AUTH_PATHS.has(path) && statusCode === 401) {
       const hits = this.pushAndTrim(this.authFailWindows, ip, now);
+      if (hits >= AUTH_FAIL_LOG_THRESHOLD) {
+        this.logActivityIfNotCooling(
+          `${ip}:authfail:log`,
+          `Repeated auth failures from ${ip}: ${hits} in ${SLIDING_WINDOW_MS / 1000}s | Path: ${path}`,
+        );
+      }
       if (hits >= AUTH_FAIL_THRESHOLD) {
         this.alertIfNotCooling(
           ip,
@@ -215,6 +241,16 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     this.discord.sendAlert(title, fields, color).catch(() => undefined);
   }
 
+  private logActivityIfNotCooling(key: string, message: string): void {
+    const now = Date.now();
+    const last = this.activityLogCooldowns.get(key);
+
+    if (last && now - last < this.alertCooldownMs) return;
+
+    this.activityLogCooldowns.set(key, now);
+    this.logger.warn(message);
+  }
+
   private cleanupExpired(): void {
     const now = Date.now();
     const windowCutoff = now - SLIDING_WINDOW_MS;
@@ -242,6 +278,10 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
 
     for (const [key, ts] of this.alertCooldowns) {
       if (ts < cooldownCutoff) this.alertCooldowns.delete(key);
+    }
+
+    for (const [key, ts] of this.activityLogCooldowns) {
+      if (ts < cooldownCutoff) this.activityLogCooldowns.delete(key);
     }
   }
 }

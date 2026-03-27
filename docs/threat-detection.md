@@ -6,6 +6,8 @@ Author: Victor
 
 Systemet analyserer alle innkommende HTTP-requests for mistenkelige mønstre og sender alerts til Discord via webhook.
 
+Webhook-sendingen er Node 16-kompatibel og bruker ikke global `fetch`.
+
 ```
 HTTP Request → main.ts middleware → ThreatDetectionService → DiscordAlertService → Discord
 ```
@@ -33,9 +35,19 @@ Requests til paths som indikerer bot-scanning/rekognosering:
 
 10+ 404-responses fra samme IP innenfor 60 sekunder → alert.
 
+5+ 404-responses fra samme IP innenfor 60 sekunder → warn-logg.
+
 ### 3. Auth brute-force (threshold-basert)
 
 8+ 401-responses på `/auth/login` eller `/auth/refresh` fra samme IP innenfor 60 sekunder → alert.
+
+4+ 401-responses på disse auth-rutene innenfor 60 sekunder → warn-logg.
+
+### 4. Høy request-rate (threshold-basert)
+
+500+ requests totalt innenfor 60 sekunder → Discord alert.
+
+250+ og 400+ requests innenfor 60 sekunder → warn-logg for tidligere signal.
 
 ## Env-variabler
 

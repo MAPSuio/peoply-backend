@@ -47,4 +47,9 @@ export const SLIDING_WINDOW_MS = 60_000; // 60s
 export const CLEANUP_INTERVAL_MS = 120_000; // 2 min
 
 /** Global requests per minute threshold before alerting */
-export const REQUEST_RATE_THRESHOLD = 1_000;
+export const REQUEST_RATE_THRESHOLD = 500;
+
+/** Lower-noise warning thresholds that should be logged before alerting */
+export const REQUEST_RATE_LOG_THRESHOLDS = [250, 400] as const;
+export const BURST_404_LOG_THRESHOLD = 5;
+export const AUTH_FAIL_LOG_THRESHOLD = 4;
