@@ -1,15 +1,19 @@
 // auth/auth.controller.ts
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
+  NotFoundException,
   Post,
+  Query,
   Req,
   Res,
   UseFilters,
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { Response } from "express";
+import { Request, Response } from "express";
 
 import { AuthService } from "./auth.service";
 import { ConfigService } from "@nestjs/config";
@@ -17,6 +21,7 @@ import { AuthenticatedGuard, VippsGuard, RefreshGuard } from "./guards";
 import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFilter.filter";
 import { GoogleGuard } from "./guards/google.guard";
 import { UsersService } from "../users/services";
+import { extractRequestOrigin } from "./auth-origin";
 
 @Controller("auth")
 export class AuthController {
@@ -25,6 +30,96 @@ export class AuthController {
     private configService: ConfigService,
     private usersService: UsersService,
   ) {}
+
+  private isLocalAuthEnabled() {
+    return (
+      this.configService.get<boolean>("LOCAL_AUTH_ENABLED") === true &&
+      process.env.NODE_ENV !== "production"
+    );
+  }
+
+  private isLocalRequest(req: Request) {
+    const host = req.hostname || req.headers.host?.split(":")[0];
+    const origin = extractRequestOrigin(req.headers);
+    const isLocalHost =
+      host === "localhost" || host === "127.0.0.1" || host === "::1";
+
+    if (!origin) {
+      return isLocalHost;
+    }
+
+    try {
+      const originHost = new URL(origin).hostname;
+      return (
+        isLocalHost &&
+        (originHost === "localhost" ||
+          originHost === "127.0.0.1" ||
+          originHost === "::1")
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private assertLocalAuthRequest(req: Request) {
+    if (!this.isLocalAuthEnabled() || !this.isLocalRequest(req)) {
+      throw new NotFoundException();
+    }
+  }
+
+  private resolveLocalAuthRedirect() {
+    const frontendUrl = this.configService.get<string>("FRONTEND_URL");
+
+    if (!frontendUrl) {
+      return "http://localhost:3001";
+    }
+
+    try {
+      const url = new URL(frontendUrl);
+      if (
+        url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "::1"
+      ) {
+        return frontendUrl;
+      }
+    } catch {
+      return "http://localhost:3001";
+    }
+
+    return "http://localhost:3001";
+  }
+
+  private async createLocalAuthSession(
+    email: string | undefined,
+    userId: string | undefined,
+    res: Response,
+  ) {
+    if (!email && !userId) {
+      throw new BadRequestException("email or userId is required");
+    }
+
+    const user = userId
+      ? await this.usersService.findById(userId)
+      : await this.usersService.findByEmail(email ?? "");
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const refreshedUser = await this.usersService.rotateRefreshTokenId(user.id);
+    const accessToken = this.authService.getAccessToken(refreshedUser);
+    const refreshToken = this.authService.getRefreshToken(refreshedUser);
+    const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
+
+    res.cookie("refresh", refreshToken, refreshCookieOptions);
+    res.cookie("access", accessToken, accessCookieOptions);
+    res.set("Access-Control-Allow-Credentials", "true");
+    res.set("Credentials", "true");
+
+    return refreshedUser;
+  }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(VippsGuard)
@@ -59,6 +154,59 @@ export class AuthController {
   @Get("/user")
   async user(@Req() req: any) {
     return { user: req.user };
+  }
+
+  @Get("/dev-users")
+  async localAuthUsers(@Req() req: Request) {
+    this.assertLocalAuthRequest(req);
+
+    return {
+      users: await this.usersService.findForLocalAuth(),
+    };
+  }
+
+  @Get("/dev-login")
+  async localAuthBrowserLogin(
+    @Req() req: Request,
+    @Query("email") email: string | undefined,
+    @Query("userId") userId: string | undefined,
+    @Res() res: Response,
+  ) {
+    this.assertLocalAuthRequest(req);
+
+    await this.createLocalAuthSession(email, userId, res);
+
+    return res.redirect(this.resolveLocalAuthRedirect());
+  }
+
+  @Post("/dev-login")
+  async localAuthLogin(
+    @Req() req: Request,
+    @Body() body: { email?: string; userId?: string },
+    @Res() res: Response,
+  ) {
+    this.assertLocalAuthRequest(req);
+
+    const refreshedUser = await this.createLocalAuthSession(
+      body.email,
+      body.userId,
+      res,
+    );
+
+    return res.status(200).send({ user: refreshedUser });
+  }
+
+  @Post("/dev-logout")
+  async localAuthLogout(@Req() req: Request, @Res() res: Response) {
+    this.assertLocalAuthRequest(req);
+
+    const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
+
+    res.clearCookie("refresh", refreshCookieOptions);
+    res.clearCookie("access", accessCookieOptions);
+
+    return res.sendStatus(200);
   }
 
   @UseGuards(VippsGuard)

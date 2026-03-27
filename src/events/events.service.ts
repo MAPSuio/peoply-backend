@@ -606,7 +606,7 @@ export class EventsService {
       };
 
       if (toEmails.to.length > 0) {
-        const { messageId } = await this.azureCommunicationService.send({
+        const sendResult = await this.azureCommunicationService.send({
           sender: "no-reply@peoply.app",
           recipients: toEmails,
           content: {
@@ -617,7 +617,7 @@ export class EventsService {
             ? [{ email: updateDto.replyTo }]
             : undefined,
         });
-        azureMessageId = messageId;
+        azureMessageId = sendResult?.messageId ?? null;
       }
     }
 

@@ -5,6 +5,8 @@ jest.mock("@nestjs/jwt", () => ({
 import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
+  let localAuthEnabled = false;
+
   const configService = {
     get: jest.fn((key: string) => {
       switch (key) {
@@ -12,6 +14,8 @@ describe("AuthService", () => {
           return 900;
         case "JWT_REFRESH_TOKEN_EXP_TIME":
           return 604800;
+        case "LOCAL_AUTH_ENABLED":
+          return localAuthEnabled;
         default:
           return undefined;
       }
@@ -26,6 +30,7 @@ describe("AuthService", () => {
   let service: AuthService;
 
   beforeEach(() => {
+    localAuthEnabled = false;
     configService.get.mockClear();
     service = new AuthService(jwtService, configService);
   });
@@ -44,6 +49,26 @@ describe("AuthService", () => {
       sameSite: "none",
       httpOnly: true,
       secure: true,
+      path: "/auth",
+      maxAge: 604800000,
+    });
+  });
+
+  it("uses localhost-safe cookies when local auth is enabled", () => {
+    localAuthEnabled = true;
+    service = new AuthService(jwtService, configService);
+
+    expect(service.getAccessCookieOptions()).toMatchObject({
+      sameSite: "lax",
+      httpOnly: true,
+      secure: false,
+      maxAge: 900000,
+    });
+
+    expect(service.getRefreshCookieOptions()).toMatchObject({
+      sameSite: "lax",
+      httpOnly: true,
+      secure: false,
       path: "/auth",
       maxAge: 604800000,
     });

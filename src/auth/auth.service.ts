@@ -12,15 +12,30 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  private baseCookieOptions: {
-    sameSite: "none";
+  private isLocalAuthEnabled() {
+    return (
+      this.configService.get<boolean>("LOCAL_AUTH_ENABLED") === true &&
+      process.env.NODE_ENV !== "production"
+    );
+  }
+
+  private baseCookieOptions(): {
+    sameSite: "none" | "lax";
     httpOnly: boolean;
     secure: boolean;
-  } = {
-    sameSite: "none",
-    httpOnly: true,
-    secure: true,
-  };
+  } {
+    return this.isLocalAuthEnabled()
+      ? {
+          sameSite: "lax",
+          httpOnly: true,
+          secure: false,
+        }
+      : {
+          sameSite: "none",
+          httpOnly: true,
+          secure: true,
+        };
+  }
 
   validateJWT(token: string) {
     return this.jwtService.verify(token);
@@ -49,7 +64,7 @@ export class AuthService {
 
   getAccessCookieOptions(): CookieOptions {
     return {
-      ...this.baseCookieOptions,
+      ...this.baseCookieOptions(),
       maxAge:
         this.configService.get<number>("JWT_ACCESS_TOKEN_EXP_TIME", {
           infer: true,
@@ -59,7 +74,7 @@ export class AuthService {
 
   getRefreshCookieOptions(): CookieOptions {
     return {
-      ...this.baseCookieOptions,
+      ...this.baseCookieOptions(),
       maxAge:
         this.configService.get<number>("JWT_REFRESH_TOKEN_EXP_TIME", {
           infer: true,

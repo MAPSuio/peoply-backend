@@ -72,6 +72,46 @@ $ npm run seed:dev-db
 $ npm run dev
 ```
 
+### Local mock auth
+
+If Vipps or Google login is inconvenient locally, you can enable backend-driven mock auth without changing the production auth flow:
+
+```bash
+# in .env
+LOCAL_AUTH_ENABLED=true
+```
+
+When `LOCAL_AUTH_ENABLED=true`, the backend exposes dev-only endpoints and uses localhost-safe cookie settings (`SameSite=Lax`, `Secure=false`) so browser auth works over plain `http://localhost`.
+
+If `npm run dev` still fails locally because `AZURE_COMMUNICATION_CONNECTION_STRING` is missing or only contains the Azure endpoint, the backend now starts anyway and disables email sending until the env var contains a full connection string.
+
+Useful endpoints:
+
+```bash
+# list local users from the seeded dev database
+$ curl http://localhost:3000/auth/dev-users
+
+# browser login for local frontend testing
+# open this directly in the browser, it sets cookies and redirects to FRONTEND_URL
+# example: http://localhost:3000/auth/dev-login?email=Kristian@gmail.com
+
+# log in as a seeded user by email
+$ curl -X POST http://localhost:3000/auth/dev-login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"Kristian@gmail.com"}' \
+  -c cookies.txt
+
+# call an authenticated endpoint with the saved cookies
+$ curl http://localhost:3000/auth/user -b cookies.txt
+
+# clear local auth cookies
+$ curl -X POST http://localhost:3000/auth/dev-logout -b cookies.txt
+```
+
+These endpoints return `404` unless `LOCAL_AUTH_ENABLED=true`, and they are also disabled automatically when `NODE_ENV=production`.
+
+Important: `curl` saves cookies to `cookies.txt` for `curl`, not your browser. If you want the frontend at `http://localhost:3001` to show you as logged in, open the `GET /auth/dev-login?...` URL in the browser instead of only running the `curl` command.
+
 When you modify the schema, you must create a new migration:
 
 - Modify `schema.prisma` with desired changes, then run `npx prisma format`.

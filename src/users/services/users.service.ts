@@ -191,6 +191,19 @@ export class UsersService {
     return user;
   }
 
+  async findForLocalAuth() {
+    return await this.prisma.user.findMany({
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+      take: 20,
+    });
+  }
+
   async findByProviderSub(provider: Provider, sub: string) {
     const user = await this.prisma.providerUser.findUnique({
       where: {
