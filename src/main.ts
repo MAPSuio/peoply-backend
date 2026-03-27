@@ -9,13 +9,6 @@ import * as expressSession from "express-session";
 import * as cookieParser from "cookie-parser";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const helmet = require("helmet");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const connectPgSimple = require("connect-pg-simple");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pg = require("pg");
-// DO managed Postgres uses a self-signed CA; set this before any Pool is created.
-pg.defaults.ssl = { rejectUnauthorized: false };
-const { Pool } = pg;
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
 import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
@@ -60,21 +53,12 @@ async function bootstrap() {
   // HTTP security headers
   app.use(helmet());
 
-  const PgSession = connectPgSimple(expressSession);
   app.use(
     expressSession({
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       secret: process.env.SESSION_SECRET!, // to sign session id
       resave: false,
       saveUninitialized: false,
-      store: new PgSession({
-        pool: new Pool({
-          connectionString: process.env.DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-        }),
-        tableName: "session",
-        createTableIfMissing: true,
-      }),
     }),
   );
 
