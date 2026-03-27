@@ -54,8 +54,7 @@
     "@prisma/client": "^4.5.0",
     "azure-maps-rest": "^2.0.8",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.13.2",
-    "connect-pg-simple": "^10.0.0",
+    "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.6",
     "express": "^4.17.3",
     "express-session": "^1.17.2",
@@ -121,6 +120,11 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "@nestjs/mapped-types": {
+      "class-validator": "^0.15.1"
+    }
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
