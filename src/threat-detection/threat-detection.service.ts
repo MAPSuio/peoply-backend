@@ -12,6 +12,7 @@ import {
   BURST_404_THRESHOLD,
   CLEANUP_INTERVAL_MS,
   DEFAULT_ALERT_COOLDOWN_MS,
+  REQUEST_RATE_THRESHOLD,
   SAFE_PATHS,
   SLIDING_WINDOW_MS,
   SUSPICIOUS_PATH_PATTERNS,
@@ -28,6 +29,8 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
   private readonly notFoundWindows = new Map<string, number[]>();
   /** IP → list of timestamps for auth failures */
   private readonly authFailWindows = new Map<string, number[]>();
+  /** Global request timestamps for rate monitoring */
+  private readonly globalRequestWindow: number[] = [];
   /** "ip:pattern" → last alert timestamp */
   private readonly alertCooldowns = new Map<string, number>();
 
@@ -75,6 +78,36 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     ip: string,
   ): void {
     if (!this.enabled) return;
+
+    // Global request-rate check (runs even for safe paths)
+    const now = Date.now();
+    this.globalRequestWindow.push(now);
+    const rateCutoff = now - SLIDING_WINDOW_MS;
+    while (
+      this.globalRequestWindow.length > 0 &&
+      this.globalRequestWindow[0] < rateCutoff
+    ) {
+      this.globalRequestWindow.shift();
+    }
+    const rpm = this.globalRequestWindow.length;
+    if (rpm >= REQUEST_RATE_THRESHOLD) {
+      this.alertIfNotCooling(
+        "_global",
+        "request-rate",
+        "High request rate",
+        [
+          {
+            name: "Requests",
+            value: `${rpm} in the last 60s`,
+            inline: true,
+          },
+          { name: "Last path", value: path, inline: true },
+          { name: "Last IP", value: ip, inline: true },
+        ],
+        0xffff00, // yellow — informational, not necessarily an attack
+      );
+    }
+
     if (SAFE_PATHS.has(path)) return;
 
     // 1. Suspicious path probe
@@ -94,8 +127,6 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
         return; // one alert per request is enough
       }
     }
-
-    const now = Date.now();
 
     // 2. Burst 404 detection
     if (statusCode === 404) {
@@ -188,6 +219,14 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     const now = Date.now();
     const windowCutoff = now - SLIDING_WINDOW_MS;
     const cooldownCutoff = now - this.alertCooldownMs;
+
+    // Trim global request window
+    while (
+      this.globalRequestWindow.length > 0 &&
+      this.globalRequestWindow[0] < windowCutoff
+    ) {
+      this.globalRequestWindow.shift();
+    }
 
     for (const [ip, timestamps] of this.notFoundWindows) {
       const filtered = timestamps.filter((t) => t >= windowCutoff);

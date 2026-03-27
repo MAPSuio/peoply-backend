@@ -45,3 +45,6 @@ export const SLIDING_WINDOW_MS = 60_000; // 60s
 
 /** How often to run in-memory cleanup of expired entries */
 export const CLEANUP_INTERVAL_MS = 120_000; // 2 min
+
+/** Global requests per minute threshold before alerting */
+export const REQUEST_RATE_THRESHOLD = 1_000;
