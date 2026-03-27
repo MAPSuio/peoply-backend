@@ -57,6 +57,7 @@ model User {
   origanizationInvitationsFromMe OrganizationInvitation[] @relation("FromUserOrganizationInvitations")
   arrangerFollowers              ArrangerFollower[]
   eventUpdates                   EventUpdate[]
+  feedbackEntries                Feedback[]
   userAllergens                  UserAllergen[]
   userSeenUpdates                UserSeenUpdate[]
 
@@ -385,6 +386,18 @@ model Favorite {
 
   @@id([eventId, userId])
   @@map("favorites")
+}
+
+model Feedback {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@map("feedback")
 }
 
 model EventInvitation {

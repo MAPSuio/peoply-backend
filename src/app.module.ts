@@ -23,6 +23,7 @@ import { AllergensModule } from "./allergens/allergens.module";
 import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
 import { CfThrottlerGuard } from "./cf-throttler.guard";
 import { ThreatDetectionModule } from "./threat-detection/threat-detection.module";
+import { FeedbackModule } from "./feedback/feedback.module";
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { ThreatDetectionModule } from "./threat-detection/threat-detection.modul
     AzureModule,
     CategoriesModule,
     PrismaModule,
+    FeedbackModule,
     FavoritesModule,
     NotificationsModule,
     InvitationsModule,
