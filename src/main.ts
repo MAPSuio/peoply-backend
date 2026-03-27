@@ -11,6 +11,8 @@ import * as cookieParser from "cookie-parser";
 const helmet = require("helmet");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const connectPgSimple = require("connect-pg-simple");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { Pool } = require("pg");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
 import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
@@ -63,7 +65,10 @@ async function bootstrap() {
       resave: false,
       saveUninitialized: false,
       store: new PgSession({
-        conString: process.env.DATABASE_URL,
+        pool: new Pool({
+          connectionString: process.env.DATABASE_URL,
+          ssl: { rejectUnauthorized: false },
+        }),
         tableName: "session",
         createTableIfMissing: true,
       }),
