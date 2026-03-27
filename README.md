@@ -77,8 +77,12 @@ $ npm run dev
 If Vipps or Google login is inconvenient locally, you can enable backend-driven mock auth without changing the production auth flow:
 
 ```bash
-# in .env
+# either add this to .env
 LOCAL_AUTH_ENABLED=true
+
+# or export it before starting the backend
+export LOCAL_AUTH_ENABLED=true
+npm run dev
 ```
 
 When `LOCAL_AUTH_ENABLED=true`, the backend exposes dev-only endpoints and uses localhost-safe cookie settings (`SameSite=Lax`, `Secure=false`) so browser auth works over plain `http://localhost`.
@@ -92,8 +96,8 @@ Useful endpoints:
 $ curl http://localhost:3000/auth/dev-users
 
 # browser login for local frontend testing
-# open this directly in the browser, it sets cookies and redirects to FRONTEND_URL
-# example: http://localhost:3000/auth/dev-login?email=Kristian@gmail.com
+# open this URL directly in the browser
+$ open "http://localhost:3000/auth/dev-login?email=Kristian@gmail.com"
 
 # log in as a seeded user by email
 $ curl -X POST http://localhost:3000/auth/dev-login \
@@ -110,7 +114,23 @@ $ curl -X POST http://localhost:3000/auth/dev-logout -b cookies.txt
 
 These endpoints return `404` unless `LOCAL_AUTH_ENABLED=true`, and they are also disabled automatically when `NODE_ENV=production`.
 
-Important: `curl` saves cookies to `cookies.txt` for `curl`, not your browser. If you want the frontend at `http://localhost:3001` to show you as logged in, open the `GET /auth/dev-login?...` URL in the browser instead of only running the `curl` command.
+Important:
+
+- `curl -c cookies.txt` saves cookies for `curl`, not for your browser.
+- If the frontend at `http://localhost:3001` should show you as logged in, use the browser URL `http://localhost:3000/auth/dev-login?email=Kristian@gmail.com`.
+- `LOCAL_AUTH_ENABLED=true` must be present in `.env` or exported in the same shell before you run `npm run dev`.
+
+If `npm run dev` fails after a schema change even though the database migration is already applied, regenerate the Prisma client locally:
+
+```bash
+$ npx prisma generate
+```
+
+Local startup also requires a valid `AZURE_COMMUNICATION_CONNECTION_STRING` if you want email sending enabled. The backend now starts without it, but email delivery is disabled until the env var contains a full Azure Communication Services connection string like:
+
+```bash
+AZURE_COMMUNICATION_CONNECTION_STRING="endpoint=https://example.communication.azure.com/;accesskey=your-key"
+```
 
 When you modify the schema, you must create a new migration:
 
