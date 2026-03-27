@@ -76,6 +76,8 @@ $ npm run dev
 
 If Vipps or Google login is inconvenient locally, you can enable backend-driven mock auth without changing the production auth flow:
 
+This only replaces the external login providers. The backend still needs a running local Postgres instance because Prisma and the session/auth data layer are initialized on startup.
+
 ```bash
 # either add this to .env
 LOCAL_AUTH_ENABLED=true
@@ -86,6 +88,14 @@ npm run dev
 ```
 
 When `LOCAL_AUTH_ENABLED=true`, the backend exposes dev-only endpoints and uses localhost-safe cookie settings (`SameSite=Lax`, `Secure=false`) so browser auth works over plain `http://localhost`.
+
+If you see a Prisma `P1001` error like `Please make sure your database server is running at localhost:5432`, start the dev database first:
+
+```bash
+$ docker compose -f dev-db/docker-compose.yml up -d
+# or
+$ npm run start:dev-db
+```
 
 If `npm run dev` still fails locally because `AZURE_COMMUNICATION_CONNECTION_STRING` is missing or only contains the Azure endpoint, the backend now starts anyway and disables email sending until the env var contains a full connection string.
 
