@@ -75,7 +75,16 @@ export class FeedbackService {
     try {
       const res = await postDiscordWebhook(
         webhookUrl,
-        JSON.stringify({ content: message }),
+        JSON.stringify({
+          embeds: [
+            {
+              title: "Ny anonym feedback",
+              description: message,
+              color: 0x4a67ff,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }),
       );
 
       if (res.statusCode < 200 || res.statusCode >= 300) {

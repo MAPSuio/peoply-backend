@@ -58,8 +58,23 @@ describe("FeedbackService", () => {
 
     expect(postDiscordWebhook).toHaveBeenCalledWith(
       "https://discord.example/webhook",
-      JSON.stringify({ content: "Dette er nyttig feedback." }),
+      expect.any(String),
     );
+
+    const discordPayload = JSON.parse(
+      (postDiscordWebhook as jest.Mock).mock.calls[0][1],
+    );
+
+    expect(discordPayload).toMatchObject({
+      embeds: [
+        {
+          title: "Ny anonym feedback",
+          description: "Dette er nyttig feedback.",
+          color: 0x4a67ff,
+        },
+      ],
+    });
+    expect(discordPayload.embeds[0].timestamp).toEqual(expect.any(String));
   });
 
   it("blocks feedback inside cooldown window", async () => {
