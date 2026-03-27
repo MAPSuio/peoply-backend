@@ -13,11 +13,11 @@ export class AuthService {
   ) {}
 
   private baseCookieOptions: {
-    sameSite: "lax";
+    sameSite: "none";
     httpOnly: boolean;
     secure: boolean;
   } = {
-    sameSite: "lax",
+    sameSite: "none",
     httpOnly: true,
     secure: true,
   };
