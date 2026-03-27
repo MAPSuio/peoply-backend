@@ -12,7 +12,10 @@ const helmet = require("helmet");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const connectPgSimple = require("connect-pg-simple");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { Pool } = require("pg");
+const pg = require("pg");
+// DO managed Postgres uses a self-signed CA; set this before any Pool is created.
+pg.defaults.ssl = { rejectUnauthorized: false };
+const { Pool } = pg;
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
 import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
