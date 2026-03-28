@@ -275,14 +275,14 @@ export class OrganizationsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
-  @Post("/:id/invitations")
+  @Post("/:orgId/invitations")
   async sendInvitations(
     @Req() req: any,
-    @Param("id") id: string,
+    @Param("orgId") orgId: string,
     @Body() createOrgInvitesDtos: CreateOrganizationInvitationDto[],
   ) {
     return this.organizationInvitationsService.createInvitations(
-      id,
+      orgId,
       req.user.id,
       createOrgInvitesDtos,
     );
