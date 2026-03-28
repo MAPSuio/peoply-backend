@@ -36,6 +36,7 @@ import {
   ChangeOwnerDto,
   ChangeRoleDescriptionDTO,
   ChangeRoleDto,
+  UpdateOrganizationApprovalDto,
   UpdateOrganizationDto,
 } from "./dto";
 import { CreateOrganizationDto } from "./dto/create-organization.dto";
@@ -77,6 +78,32 @@ export class OrganizationsController {
   async findAll(@Query() query: SearchOrganizationDto) {
     const { skip, take } = query;
     return this.organizationsService.findAll(query, skip, take);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Get("/admin/all")
+  async findAllAdmin(@Req() req: any, @Query() query: SearchOrganizationDto) {
+    const { skip, take } = query;
+    await this.organizationsService.ensureMapsMember(req.user.id);
+    return this.organizationsService.findAllIncludingUnapproved(
+      query,
+      skip,
+      take,
+    );
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Patch("/admin/:orgId/approval")
+  async updateApproval(
+    @Req() req: any,
+    @Param("orgId") orgId: string,
+    @Body() updateOrganizationApprovalDto: UpdateOrganizationApprovalDto,
+  ) {
+    await this.organizationsService.ensureMapsMember(req.user.id);
+    return this.organizationsService.updateApproval(
+      orgId,
+      updateOrganizationApprovalDto.approved,
+    );
   }
 
   @Get("/:orgId")
@@ -171,6 +198,23 @@ export class OrganizationsController {
       return;
     }
     return await this.eventArrangersService.findAllPublicWithEvents(arrangerID);
+  }
+
+  @UseGuards(AuthenticatedGuard)
+  @Post(":orgId/report")
+  async reportOrganization(@Req() req: any, @Param("orgId") orgId: string) {
+    const organization = isUUID(orgId)
+      ? await this.organizationsService.findOne(orgId)
+      : await this.organizationsService.findOneByUrlId(orgId);
+
+    if (!organization) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+
+    return this.organizationsService.reportOrganization(
+      req.user.id,
+      organization,
+    );
   }
 
   @Get(":orgId/calendar.ics")

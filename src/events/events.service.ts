@@ -180,6 +180,21 @@ export class EventsService {
         capacity: searchProps.capacity,
         archivedAt: null,
         visibility: EventVisibility.PUBLIC,
+        AND: [
+          {
+            eventArrangers: {
+              none: {
+                arranger: {
+                  organization: {
+                    is: {
+                      approved: false,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
 
         eventCategories: searchProps.categoryIds
           ? {
@@ -688,6 +703,13 @@ export class EventsService {
     userId?: string,
     isArranger = false,
   ) {
+    if (
+      !isArranger &&
+      (await this.hasUnapprovedOrganizationArranger(eventId))
+    ) {
+      return false;
+    }
+
     if (visibility === EventVisibility.PUBLIC) {
       return true;
     }
@@ -717,6 +739,27 @@ export class EventsService {
       registration?.regStatus === RegStatus.GOING ||
       registration?.regStatus === RegStatus.WAITLISTED
     );
+  }
+
+  private async hasUnapprovedOrganizationArranger(eventId: string) {
+    const unapprovedOrganizationArranger =
+      await this.prisma.eventArranger.findFirst({
+        where: {
+          eventId,
+          arranger: {
+            organization: {
+              is: {
+                approved: false,
+              },
+            },
+          },
+        },
+        select: {
+          eventId: true,
+        },
+      });
+
+    return Boolean(unapprovedOrganizationArranger);
   }
 
   async deleteUpdateForEvent(updateId: string) {

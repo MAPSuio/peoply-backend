@@ -5,6 +5,7 @@ import {
   RegStatus,
   EventVisibility,
 } from ".prisma/client";
+import { v5 as uuidv5 } from "uuid";
 import { categories } from "./dbProdData";
 import {
   arrangerIDs,
@@ -22,6 +23,55 @@ import {
   allergens,
 } from "./dbTestData";
 const prisma = new PrismaClient();
+const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
+const TEST_USER_ID = userIDs[0];
+const NON_APPROVED_ORG_INDEX = 1;
+const USER_ARRANGER_NAMESPACE = "4f9b1f61-cb0e-4b67-9627-2f65f0a0d9d7";
+const ORGANIZATION_EVENT_INDEXES = new Set([1, 3, 5, 7, 8, 9]);
+
+function getUserArrangerId(userId: string) {
+  return uuidv5(userId, USER_ARRANGER_NAMESPACE);
+}
+
+function getSeedEventArrangerId(index: number) {
+  if (ORGANIZATION_EVENT_INDEXES.has(index)) {
+    return arrangerIDs[index];
+  }
+
+  return getUserArrangerId(userIDs[index + 10]);
+}
+
+function getSeedEventTitle(index: number) {
+  if (index === MAPS_INDEX) {
+    return "MAPS testevent";
+  }
+
+  if (index === NON_APPROVED_ORG_INDEX) {
+    return "Navet skjult testevent";
+  }
+
+  if (index === 3) {
+    return "Ifi-Progsys org-event";
+  }
+
+  if (index === 5) {
+    return "Digitus org-event";
+  }
+
+  if (index === 7) {
+    return "Mikro org-event";
+  }
+
+  if (index === 9) {
+    return "Toastjærn org-event";
+  }
+
+  if (index === 0) {
+    return "Bruker-arrangert testevent";
+  }
+
+  return eventNames[index];
+}
 
 const ifiOrganizations = [
   { name: "CYB", orgNr: "990110352" },
@@ -35,6 +85,7 @@ const ifiOrganizations = [
   { name: "MAPS", orgNr: "995251884" },
   { name: "Toastjærn", orgNr: "920547230" },
 ];
+const MAPS_INDEX = ifiOrganizations.findIndex((org) => org.name === "MAPS");
 
 function getFutureEventDates(index: number) {
   const startDate = new Date();
@@ -55,6 +106,8 @@ function getFutureEventDates(index: number) {
 
 async function main() {
   for (let i = 0; i < 10; i++) {
+    const eventArrangerId = getSeedEventArrangerId(i);
+
     await prisma.arranger.upsert({
       where: {
         id: arrangerIDs[i],
@@ -67,21 +120,31 @@ async function main() {
     });
     await prisma.arranger.upsert({
       where: {
-        id: arrangerIDs[i + 10],
+        id: getUserArrangerId(userIDs[i]),
       },
       update: {},
       create: {
-        id: arrangerIDs[i + 10],
+        id: getUserArrangerId(userIDs[i]),
         isBusiness: false,
       },
     });
     await prisma.arranger.upsert({
       where: {
-        id: arrangerIDs[i + 20],
+        id: getUserArrangerId(userIDs[i + 10]),
       },
       update: {},
       create: {
-        id: arrangerIDs[i + 20],
+        id: getUserArrangerId(userIDs[i + 10]),
+        isBusiness: false,
+      },
+    });
+    await prisma.arranger.upsert({
+      where: {
+        id: getUserArrangerId(userIDs[i + 20]),
+      },
+      update: {},
+      create: {
+        id: getUserArrangerId(userIDs[i + 20]),
         isBusiness: false,
       },
     });
@@ -90,10 +153,17 @@ async function main() {
       where: {
         id: userIDs[i],
       },
-      update: {},
+      update: {
+        arrangerId: getUserArrangerId(userIDs[i]),
+        phone: phoneNumbers[i],
+        firstName: firstNames[i],
+        lastName: lastNames[i],
+        email: emails[i],
+        birthDate: birthDates[i],
+      },
       create: {
         id: userIDs[i],
-        arrangerId: arrangerIDs[i],
+        arrangerId: getUserArrangerId(userIDs[i]),
         phone: phoneNumbers[i],
         firstName: firstNames[i],
         lastName: lastNames[i],
@@ -106,10 +176,17 @@ async function main() {
       where: {
         id: userIDs[i + 10],
       },
-      update: {},
+      update: {
+        arrangerId: getUserArrangerId(userIDs[i + 10]),
+        phone: phoneNumbers[i + 10],
+        firstName: firstNames[i + 10],
+        lastName: lastNames[i + 10],
+        email: emails[i + 10],
+        birthDate: birthDates[i],
+      },
       create: {
         id: userIDs[i + 10],
-        arrangerId: arrangerIDs[i + 10],
+        arrangerId: getUserArrangerId(userIDs[i + 10]),
         phone: phoneNumbers[i + 10],
         firstName: firstNames[i + 10],
         lastName: lastNames[i + 10],
@@ -122,10 +199,17 @@ async function main() {
       where: {
         id: userIDs[i + 20],
       },
-      update: {},
+      update: {
+        arrangerId: getUserArrangerId(userIDs[i + 20]),
+        phone: phoneNumbers[i + 20],
+        firstName: firstNames[i + 20],
+        lastName: lastNames[i + 20],
+        email: emails[i + 20],
+        birthDate: birthDates[i],
+      },
       create: {
         id: userIDs[i + 20],
-        arrangerId: arrangerIDs[i + 20],
+        arrangerId: getUserArrangerId(userIDs[i + 20]),
         phone: phoneNumbers[i + 20],
         firstName: firstNames[i + 20],
         lastName: lastNames[i + 20],
@@ -134,24 +218,37 @@ async function main() {
       },
     });
 
+    if (i === MAPS_INDEX) {
+      await prisma.organization.deleteMany({
+        where: {
+          arrangerId: arrangerIDs[i],
+          id: {
+            not: MAPS_ORG_ID,
+          },
+        },
+      });
+    }
+
     await prisma.organization.upsert({
       where: {
-        id: organisationIDs[i],
+        id: i === MAPS_INDEX ? MAPS_ORG_ID : organisationIDs[i],
       },
       update: {
         name: ifiOrganizations[i].name,
         orgNr: ifiOrganizations[i].orgNr,
+        approved: i !== NON_APPROVED_ORG_INDEX,
       },
       create: {
-        id: organisationIDs[i],
+        id: i === MAPS_INDEX ? MAPS_ORG_ID : organisationIDs[i],
         arrangerId: arrangerIDs[i],
         name: ifiOrganizations[i].name,
         orgNr: ifiOrganizations[i].orgNr,
+        approved: i !== NON_APPROVED_ORG_INDEX,
       },
     });
 
     let visibility: EventVisibility = EventVisibility.PUBLIC;
-    if (i !== 0 && i % 2 === 0) {
+    if (!ORGANIZATION_EVENT_INDEXES.has(i) && i !== 0 && i % 2 === 0) {
       visibility = EventVisibility.UNLISTED;
     }
 
@@ -166,11 +263,11 @@ async function main() {
         endDate,
         regStart,
         regEnd,
-        title: eventNames[i],
         description: eventDescriptions[i],
         capacity: capacities[i],
         visibility,
         featured: i === 0,
+        title: getSeedEventTitle(i),
         locationName: "Forskningsparken, Oslo",
         freeformAddress: "Gaustadalleen 21, 0349 Oslo",
       },
@@ -189,7 +286,7 @@ async function main() {
         endDate,
         regStart,
         regEnd,
-        title: eventNames[i],
+        title: getSeedEventTitle(i),
         description: eventDescriptions[i],
         capacity: capacities[i],
         visibility,
@@ -199,17 +296,16 @@ async function main() {
       },
     });
 
-    await prisma.eventArranger.upsert({
+    await prisma.eventArranger.deleteMany({
       where: {
-        eventId_arrangerId: {
-          eventId: eventIDs[i],
-          arrangerId: arrangerIDs[i],
-        },
-      },
-      update: {},
-      create: {
         eventId: eventIDs[i],
-        arrangerId: arrangerIDs[i],
+      },
+    });
+
+    await prisma.eventArranger.create({
+      data: {
+        eventId: eventIDs[i],
+        arrangerId: eventArrangerId,
         role: EventArrangerRole.ADMIN,
       },
     });
@@ -217,17 +313,34 @@ async function main() {
     await prisma.userOrganizationRole.upsert({
       where: {
         organizationId_userId: {
-          organizationId: organisationIDs[i],
+          organizationId: i === MAPS_INDEX ? MAPS_ORG_ID : organisationIDs[i],
           userId: userIDs[i],
         },
       },
       update: {},
       create: {
-        organizationId: organisationIDs[i],
+        organizationId: i === MAPS_INDEX ? MAPS_ORG_ID : organisationIDs[i],
         userId: userIDs[i],
         role: OrganizationRole.ADMIN,
       },
     });
+
+    if (i === MAPS_INDEX) {
+      await prisma.userOrganizationRole.upsert({
+        where: {
+          organizationId_userId: {
+            organizationId: MAPS_ORG_ID,
+            userId: TEST_USER_ID,
+          },
+        },
+        update: {},
+        create: {
+          organizationId: MAPS_ORG_ID,
+          userId: TEST_USER_ID,
+          role: OrganizationRole.MEMBER,
+        },
+      });
+    }
 
     await prisma.registration.upsert({
       where: {

@@ -11,6 +11,9 @@ describe("EventsService", () => {
     event: {
       findUnique: jest.fn(),
     },
+    eventArranger: {
+      findFirst: jest.fn(),
+    },
     registration: {
       findUnique: jest.fn(),
     },
@@ -35,6 +38,7 @@ describe("EventsService", () => {
   });
 
   it("rejects unauthenticated access to an unlisted event", async () => {
+    prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
     prisma.event.findUnique.mockResolvedValueOnce({
       id: "event-1",
       visibility: EventVisibility.UNLISTED,
@@ -46,6 +50,7 @@ describe("EventsService", () => {
   });
 
   it("allows invited users to view an unlisted event", async () => {
+    prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
     prisma.event.findUnique.mockResolvedValueOnce({
       id: "event-1",
       visibility: EventVisibility.UNLISTED,
@@ -59,6 +64,51 @@ describe("EventsService", () => {
     ).resolves.toEqual({
       id: "event-1",
       visibility: EventVisibility.UNLISTED,
+    });
+  });
+
+  it("rejects public events from unapproved organizations for regular users", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      visibility: EventVisibility.PUBLIC,
+    });
+    prisma.eventArranger.findFirst.mockResolvedValueOnce({
+      eventId: "event-1",
+    });
+
+    await expect(
+      service.findOneVisibleToUser("event-1", "user-1", false),
+    ).rejects.toBeInstanceOf(EventNotFoundException);
+  });
+
+  it("allows public events from unapproved organizations for arrangers", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      visibility: EventVisibility.PUBLIC,
+    });
+
+    await expect(
+      service.findOneVisibleToUser("event-1", "user-1", true),
+    ).resolves.toEqual({
+      id: "event-1",
+      visibility: EventVisibility.PUBLIC,
+    });
+
+    expect(prisma.eventArranger.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows public user-arranged events for regular users", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      visibility: EventVisibility.PUBLIC,
+    });
+    prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.findOneVisibleToUser("event-1", "user-1", false),
+    ).resolves.toEqual({
+      id: "event-1",
+      visibility: EventVisibility.PUBLIC,
     });
   });
 

@@ -1,4 +1,5 @@
 import { forwardRef, Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { OrganizationsService } from "./organizations.service";
 import { OrganizationsController } from "./organizations.controller";
 import { PrismaModule } from "../prisma/prisma.module";
@@ -10,6 +11,7 @@ import { AzureModule } from "../azure/azure.module";
 
 @Module({
   imports: [
+    ConfigModule,
     PrismaModule,
     ArrangersModule,
     InvitationsModule,

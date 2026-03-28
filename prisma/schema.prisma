@@ -18,6 +18,7 @@ model Organization {
   arrangerId              String                   @unique @map("arranger_id")
   name                    String
   orgNr                   String?                  @unique @map("org_nr") @db.VarChar(9)
+  approved                Boolean                  @default(true)
   image                   String?
   description             String?                  @db.Text
   createdAt               DateTime                 @default(now()) @map("created_at")

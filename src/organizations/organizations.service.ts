@@ -1,9 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
@@ -23,12 +26,18 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { calculateEditDistance } from "../util/string";
 import { isUUID } from "../util/uuid";
+import { postDiscordWebhook } from "../threat-detection/discord-webhook";
+
+const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly azureStorageService: AzureStorageService,
+    private readonly config: ConfigService,
   ) {}
   async create(
     creatorId: string, // id of the user creating the org
@@ -89,7 +98,12 @@ export class OrganizationsService {
     }
   }
 
-  async findAll(searchProps: SearchOrganizationDto = {}, skip = 0, take = 10) {
+  private async findManyOrganizations(
+    searchProps: SearchOrganizationDto = {},
+    skip = 0,
+    take = 10,
+    approved?: boolean,
+  ) {
     const generateSearchQuery = (name: string) =>
       name.toLowerCase().split(" ").join(" & ");
 
@@ -104,6 +118,7 @@ export class OrganizationsService {
           ? { search: generateSearchQuery(searchProps.description) }
           : undefined,
         orgNr: searchProps.orgNrs ? { in: searchProps.orgNrs } : undefined,
+        approved,
       },
     });
 
@@ -121,9 +136,22 @@ export class OrganizationsService {
           };
         })
         .sort((a, b) => a.nameEditDistance - b.nameEditDistance)
-        .map((org) => org.org); // remove the nameEditDistance from the object
+        .map((org) => org.org);
     }
+
     return orgs;
+  }
+
+  async findAll(searchProps: SearchOrganizationDto = {}, skip = 0, take = 10) {
+    return this.findManyOrganizations(searchProps, skip, take, true);
+  }
+
+  async findAllIncludingUnapproved(
+    searchProps: SearchOrganizationDto = {},
+    skip = 0,
+    take = 10,
+  ) {
+    return this.findManyOrganizations(searchProps, skip, take);
   }
 
   async findOne(id: string) {
@@ -399,6 +427,113 @@ export class OrganizationsService {
       },
     });
     return userRole !== null;
+  }
+
+  async ensureMapsMember(userId: string) {
+    const isMapsMember = await this.checkUserRole(userId, MAPS_ORG_ID, [
+      OrganizationRole.MEMBER,
+      OrganizationRole.ADMIN,
+      OrganizationRole.OWNER,
+    ]);
+
+    if (!isMapsMember) {
+      throw new ForbiddenException("You must be a MAPS member to access this");
+    }
+  }
+
+  async updateApproval(orgId: string, approved: boolean) {
+    return this.prisma.organization.update({
+      where: {
+        id: orgId,
+      },
+      data: {
+        approved,
+      },
+    });
+  }
+
+  async reportOrganization(reporterId: string, organization: Organization) {
+    const reporter = await this.prisma.user.findUnique({
+      where: {
+        id: reporterId,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
+
+    const webhookUrl = this.config.get<string>("DISCORD_ALERT_WEBHOOK_URL");
+
+    if (!webhookUrl) {
+      this.logger.warn(
+        `Organization ${organization.id} was reported, but DISCORD_ALERT_WEBHOOK_URL is not configured`,
+      );
+      return { reported: true };
+    }
+
+    const reporterName = reporter
+      ? `${reporter.firstName} ${reporter.lastName}`.trim()
+      : "Ukjent bruker";
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://peoply.app";
+    const organizationPath = `/orgs/${organization.urlId ?? organization.id}`;
+
+    try {
+      const response = await postDiscordWebhook(
+        webhookUrl,
+        JSON.stringify({
+          content: "@everyone",
+          allowed_mentions: {
+            parse: ["everyone"],
+          },
+          embeds: [
+            {
+              title: "Forening rapportert",
+              color: 0xffa500,
+              fields: [
+                {
+                  name: "Forening",
+                  value: organization.name,
+                  inline: true,
+                },
+                {
+                  name: "Org-ID",
+                  value: organization.id,
+                  inline: true,
+                },
+                {
+                  name: "Rapportert av",
+                  value: reporter
+                    ? `${reporterName} (${reporter.email})`
+                    : reporterId,
+                },
+                {
+                  name: "Side",
+                  value: `${frontendUrl}${organizationPath}`,
+                },
+              ],
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        this.logger.error(
+          `Organization report Discord webhook responded ${response.statusCode}: ${response.body}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to send organization report to Discord: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+
+    return { reported: true };
   }
 
   async getOrganizationUser(userId: string, orgId: string) {

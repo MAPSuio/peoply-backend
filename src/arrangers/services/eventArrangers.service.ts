@@ -39,8 +39,21 @@ export class EventArrangersService {
       where: {
         arrangerId,
         event: {
-          archivedAt: null,
-          visibility: EventVisibility.PUBLIC,
+          is: {
+            archivedAt: null,
+            visibility: EventVisibility.PUBLIC,
+            eventArrangers: {
+              none: {
+                arranger: {
+                  organization: {
+                    is: {
+                      approved: false,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       include: {
