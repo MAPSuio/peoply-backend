@@ -201,6 +201,26 @@ export class OrganizationsController {
   }
 
   @UseGuards(AuthenticatedGuard)
+  @Get(":orgId/report-status")
+  async getReportOrganizationStatus(
+    @Req() req: any,
+    @Param("orgId") orgId: string,
+  ) {
+    const organization = isUUID(orgId)
+      ? await this.organizationsService.findOne(orgId)
+      : await this.organizationsService.findOneByUrlId(orgId);
+
+    if (!organization) {
+      throw new OrganizationDoesNotExistException(orgId);
+    }
+
+    return this.organizationsService.getOrganizationReportStatus(
+      req.user.id,
+      organization.id,
+    );
+  }
+
+  @UseGuards(AuthenticatedGuard)
   @Post(":orgId/report")
   async reportOrganization(@Req() req: any, @Param("orgId") orgId: string) {
     const organization = isUUID(orgId)

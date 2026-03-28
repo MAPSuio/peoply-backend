@@ -26,6 +26,7 @@ model Organization {
   icsFeed                 OrganizationIcsFeed?
   organizationRoles       UserOrganizationRole[]
   organizationInvitations OrganizationInvitation[]
+  reports                 OrganizationReport[]
 
   @@map("organizations")
 }
@@ -59,6 +60,7 @@ model User {
   arrangerFollowers              ArrangerFollower[]
   eventUpdates                   EventUpdate[]
   feedbackEntries                Feedback[]
+  organizationReports            OrganizationReport[]
   userAllergens                  UserAllergen[]
   userSeenUpdates                UserSeenUpdate[]
 
@@ -238,6 +240,18 @@ model OrganizationIcsFeed {
   importedEvents       Event[]
 
   @@map("organization_ics_feeds")
+}
+
+model OrganizationReport {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, userId, createdAt])
+  @@map("organization_reports")
 }
 
 model EventUpdate {

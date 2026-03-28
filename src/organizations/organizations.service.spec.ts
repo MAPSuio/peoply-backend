@@ -11,6 +11,10 @@ describe("OrganizationsService", () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    organizationReport: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+    },
     user: {
       findUnique: jest.fn(),
     },
@@ -35,6 +39,7 @@ describe("OrganizationsService", () => {
   });
 
   it("sends organization reports to Discord with everyone mention", async () => {
+    prisma.organizationReport.findFirst.mockResolvedValueOnce(null);
     prisma.user.findUnique.mockResolvedValueOnce({
       id: "user-1",
       firstName: "Ola",
@@ -53,7 +58,14 @@ describe("OrganizationsService", () => {
         urlId: "maps",
         name: "MAPS",
       } as any),
-    ).resolves.toEqual({ reported: true });
+    ).resolves.toMatchObject({ reported: true });
+
+    expect(prisma.organizationReport.create).toHaveBeenCalledWith({
+      data: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+    });
 
     expect(postDiscordWebhook).toHaveBeenCalledWith(
       "https://discord.example/webhook",
@@ -89,6 +101,7 @@ describe("OrganizationsService", () => {
   });
 
   it("returns success without Discord when webhook is missing", async () => {
+    prisma.organizationReport.findFirst.mockResolvedValueOnce(null);
     prisma.user.findUnique.mockResolvedValueOnce(null);
     config.get.mockReturnValueOnce(undefined);
 
@@ -98,8 +111,37 @@ describe("OrganizationsService", () => {
         urlId: null,
         name: "Testforening",
       } as any),
-    ).resolves.toEqual({ reported: true });
+    ).resolves.toMatchObject({ reported: true });
 
+    expect(postDiscordWebhook).not.toHaveBeenCalled();
+  });
+
+  it("reports status shows remaining cooldown", async () => {
+    const createdAt = new Date(Date.now() - 10 * 60 * 1000);
+    prisma.organizationReport.findFirst.mockResolvedValueOnce({ createdAt });
+
+    const result = await service.getOrganizationReportStatus("user-1", "org-1");
+
+    expect(result.canReport).toBe(false);
+    expect(result.nextReportAt).not.toBeNull();
+    expect(result.remainingSeconds).toBeGreaterThan(0);
+  });
+
+  it("blocks duplicate organization reports during cooldown", async () => {
+    const createdAt = new Date();
+    prisma.organizationReport.findFirst.mockResolvedValueOnce({ createdAt });
+
+    await expect(
+      service.reportOrganization("user-1", {
+        id: "org-1",
+        urlId: null,
+        name: "MAPS",
+      } as any),
+    ).rejects.toThrow(
+      "You can only report the same organization once per hour",
+    );
+
+    expect(prisma.organizationReport.create).not.toHaveBeenCalled();
     expect(postDiscordWebhook).not.toHaveBeenCalled();
   });
 

@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  HttpStatus,
   Injectable,
   Logger,
 } from "@nestjs/common";
@@ -29,6 +30,7 @@ import { isUUID } from "../util/uuid";
 import { postDiscordWebhook } from "../threat-detection/discord-webhook";
 
 const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
+const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class OrganizationsService {
@@ -452,7 +454,78 @@ export class OrganizationsService {
     });
   }
 
+  private async getLatestOrganizationReport(
+    reporterId: string,
+    organizationId: string,
+  ) {
+    return this.prisma.organizationReport.findFirst({
+      where: {
+        userId: reporterId,
+        organizationId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+  }
+
+  async getOrganizationReportStatus(
+    reporterId: string,
+    organizationId: string,
+  ) {
+    const latestReport = await this.getLatestOrganizationReport(
+      reporterId,
+      organizationId,
+    );
+
+    if (!latestReport) {
+      return {
+        canReport: true,
+        nextReportAt: null,
+        remainingSeconds: 0,
+      };
+    }
+
+    const nextReportAt = new Date(
+      latestReport.createdAt.getTime() + ORGANIZATION_REPORT_COOLDOWN_MS,
+    );
+    const remainingMs = nextReportAt.getTime() - Date.now();
+
+    if (remainingMs <= 0) {
+      return {
+        canReport: true,
+        nextReportAt: null,
+        remainingSeconds: 0,
+      };
+    }
+
+    return {
+      canReport: false,
+      nextReportAt: nextReportAt.toISOString(),
+      remainingSeconds: Math.ceil(remainingMs / 1000),
+    };
+  }
+
   async reportOrganization(reporterId: string, organization: Organization) {
+    const reportStatus = await this.getOrganizationReportStatus(
+      reporterId,
+      organization.id,
+    );
+
+    if (!reportStatus.canReport) {
+      throw new HttpException(
+        {
+          message: "You can only report the same organization once per hour",
+          nextReportAt: reportStatus.nextReportAt,
+          remainingSeconds: reportStatus.remainingSeconds,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const reporter = await this.prisma.user.findUnique({
       where: {
         id: reporterId,
@@ -479,6 +552,13 @@ export class OrganizationsService {
       : "Ukjent bruker";
     const frontendUrl = process.env.FRONTEND_URL ?? "https://peoply.app";
     const organizationPath = `/orgs/${organization.urlId ?? organization.id}`;
+
+    await this.prisma.organizationReport.create({
+      data: {
+        organizationId: organization.id,
+        userId: reporterId,
+      },
+    });
 
     try {
       const response = await postDiscordWebhook(
@@ -533,7 +613,13 @@ export class OrganizationsService {
       );
     }
 
-    return { reported: true };
+    return {
+      reported: true,
+      nextReportAt: new Date(
+        Date.now() + ORGANIZATION_REPORT_COOLDOWN_MS,
+      ).toISOString(),
+      remainingSeconds: Math.ceil(ORGANIZATION_REPORT_COOLDOWN_MS / 1000),
+    };
   }
 
   async getOrganizationUser(userId: string, orgId: string) {
