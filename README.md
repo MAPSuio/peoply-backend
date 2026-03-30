@@ -35,6 +35,23 @@ $ npm install
 
 The project is pinned to Node 16 and npm 8 in `package.json`.
 
+## Auth session config
+
+The backend requires these auth/session env vars in every environment, including production:
+
+```bash
+JWT_ACCESS_TOKEN_SECRET=change-me
+JWT_ACCESS_TOKEN_EXP_TIME=43200
+JWT_REFRESH_TOKEN_SECRET=change-me
+JWT_REFRESH_TOKEN_EXP_TIME=2592000
+SESSION_SECRET=change-me
+```
+
+- `JWT_ACCESS_TOKEN_EXP_TIME` and `JWT_REFRESH_TOKEN_EXP_TIME` are in seconds.
+- They control both JWT expiry and auth cookie lifetime.
+- These are backend env vars, so they must be set in the backend deployment environment, not in the frontend.
+- If they are missing, backend startup fails because config validation requires them.
+
 ## Running the app
 
 ```bash

@@ -133,16 +133,21 @@ export class AuthController {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   async loginGoogle() {}
 
-  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @UseGuards(RefreshGuard)
   @Post("/refresh")
   async refresh(@Req() req: any, @Res() res: any) {
-    this.authService.assertTrustedOrigin(req.headers);
+    this.authService.assertTrustedOrigin(req.headers, {
+      allowMissingOrigin: true,
+    });
 
     const newAccessToken = this.authService.getAccessToken(req.user);
+    const newRefreshToken = this.authService.getRefreshToken(req.user);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
+    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
     res.cookie("access", newAccessToken, accessCookieOptions);
+    res.cookie("refresh", newRefreshToken, refreshCookieOptions);
 
     res.set("Access-Control-Allow-Credentials", "true");
     res.set("Credentials", "true");
@@ -270,7 +275,9 @@ export class AuthController {
   @UseGuards(AuthenticatedGuard)
   @Post("/logout")
   async logout(@Req() req: any, @Res() res: Response) {
-    this.authService.assertTrustedOrigin(req.headers);
+    this.authService.assertTrustedOrigin(req.headers, {
+      allowMissingOrigin: true,
+    });
     await this.usersService.rotateRefreshTokenId(req.user.id);
 
     /* cookie options should also be sent to make sure that cookie is cleared */

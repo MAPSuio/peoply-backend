@@ -16,6 +16,8 @@ describe("AuthService", () => {
           return 604800;
         case "LOCAL_AUTH_ENABLED":
           return localAuthEnabled;
+        case "CORS_ORIGIN":
+          return "https://peoply.app";
         default:
           return undefined;
       }
@@ -72,5 +74,15 @@ describe("AuthService", () => {
       path: "/auth",
       maxAge: 604800000,
     });
+  });
+
+  it("allows missing origin when explicitly configured", () => {
+    expect(() =>
+      service.assertTrustedOrigin({}, { allowMissingOrigin: true }),
+    ).not.toThrow();
+  });
+
+  it("rejects missing origin by default", () => {
+    expect(() => service.assertTrustedOrigin({})).toThrow("Untrusted origin");
   });
 });

@@ -83,7 +83,10 @@ export class AuthService {
     };
   }
 
-  assertTrustedOrigin(headers: { origin?: string; referer?: string }) {
+  assertTrustedOrigin(
+    headers: { origin?: string; referer?: string },
+    options?: { allowMissingOrigin?: boolean },
+  ) {
     const trustedOrigins = parseTrustedOrigins(
       this.configService.get<string>("CORS_ORIGIN"),
     );
@@ -93,6 +96,10 @@ export class AuthService {
     }
 
     const requestOrigin = extractRequestOrigin(headers);
+
+    if (!requestOrigin && options?.allowMissingOrigin) {
+      return;
+    }
 
     if (!requestOrigin || !trustedOrigins.includes(requestOrigin)) {
       throw new ForbiddenException("Untrusted origin");
