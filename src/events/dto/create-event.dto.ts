@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { EventVisibility } from "@prisma/client";
+import { EventRegistrationMode, EventVisibility } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -87,6 +87,16 @@ export class CreateEventDto {
   @IsBoolean()
   @ApiProperty()
   hasFood: boolean;
+
+  @IsOptional()
+  @IsEnum(EventRegistrationMode)
+  @ApiProperty()
+  registrationMode?: EventRegistrationMode;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty()
+  externalUrl?: string;
 
   @IsOptional()
   @IsUUID(4)

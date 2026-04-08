@@ -17,7 +17,11 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from ".prisma/client";
 import { calculateEditDistance } from "../util/string";
-import { EventUpdateVisibility, RegStatus } from "@prisma/client";
+import {
+  EventRegistrationMode,
+  EventUpdateVisibility,
+  RegStatus,
+} from "@prisma/client";
 import { EmailRecipients } from "@azure/communication-email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
@@ -30,11 +34,73 @@ export class EventsService {
     private readonly azureCommunicationService: AzureCommunicationService,
   ) {}
 
+  private normalizeCreateRegistrationData(createEventDto: CreateEventDto) {
+    const registrationMode =
+      createEventDto.registrationMode ?? EventRegistrationMode.PEOPLY;
+    const externalUrl = createEventDto.externalUrl?.trim() || null;
+
+    if (registrationMode === EventRegistrationMode.EXTERNAL && !externalUrl) {
+      throw new BadRequestException(
+        "External URL is required when registration mode is EXTERNAL",
+      );
+    }
+
+    return {
+      ...createEventDto,
+      registrationMode,
+      externalUrl:
+        registrationMode === EventRegistrationMode.EXTERNAL ? externalUrl : null,
+    };
+  }
+
+  private normalizeUpdateRegistrationData(
+    oldEvent: Event,
+    updateEventData: Omit<UpdateEventDto, "categoryIds">,
+  ) {
+    const normalizedEventData: Omit<
+      UpdateEventDto,
+      "categoryIds" | "externalUrl"
+    > & {
+      externalUrl?: string | null;
+    } = { ...updateEventData };
+    const nextRegistrationMode =
+      normalizedEventData.registrationMode ?? oldEvent.registrationMode;
+    const nextExternalUrl =
+      typeof normalizedEventData.externalUrl === "string"
+        ? normalizedEventData.externalUrl.trim() || null
+        : oldEvent.externalUrl;
+
+    if (
+      nextRegistrationMode === EventRegistrationMode.EXTERNAL &&
+      !nextExternalUrl
+    ) {
+      throw new BadRequestException(
+        "External URL is required when registration mode is EXTERNAL",
+      );
+    }
+
+    if (normalizedEventData.registrationMode) {
+      normalizedEventData.externalUrl =
+        normalizedEventData.registrationMode === EventRegistrationMode.EXTERNAL
+          ? nextExternalUrl
+          : null;
+    } else if (typeof normalizedEventData.externalUrl === "string") {
+      normalizedEventData.externalUrl =
+        nextRegistrationMode === EventRegistrationMode.EXTERNAL
+          ? nextExternalUrl
+          : null;
+    }
+
+    return normalizedEventData;
+  }
+
   async create(
     createEventDto: CreateEventDto,
     arrangerId: string,
     eventImage?: Express.Multer.File,
   ) {
+    const normalizedCreateEventDto =
+      this.normalizeCreateRegistrationData(createEventDto);
     const arranger = await this.arrangersService.findOne(arrangerId);
     if (!arranger) {
       throw new ArrangerNotFoundException(arrangerId);
@@ -77,31 +143,33 @@ export class EventsService {
           data: {
             id: eventId,
             urlId,
-            description: createEventDto.description,
-            title: createEventDto.title,
-            startDate: createEventDto.startDate,
-            endDate: createEventDto.endDate,
-            regStart: createEventDto.regStart,
-            regEnd: createEventDto.regEnd,
-            capacity: createEventDto.capacity,
-            visibility: createEventDto.visibility,
-            hasFood: createEventDto.hasFood,
-            formQuestion: createEventDto.formQuestion,
+            description: normalizedCreateEventDto.description,
+            title: normalizedCreateEventDto.title,
+            startDate: normalizedCreateEventDto.startDate,
+            endDate: normalizedCreateEventDto.endDate,
+            regStart: normalizedCreateEventDto.regStart,
+            regEnd: normalizedCreateEventDto.regEnd,
+            capacity: normalizedCreateEventDto.capacity,
+            visibility: normalizedCreateEventDto.visibility,
+            hasFood: normalizedCreateEventDto.hasFood,
+            registrationMode: normalizedCreateEventDto.registrationMode,
+            externalUrl: normalizedCreateEventDto.externalUrl,
+            formQuestion: normalizedCreateEventDto.formQuestion,
             image: imageUrl,
-            locationName: createEventDto.locationName,
-            country: createEventDto.country,
-            countryCode: createEventDto.countryCode,
-            countryCodeISO3: createEventDto.countryCodeISO3,
-            freeformAddress: createEventDto.freeformAddress,
-            latitude: createEventDto.latitude,
-            longitude: createEventDto.longitude,
-            localName: createEventDto.localName,
-            postalCode: createEventDto.postalCode,
-            municipality: createEventDto.municipality,
-            poiName: createEventDto.poiName,
-            countrySubdivision: createEventDto.countrySubdivision,
-            streetName: createEventDto.streetName,
-            streetNumber: createEventDto.streetNumber,
+            locationName: normalizedCreateEventDto.locationName,
+            country: normalizedCreateEventDto.country,
+            countryCode: normalizedCreateEventDto.countryCode,
+            countryCodeISO3: normalizedCreateEventDto.countryCodeISO3,
+            freeformAddress: normalizedCreateEventDto.freeformAddress,
+            latitude: normalizedCreateEventDto.latitude,
+            longitude: normalizedCreateEventDto.longitude,
+            localName: normalizedCreateEventDto.localName,
+            postalCode: normalizedCreateEventDto.postalCode,
+            municipality: normalizedCreateEventDto.municipality,
+            poiName: normalizedCreateEventDto.poiName,
+            countrySubdivision: normalizedCreateEventDto.countrySubdivision,
+            streetName: normalizedCreateEventDto.streetName,
+            streetNumber: normalizedCreateEventDto.streetNumber,
           },
         });
         await trx.eventArranger.create({
@@ -112,7 +180,7 @@ export class EventsService {
           },
         });
         await trx.eventCategory.createMany({
-          data: createEventDto.categoryIds.map((categoryId) => ({
+          data: normalizedCreateEventDto.categoryIds.map((categoryId) => ({
             categoryId,
             eventId,
           })),
@@ -455,6 +523,7 @@ export class EventsService {
         deleteImage = false;
       }
       delete rest.deleteImage;
+      const normalizedRest = this.normalizeUpdateRegistrationData(oldEvent, rest);
 
       return await this.prisma.$transaction(async (trx) => {
         // update event
@@ -462,7 +531,7 @@ export class EventsService {
           where: { id },
           data: {
             image: newImageUrl ?? oldEvent.image,
-            ...rest,
+            ...normalizedRest,
           },
         });
 
