@@ -14,13 +14,13 @@ import {
   OrganizationIcsFeed,
 } from ".prisma/client";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { v4 as uuidv4 } from "uuid";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { IcsFetchService } from "./ics-fetch.service";
 import { IcsParserService, ParsedIcsEvent } from "./ics-parser.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
+import { createUuid } from "../util/uuid";
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
 const LOCK_TTL_MS = 30 * 60 * 1000;
@@ -243,7 +243,7 @@ export class IcsFeedsService {
           },
         },
         create: {
-          id: uuidv4(),
+          id: createUuid(),
           urlId: await this.generateUniqueUrlId(),
           title: parsedEvent.title,
           description: parsedEvent.description,

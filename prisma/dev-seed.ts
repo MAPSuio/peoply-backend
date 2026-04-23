@@ -5,8 +5,8 @@ import {
   RegStatus,
   EventVisibility,
 } from ".prisma/client";
-import { v5 as uuidv5 } from "uuid";
 import { categories } from "./dbProdData";
+import { createUuidV5 } from "../src/util/uuid";
 import {
   arrangerIDs,
   userIDs,
@@ -30,7 +30,7 @@ const USER_ARRANGER_NAMESPACE = "4f9b1f61-cb0e-4b67-9627-2f65f0a0d9d7";
 const ORGANIZATION_EVENT_INDEXES = new Set([1, 3, 5, 7, 8, 9]);
 
 function getUserArrangerId(userId: string) {
-  return uuidv5(userId, USER_ARRANGER_NAMESPACE);
+  return createUuidV5(userId, USER_ARRANGER_NAMESPACE);
 }
 
 function getSeedEventArrangerId(index: number) {

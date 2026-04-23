@@ -11,7 +11,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
-import { v4 as uuidv4 } from "uuid";
+import { createUuid } from "../../util/uuid";
 
 @Injectable()
 export class EventInvitationsService {
@@ -207,7 +207,7 @@ export class EventInvitationsService {
 
       await trx.eventInvitation.createMany({
         data: toUserIds.map((userId) => {
-          const invitationId = uuidv4();
+          const invitationId = createUuid();
           const existingReg = existingRegs.find((reg) => reg.userId === userId);
           return {
             id: invitationId,

@@ -8,7 +8,6 @@ import {
   Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { v4 as uuidv4 } from "uuid";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { PrismaError } from "../prisma/prisma.constants";
@@ -26,7 +25,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { calculateEditDistance } from "../util/string";
-import { isUUID } from "../util/uuid";
+import { createUuid, isUUID } from "../util/uuid";
 import { postDiscordWebhook } from "../threat-detection/discord-webhook";
 
 const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
@@ -45,7 +44,7 @@ export class OrganizationsService {
     creatorId: string, // id of the user creating the org
     createOrganizationDto: CreateOrganizationDto,
   ) {
-    const arrangerId = uuidv4();
+    const arrangerId = createUuid();
 
     try {
       const newOrganization = await this.prisma.$transaction(async (trx) => {

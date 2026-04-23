@@ -6,7 +6,6 @@ import {
 } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
-import { v4 as uuidv4 } from "uuid";
 import { EventArrangerRole, EventVisibility } from ".prisma/client";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
@@ -25,6 +24,7 @@ import {
 import { EmailRecipients } from "@azure/communication-email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
+import { createUuid } from "../util/uuid";
 @Injectable()
 export class EventsService {
   constructor(
@@ -49,7 +49,9 @@ export class EventsService {
       ...createEventDto,
       registrationMode,
       externalUrl:
-        registrationMode === EventRegistrationMode.EXTERNAL ? externalUrl : null,
+        registrationMode === EventRegistrationMode.EXTERNAL
+          ? externalUrl
+          : null,
     };
   }
 
@@ -106,7 +108,7 @@ export class EventsService {
       throw new ArrangerNotFoundException(arrangerId);
     }
 
-    const eventId = uuidv4();
+    const eventId = createUuid();
     const eventImageFileName = `${eventId}.${
       eventImage?.mimetype.split("/")[1]
     }`;
@@ -523,7 +525,10 @@ export class EventsService {
         deleteImage = false;
       }
       delete rest.deleteImage;
-      const normalizedRest = this.normalizeUpdateRegistrationData(oldEvent, rest);
+      const normalizedRest = this.normalizeUpdateRegistrationData(
+        oldEvent,
+        rest,
+      );
 
       return await this.prisma.$transaction(async (trx) => {
         // update event

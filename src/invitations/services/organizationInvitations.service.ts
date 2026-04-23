@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { InvitationStatus, OrganizationRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { v4 as uuidv4 } from "uuid";
 import { CreateOrganizationInvitationDto } from "../dto/create-organizationInvitation.dto";
+import { createUuid } from "../../util/uuid";
 
 @Injectable()
 export class OrganizationInvitationsService {
@@ -117,7 +117,7 @@ export class OrganizationInvitationsService {
       await trx.organizationInvitation.createMany({
         data: usersToInvite.map(
           ({ userId: toUserId, role: organizationRole }) => {
-            const invitationId = uuidv4();
+            const invitationId = createUuid();
             return {
               id: invitationId,
               organizationId,

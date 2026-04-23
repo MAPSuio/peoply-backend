@@ -1,7 +1,6 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "crypto";
-import { v4 as uuidv4 } from "uuid";
 import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
 import { Provider, User } from ".prisma/client";
 import { CreateUserDto, UpdateUserDto } from "../dto";
@@ -16,6 +15,7 @@ import { SearchUserDto } from "../dto/search-user.dto";
 import { calculateEditDistance } from "../../util/string";
 import { EventArrangerRole, UserSeenUpdateType } from "@prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
+import { createUuid } from "../../util/uuid";
 
 @Injectable()
 export class UsersService {
@@ -60,8 +60,8 @@ export class UsersService {
     if (emailExists || phoneExists) {
       throw new UserAlreadyExistsException(errors);
     } else {
-      const arrangerId = uuidv4();
-      const userId = uuidv4();
+      const arrangerId = createUuid();
+      const userId = createUuid();
 
       try {
         const [, newUser] = await this.prisma.$transaction([
