@@ -30,6 +30,14 @@ import { postDiscordWebhook } from "../threat-detection/discord-webhook";
 
 const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
+const ORGANIZATION_SOCIAL_LINK_FIELDS = [
+  "websiteUrl",
+  "instagramUrl",
+  "facebookUrl",
+  "tiktokUrl",
+  "linkedinUrl",
+  "youtubeUrl",
+] as const;
 
 @Injectable()
 export class OrganizationsService {
@@ -176,17 +184,29 @@ export class OrganizationsService {
     updateOrganizationDto: UpdateOrganizationDto,
     orgImage?: Express.Multer.File,
   ) {
+    const normalizedUpdateOrganizationDto = { ...updateOrganizationDto };
+
+    for (const field of ORGANIZATION_SOCIAL_LINK_FIELDS) {
+      const value = normalizedUpdateOrganizationDto[field];
+
+      if (typeof value === "string") {
+        const trimmedValue = value.trim();
+        normalizedUpdateOrganizationDto[field] =
+          trimmedValue.length > 0 ? trimmedValue : null;
+      }
+    }
+
     if (
-      updateOrganizationDto.urlId &&
-      org.urlId !== updateOrganizationDto.urlId
+      normalizedUpdateOrganizationDto.urlId &&
+      org.urlId !== normalizedUpdateOrganizationDto.urlId
     ) {
       const validUrlId =
-        updateOrganizationDto.urlId === null
+        normalizedUpdateOrganizationDto.urlId === null
           ? null
-          : updateOrganizationDto?.urlId?.replace(/[^a-z0-9]/g, "");
+          : normalizedUpdateOrganizationDto?.urlId?.replace(/[^a-z0-9]/g, "");
       if (
         validUrlId !== undefined &&
-        validUrlId !== updateOrganizationDto.urlId
+        validUrlId !== normalizedUpdateOrganizationDto.urlId
       ) {
         throw new BadRequestException(
           "urlId can only contain letters from a-z and numbers",
@@ -241,7 +261,7 @@ export class OrganizationsService {
     const imageFileName = await getImageFileName();
 
     /* delete removeImage before inserting to db */
-    delete updateOrganizationDto.removeImage;
+    delete normalizedUpdateOrganizationDto.removeImage;
 
     try {
       return await this.prisma.organization.update({
@@ -250,7 +270,7 @@ export class OrganizationsService {
           ...(imageFileName !== undefined && {
             image: imageFileName,
           }),
-          ...updateOrganizationDto,
+          ...normalizedUpdateOrganizationDto,
         },
       });
     } catch (error) {

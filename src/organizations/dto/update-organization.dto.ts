@@ -5,6 +5,7 @@ import {
   IsLowercase,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   MinLength,
 } from "class-validator";
@@ -29,5 +30,41 @@ export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {
   @IsLowercase()
   @ApiProperty()
   @IsOptional()
-  urlId?: string;
+  urlId?: string | null;
+
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @ApiProperty()
+  @IsOptional()
+  websiteUrl?: string | null;
+
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @ApiProperty()
+  @IsOptional()
+  instagramUrl?: string | null;
+
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @ApiProperty()
+  @IsOptional()
+  facebookUrl?: string | null;
+
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @ApiProperty()
+  @IsOptional()
+  tiktokUrl?: string | null;
+
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @ApiProperty()
+  @IsOptional()
+  linkedinUrl?: string | null;
+
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @ApiProperty()
+  @IsOptional()
+  youtubeUrl?: string | null;
 }

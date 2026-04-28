@@ -21,6 +21,12 @@ model Organization {
   approved                Boolean                  @default(true)
   image                   String?
   description             String?                  @db.Text
+  websiteUrl              String?                  @map("website_url")
+  instagramUrl            String?                  @map("instagram_url")
+  facebookUrl             String?                  @map("facebook_url")
+  tiktokUrl               String?                  @map("tiktok_url")
+  linkedinUrl             String?                  @map("linkedin_url")
+  youtubeUrl              String?                  @map("youtube_url")
   createdAt               DateTime                 @default(now()) @map("created_at")
   updatedAt               DateTime                 @default(now()) @updatedAt @map("updated_at")
   icsFeed                 OrganizationIcsFeed?

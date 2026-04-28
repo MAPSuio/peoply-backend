@@ -193,4 +193,31 @@ describe("OrganizationsService", () => {
       },
     });
   });
+
+  it("normalizes social links before updating organization", async () => {
+    prisma.organization.update.mockResolvedValueOnce({
+      id: "org-1",
+      websiteUrl: null,
+      instagramUrl: "https://instagram.com/maps",
+    });
+
+    await service.update(
+      {
+        id: "org-1",
+        image: null,
+      } as any,
+      {
+        websiteUrl: "   ",
+        instagramUrl: " https://instagram.com/maps ",
+      } as any,
+    );
+
+    expect(prisma.organization.update).toHaveBeenCalledWith({
+      where: { id: "org-1" },
+      data: {
+        websiteUrl: null,
+        instagramUrl: "https://instagram.com/maps",
+      },
+    });
+  });
 });
