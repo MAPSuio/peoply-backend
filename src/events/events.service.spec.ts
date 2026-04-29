@@ -1,4 +1,5 @@
 import {
+  EventArrangerRole,
   EventUpdateVisibility,
   EventVisibility,
   RegStatus,
@@ -8,13 +9,28 @@ import { EventsService } from "./events.service";
 
 describe("EventsService", () => {
   const prisma = {
+    $transaction: jest.fn(),
     event: {
+      create: jest.fn(),
+      findMany: jest.fn(),
       findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    organization: {
+      findMany: jest.fn(),
     },
     eventArranger: {
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
       findFirst: jest.fn(),
     },
+    eventCategory: {
+      createMany: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     registration: {
+      count: jest.fn(),
       findUnique: jest.fn(),
     },
     eventUpdate: {
@@ -29,6 +45,9 @@ describe("EventsService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      (callback: (client: typeof prisma) => unknown) => callback(prisma),
+    );
     service = new EventsService(
       prisma,
       arrangersService,
@@ -147,5 +166,127 @@ describe("EventsService", () => {
       },
       orderBy: { createdAt: "desc" },
     });
+  });
+
+  it("creates collaborator arrangers for valid co-organizer organizations", async () => {
+    arrangersService.findOne = jest
+      .fn()
+      .mockResolvedValue({ id: "arranger-1" });
+    prisma.organization.findMany.mockResolvedValueOnce([
+      { id: "org-1", arrangerId: "org-arranger-1" },
+      { id: "org-2", arrangerId: "org-arranger-2" },
+    ]);
+    prisma.event.create.mockResolvedValueOnce({
+      id: "event-1",
+      urlId: "event-url",
+    });
+
+    await service.create(
+      {
+        title: "Test event",
+        description: "Description",
+        startDate: new Date("2026-05-01T10:00:00.000Z"),
+        visibility: EventVisibility.PUBLIC,
+        hasFood: false,
+        categoryIds: [1],
+        coOrganizerOrganizationIds: ["org-1", "org-2"],
+      } as any,
+      "arranger-1",
+    );
+
+    expect(prisma.eventArranger.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        {
+          eventId: expect.any(String),
+          arrangerId: "arranger-1",
+          role: EventArrangerRole.ADMIN,
+        },
+        {
+          eventId: expect.any(String),
+          arrangerId: "org-arranger-1",
+          role: EventArrangerRole.COLLABORATOR,
+        },
+        {
+          eventId: expect.any(String),
+          arrangerId: "org-arranger-2",
+          role: EventArrangerRole.COLLABORATOR,
+        },
+      ]),
+    });
+  });
+
+  it("updates collaborator arrangers when co-organizers are provided", async () => {
+    prisma.organization.findMany.mockResolvedValueOnce([
+      { id: "org-2", arrangerId: "org-arranger-2" },
+    ]);
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      image: null,
+      readOnly: false,
+      registrationMode: "PEOPLY",
+      externalUrl: null,
+      eventArrangers: [
+        {
+          eventId: "event-1",
+          arrangerId: "arranger-1",
+          role: EventArrangerRole.ADMIN,
+        },
+        {
+          eventId: "event-1",
+          arrangerId: "org-arranger-1",
+          role: EventArrangerRole.COLLABORATOR,
+        },
+      ],
+    });
+    prisma.event.update.mockResolvedValueOnce({ id: "event-1" });
+
+    await service.update(
+      {
+        title: "Updated title",
+        description: "Updated description",
+        startDate: new Date("2026-05-01T10:00:00.000Z"),
+        visibility: EventVisibility.PUBLIC,
+        coOrganizerOrganizationIds: ["org-2"],
+      } as any,
+      "event-1",
+    );
+
+    expect(prisma.eventArranger.deleteMany).toHaveBeenCalledWith({
+      where: {
+        eventId: "event-1",
+        role: EventArrangerRole.COLLABORATOR,
+      },
+    });
+    expect(prisma.eventArranger.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          eventId: "event-1",
+          arrangerId: "org-arranger-2",
+          role: EventArrangerRole.COLLABORATOR,
+        },
+      ],
+    });
+  });
+
+  it("uses some-filter for organization scoped event queries", async () => {
+    prisma.event.findMany.mockResolvedValueOnce([]);
+
+    await service.findAll({ organizationId: "org-1" } as any);
+
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          eventArrangers: {
+            some: {
+              arranger: {
+                organization: {
+                  id: "org-1",
+                },
+              },
+            },
+          },
+        }),
+      }),
+    );
   });
 });

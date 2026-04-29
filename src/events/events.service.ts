@@ -96,6 +96,84 @@ export class EventsService {
     return normalizedEventData;
   }
 
+  private async resolveCoOrganizerArrangerIds(
+    organizationIds: string[] | undefined,
+    primaryArrangerId?: string,
+    prismaClient: Pick<PrismaService, "organization"> = this.prisma,
+  ) {
+    const uniqueOrganizationIds = [...new Set(organizationIds ?? [])];
+
+    if (uniqueOrganizationIds.length === 0) {
+      return [];
+    }
+
+    const organizations = await prismaClient.organization.findMany({
+      where: {
+        id: {
+          in: uniqueOrganizationIds,
+        },
+      },
+      select: {
+        id: true,
+        arrangerId: true,
+      },
+    });
+
+    if (organizations.length !== uniqueOrganizationIds.length) {
+      throw new BadRequestException("Invalid co-organizer organization id");
+    }
+
+    const organizationArrangerIds = new Map(
+      organizations.map((organization) => [
+        organization.id,
+        organization.arrangerId,
+      ]),
+    );
+
+    const missingArrangerOrganizationIds = uniqueOrganizationIds.filter(
+      (organizationId) => !organizationArrangerIds.get(organizationId),
+    );
+
+    if (missingArrangerOrganizationIds.length > 0) {
+      throw new BadRequestException(
+        `Organization missing arrangerId: ${missingArrangerOrganizationIds.join(
+          ", ",
+        )}`,
+      );
+    }
+
+    return uniqueOrganizationIds
+      .map((organizationId) => organizationArrangerIds.get(organizationId))
+      .filter(
+        (arrangerId): arrangerId is string => arrangerId !== primaryArrangerId,
+      );
+  }
+
+  private async syncCoOrganizers(
+    eventId: string,
+    collaboratorArrangerIds: string[],
+    trx: Pick<PrismaService, "eventArranger">,
+  ) {
+    await trx.eventArranger.deleteMany({
+      where: {
+        eventId,
+        role: EventArrangerRole.COLLABORATOR,
+      },
+    });
+
+    if (collaboratorArrangerIds.length === 0) {
+      return;
+    }
+
+    await trx.eventArranger.createMany({
+      data: collaboratorArrangerIds.map((arrangerId) => ({
+        eventId,
+        arrangerId,
+        role: EventArrangerRole.COLLABORATOR,
+      })),
+    });
+  }
+
   async create(
     createEventDto: CreateEventDto,
     arrangerId: string,
@@ -107,6 +185,11 @@ export class EventsService {
     if (!arranger) {
       throw new ArrangerNotFoundException(arrangerId);
     }
+
+    const collaboratorArrangerIds = await this.resolveCoOrganizerArrangerIds(
+      normalizedCreateEventDto.coOrganizerOrganizationIds,
+      arrangerId,
+    );
 
     const eventId = createUuid();
     const eventImageFileName = `${eventId}.${
@@ -174,12 +257,19 @@ export class EventsService {
             streetNumber: normalizedCreateEventDto.streetNumber,
           },
         });
-        await trx.eventArranger.create({
-          data: {
-            role: EventArrangerRole.ADMIN,
-            arrangerId,
-            eventId,
-          },
+        await trx.eventArranger.createMany({
+          data: [
+            {
+              role: EventArrangerRole.ADMIN,
+              arrangerId,
+              eventId,
+            },
+            ...collaboratorArrangerIds.map((collaboratorArrangerId) => ({
+              role: EventArrangerRole.COLLABORATOR,
+              arrangerId: collaboratorArrangerId,
+              eventId,
+            })),
+          ],
         });
         await trx.eventCategory.createMany({
           data: normalizedCreateEventDto.categoryIds.map((categoryId) => ({
@@ -283,20 +373,27 @@ export class EventsService {
                 arrangerId: { in: searchProps.arrangerIds },
               },
             }
-          : {
-              every: {
+          : searchProps.userId
+          ? {
+              some: {
                 arranger: {
-                  user: searchProps.userId
-                    ? { id: searchProps.userId }
-                    : undefined,
-                  organization: searchProps.organizationId
-                    ? {
-                        id: searchProps.organizationId,
-                      }
-                    : undefined,
+                  user: {
+                    id: searchProps.userId,
+                  },
                 },
               },
-            },
+            }
+          : searchProps.organizationId
+          ? {
+              some: {
+                arranger: {
+                  organization: {
+                    id: searchProps.organizationId,
+                  },
+                },
+              },
+            }
+          : undefined,
         featured: searchProps.featured,
       },
       include: {
@@ -475,7 +572,7 @@ export class EventsService {
     id: string,
     newImage?: Express.Multer.File,
   ) {
-    const { categoryIds, ...rest } = updateEventDto;
+    const { categoryIds, coOrganizerOrganizationIds, ...rest } = updateEventDto;
 
     let newImageUrl: string | null = null;
     let deleteImage = updateEventDto.deleteImage;
@@ -484,6 +581,9 @@ export class EventsService {
       // get event
       const oldEvent = await this.prisma.event.findUnique({
         where: { id },
+        include: {
+          eventArrangers: true,
+        },
       });
 
       if (!oldEvent) {
@@ -530,6 +630,15 @@ export class EventsService {
         rest,
       );
 
+      const primaryArrangerId =
+        oldEvent.eventArrangers.find(
+          (eventArranger) => eventArranger.role === EventArrangerRole.ADMIN,
+        )?.arrangerId ?? oldEvent.eventArrangers[0]?.arrangerId;
+
+      if (!primaryArrangerId) {
+        throw new BadRequestException("Event must have at least one arranger");
+      }
+
       return await this.prisma.$transaction(async (trx) => {
         // update event
         const event = await trx.event.update({
@@ -572,6 +681,17 @@ export class EventsService {
               eventId: event.id,
             })),
           });
+        }
+
+        if (coOrganizerOrganizationIds !== undefined) {
+          const collaboratorArrangerIds =
+            await this.resolveCoOrganizerArrangerIds(
+              coOrganizerOrganizationIds,
+              primaryArrangerId,
+              trx,
+            );
+
+          await this.syncCoOrganizers(event.id, collaboratorArrangerIds, trx);
         }
 
         //delete existing image if it exists

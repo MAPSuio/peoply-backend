@@ -10,6 +10,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MinLength,
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
@@ -74,6 +75,13 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @IsArray()
   @ApiProperty()
   categoryIds?: number[];
+
+  @IsOptional()
+  @ToArray()
+  @IsArray()
+  @IsUUID(4, { each: true })
+  @ApiProperty({ type: [String], required: false })
+  coOrganizerOrganizationIds?: string[];
 
   @ToBoolean()
   @IsBoolean()

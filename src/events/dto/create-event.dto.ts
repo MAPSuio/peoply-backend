@@ -103,6 +103,13 @@ export class CreateEventDto {
   @ApiProperty()
   arrangerId?: string;
 
+  @IsOptional()
+  @ToArray()
+  @IsArray()
+  @IsUUID(4, { each: true })
+  @ApiProperty({ type: [String], required: false })
+  coOrganizerOrganizationIds?: string[];
+
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
