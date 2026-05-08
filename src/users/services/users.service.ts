@@ -17,6 +17,112 @@ import { EventArrangerRole, UserSeenUpdateType } from "@prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
 
+const SEARCH_VARIANT_REPLACEMENTS = [
+  ["aa", "å"],
+  ["ae", "æ"],
+  ["oe", "ø"],
+  ["oy", "øy"],
+] as const;
+
+const normalizeWhitespace = (value: string) =>
+  value.trim().replace(/\s+/g, " ");
+
+const normalizeSearchValue = (value: string) =>
+  normalizeWhitespace(
+    value
+      .toLowerCase()
+      .replace(/aa/g, "a")
+      .replace(/oe/g, "o")
+      .replace(/æ/g, "ae")
+      .replace(/ø/g, "o")
+      .replace(/å/g, "a")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " "),
+  );
+
+const buildSearchVariants = (token: string) => {
+  const normalizedToken = token.toLowerCase();
+  const variants = new Set([normalizedToken]);
+
+  for (const [from, to] of SEARCH_VARIANT_REPLACEMENTS) {
+    if (normalizedToken.includes(from)) {
+      variants.add(normalizedToken.split(from).join(to));
+    }
+  }
+
+  return Array.from(variants);
+};
+
+const scoreUserSearchMatch = (
+  user: {
+    firstName: string;
+    lastName: string;
+  },
+  normalizedQuery: string,
+  normalizedTokens: string[],
+) => {
+  const normalizedFirstName = normalizeSearchValue(user.firstName);
+  const normalizedLastName = normalizeSearchValue(user.lastName);
+  const normalizedFullName =
+    `${normalizedFirstName} ${normalizedLastName}`.trim();
+
+  let score = 0;
+
+  if (normalizedFullName === normalizedQuery) {
+    score += 200;
+  }
+
+  if (
+    normalizedFirstName === normalizedQuery ||
+    normalizedLastName === normalizedQuery
+  ) {
+    score += 150;
+  }
+
+  if (normalizedFullName.startsWith(normalizedQuery)) {
+    score += 100;
+  }
+
+  if (
+    normalizedFirstName.startsWith(normalizedQuery) ||
+    normalizedLastName.startsWith(normalizedQuery)
+  ) {
+    score += 80;
+  }
+
+  if (normalizedFullName.includes(normalizedQuery)) {
+    score += 60;
+  }
+
+  for (const token of normalizedTokens) {
+    if (normalizedFirstName === token || normalizedLastName === token) {
+      score += 40;
+      continue;
+    }
+
+    if (
+      normalizedFirstName.startsWith(token) ||
+      normalizedLastName.startsWith(token)
+    ) {
+      score += 25;
+      continue;
+    }
+
+    if (normalizedFullName.includes(token)) {
+      score += 10;
+    }
+  }
+
+  const editDistance = Math.min(
+    calculateEditDistance(normalizedQuery, normalizedFullName),
+    calculateEditDistance(normalizedQuery, normalizedFirstName),
+    calculateEditDistance(normalizedQuery, normalizedLastName),
+  );
+
+  return { score, editDistance };
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -103,30 +209,39 @@ export class UsersService {
   }
 
   async findAll(searchProps: SearchUserDto = {}, skip = 0, take = 10) {
-    /* splits name by ORing the different parts of the name */
-    const generateSearchQuery = (name: string) =>
-      name.toLowerCase().split(" ").join(" | ");
-
     const { name } = searchProps;
+    const normalizedName = name ? normalizeWhitespace(name) : "";
+    const nameTokens = normalizedName
+      ? normalizedName.split(" ").filter(Boolean)
+      : [];
+    const tokenVariants = nameTokens.map((token) => buildSearchVariants(token));
+    const normalizedTokenVariants = tokenVariants.map((variants) =>
+      variants.map((variant) => normalizeSearchValue(variant)),
+    );
+
     const users = await this.prisma.user.findMany({
       where: {
-        ...(name && {
-          OR: [
-            { firstName: { search: generateSearchQuery(name) } },
-            { lastName: { search: name.split(" ").slice(-1)[0] } },
-            {
-              firstName: {
-                startsWith: name.split(" ")[0],
-                mode: "insensitive",
-              },
-            },
-            {
-              lastName: {
-                startsWith: name.split(" ").slice(-1)[0],
-                mode: "insensitive",
-              },
-            },
-          ],
+        ...(tokenVariants.length > 0 && {
+          AND: tokenVariants.map((variants) => ({
+            OR: variants.reduce<Array<Record<string, unknown>>>(
+              (filters, variant) => [
+                ...filters,
+                {
+                  firstName: {
+                    contains: variant,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  lastName: {
+                    contains: variant,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+              [],
+            ),
+          })),
         }),
       },
       select: {
@@ -136,33 +251,48 @@ export class UsersService {
         image: true,
         description: true,
       },
-      skip,
-      take,
+      // Relevance is computed in the service, so pagination must happen after
+      // we have ranked the full candidate set.
+      skip: normalizedName ? undefined : skip,
+      take: normalizedName ? undefined : take,
     });
 
-    if (name) {
-      /* sort the user by edit distance before returning */
+    if (normalizedName) {
+      const normalizedQuery = normalizeSearchValue(normalizedName);
+      const normalizedTokens = normalizedQuery.split(" ").filter(Boolean);
+
       return users
+        .filter((user) => {
+          const normalizedFullName = normalizeSearchValue(
+            `${user.firstName} ${user.lastName}`,
+          );
+
+          return normalizedTokenVariants.every((variants) =>
+            variants.some((variant) => normalizedFullName.includes(variant)),
+          );
+        })
         .map((user) => {
-          const firstNameEditDistance = calculateEditDistance(
-            name,
-            user.firstName,
+          const { score, editDistance } = scoreUserSearchMatch(
+            user,
+            normalizedQuery,
+            normalizedTokens,
           );
-          const lastNameEditDistance = calculateEditDistance(
-            name,
-            user.lastName,
-          );
-          const editDistance = Math.min(
-            firstNameEditDistance,
-            lastNameEditDistance,
-          );
+
           return {
             user,
+            score,
             editDistance,
           };
         })
-        .sort((a, b) => a.editDistance - b.editDistance)
-        .map((user) => user.user); //  remove editdistance before returning
+        .sort(
+          (a, b) =>
+            b.score - a.score ||
+            a.editDistance - b.editDistance ||
+            a.user.firstName.localeCompare(b.user.firstName) ||
+            a.user.lastName.localeCompare(b.user.lastName),
+        )
+        .slice(skip, skip + take)
+        .map((user) => user.user);
     }
 
     return users;
