@@ -107,9 +107,9 @@ export class AuthController {
       throw new NotFoundException("User not found");
     }
 
-    const refreshedUser = await this.usersService.rotateRefreshTokenId(user.id);
-    const accessToken = this.authService.getAccessToken(refreshedUser);
-    const refreshToken = this.authService.getRefreshToken(refreshedUser);
+    const sessionUser = await this.usersService.ensureRefreshTokenId(user.id);
+    const accessToken = this.authService.getAccessToken(sessionUser);
+    const refreshToken = this.authService.getRefreshToken(sessionUser);
     const accessCookieOptions = this.authService.getAccessCookieOptions();
     const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
@@ -118,7 +118,7 @@ export class AuthController {
     res.set("Access-Control-Allow-Credentials", "true");
     res.set("Credentials", "true");
 
-    return refreshedUser;
+    return sessionUser;
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -220,7 +220,7 @@ export class AuthController {
   async loginCallback(@Req() req: any, @Res() res: Response) {
     res.clearCookie("connect.sid"); // no need to send this
 
-    const user = await this.usersService.rotateRefreshTokenId(req.user.id);
+    const user = await this.usersService.ensureRefreshTokenId(req.user.id);
 
     /* create access and refresh tokens + cookie options */
     const accessToken = this.authService.getAccessToken(user);
@@ -249,7 +249,7 @@ export class AuthController {
   async loginGoogleCallback(@Req() req: any, @Res() res: Response) {
     res.clearCookie("connect.sid"); // no need to send this
 
-    const user = await this.usersService.rotateRefreshTokenId(req.user.id);
+    const user = await this.usersService.ensureRefreshTokenId(req.user.id);
 
     /* create access and refresh tokens + cookie options */
     const accessToken = this.authService.getAccessToken(user);

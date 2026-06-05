@@ -361,6 +361,33 @@ export class UsersService {
     });
   }
 
+  /**
+   * Returns the user with a guaranteed `refreshTokenId`. Generates one only
+   * if the user doesn't already have it — never rotates an existing id.
+   *
+   * Used by the login callbacks (Vipps, Google, dev-login) so that logging
+   * in on a second device does not invalidate the refresh cookie on the
+   * first one. Explicit logout still calls rotateRefreshTokenId, which is
+   * what revokes all active sessions.
+   *
+   * The write is an atomic conditional update so concurrent first-logins
+   * cannot race each other into two different ids.
+   */
+  async ensureRefreshTokenId(userId: string) {
+    await this.prisma.user.updateMany({
+      where: { id: userId, refreshTokenId: null },
+      data: { refreshTokenId: randomUUID() },
+    });
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new UserDoesNotExistException(userId);
+    }
+
+    return user;
+  }
+
   async update(
     user: User,
     updateUserDto: UpdateUserDto,

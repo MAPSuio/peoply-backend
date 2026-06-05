@@ -195,4 +195,72 @@ describe("UsersService", () => {
     expect(updatedUser.refreshTokenId).toEqual(expect.any(String));
     expect(updatedUser.refreshTokenId).not.toHaveLength(0);
   });
+
+  describe("ensureRefreshTokenId", () => {
+    it("returns the user untouched when they already have a refreshTokenId", async () => {
+      const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+      const prisma = {
+        user: {
+          updateMany,
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ id: "user-1", refreshTokenId: "existing" }),
+        },
+      } as any;
+
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      const user = (await service.ensureRefreshTokenId("user-1")) as any;
+
+      expect(user.refreshTokenId).toBe("existing");
+      // Conditional update runs but matches 0 rows (count: 0) — that's fine.
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { id: "user-1", refreshTokenId: null },
+        data: { refreshTokenId: expect.any(String) },
+      });
+    });
+
+    it("generates a refreshTokenId when the user has none yet", async () => {
+      let storedRefreshTokenId: string | null = null;
+      const prisma = {
+        user: {
+          updateMany: jest.fn().mockImplementation(({ where, data }) => {
+            if (where.refreshTokenId === null) {
+              storedRefreshTokenId = data.refreshTokenId;
+              return { count: 1 };
+            }
+            return { count: 0 };
+          }),
+          findUnique: jest.fn().mockImplementation(({ where }) => ({
+            id: where.id,
+            refreshTokenId: storedRefreshTokenId,
+          })),
+        },
+      } as any;
+
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      const user = (await service.ensureRefreshTokenId("user-1")) as any;
+
+      expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
+      expect(user.id).toBe("user-1");
+      expect(user.refreshTokenId).toEqual(expect.any(String));
+      expect(user.refreshTokenId.length).toBeGreaterThan(0);
+    });
+
+    it("throws when the user does not exist", async () => {
+      const prisma = {
+        user: {
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+      } as any;
+
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(
+        service.ensureRefreshTokenId("missing"),
+      ).rejects.toMatchObject({ message: expect.stringMatching(/missing/) });
+    });
+  });
 });
