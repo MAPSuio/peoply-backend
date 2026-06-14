@@ -1,10 +1,14 @@
 const path = require("path");
 const { spawn } = require("child_process");
 
-const { getNodeProcessEnvironment, resolveNodeCommand } = require("./run-dev");
+const { getNodeProcessEnvironment } = require("./run-dev");
+
+function getStartNodeCommand({ currentExecPath = process.execPath } = {}) {
+  return currentExecPath;
+}
 
 function runStart() {
-  const nodeCommand = resolveNodeCommand();
+  const nodeCommand = getStartNodeCommand();
   const entryFile = path.resolve(__dirname, "..", "dist", "src", "main.js");
 
   const child = spawn(nodeCommand, [entryFile], {
@@ -25,3 +29,7 @@ function runStart() {
 if (require.main === module) {
   runStart();
 }
+
+module.exports = {
+  getStartNodeCommand,
+};

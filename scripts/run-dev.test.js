@@ -4,6 +4,7 @@ const os = require("os");
 const path = require("path");
 
 const { getNodeProcessEnvironment, resolveNodeCommand } = require("./run-dev");
+const { getStartNodeCommand } = require("./run-start");
 
 function runTest(name, testFn) {
   try {
@@ -71,4 +72,12 @@ runTest("prepends the selected node directory to PATH", () => {
   });
 
   assert.strictEqual(env.PATH, "/tmp/node16/bin:/usr/bin:/bin");
+});
+
+runTest("uses the current runtime node for production start", () => {
+  const nodePath = getStartNodeCommand({
+    currentExecPath: "/tmp/current-node",
+  });
+
+  assert.strictEqual(nodePath, "/tmp/current-node");
 });
