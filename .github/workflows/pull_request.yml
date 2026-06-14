@@ -7,16 +7,16 @@ on:
 
 env:
   WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '16.x'                # set this to the node version to use
+  NODE_VERSION: '20.x'                # set this to the node version to use
 
 jobs:
   test-lint-build:
     name: Test, Lint and Build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ env.NODE_VERSION }}
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
     - name: npm install
