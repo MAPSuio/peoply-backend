@@ -72,7 +72,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.4.9",
+    "@nestjs/cli": "^11.0.21",
     "@nestjs/schematics": "^8.0.10",
     "@nestjs/testing": "^10.4.22",
     "@types/connect-pg-simple": "^7.0.3",
