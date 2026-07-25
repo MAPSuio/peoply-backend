@@ -11,6 +11,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
+import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { createUuid } from "../../util/uuid";
 
 @Injectable()
@@ -84,9 +85,12 @@ export class EventInvitationsService {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
+      // This result is only scanned for expired events and then discarded, so
+      // it needs the id and the end date and nothing else. It used to pull
+      // `fromUser: true` as well, which never left the process but put a full
+      // user row one refactor away from a response body.
       include: {
         event: true,
-        fromUser: true,
       },
     });
 
@@ -113,7 +117,9 @@ export class EventInvitationsService {
       },
       include: {
         event: true,
-        fromUser: true,
+        // This is spread verbatim into the notifications payload, so
+        // `fromUser: true` handed the inviter's full row to the invitee.
+        fromUser: { select: PUBLIC_USER_SELECT },
       },
     });
   }

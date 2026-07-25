@@ -1,13 +1,8 @@
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../../prisma/prisma.service";
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ArrangerNotFoundException } from "../../arrangers/exceptions";
-import { PrismaError } from "../../prisma/prisma.constants";
 import { UserDoesNotExistException } from "../exceptions";
+import { PUBLIC_USER_SELECT } from "../user.select";
 
 @Injectable()
 export class FollowService {
@@ -22,7 +17,10 @@ export class FollowService {
         arranger: {
           include: {
             organization: true,
-            user: true,
+            // Following is self-service, so `user: true` here let any account
+            // follow an arbitrary personal arranger and read back their full
+            // row — email, phone, birthDate and refreshTokenId included.
+            user: { select: PUBLIC_USER_SELECT },
           },
         },
       },
