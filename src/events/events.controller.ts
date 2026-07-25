@@ -86,9 +86,11 @@ export class EventsController {
       new event
 
     */
-    let arrangerId;
+    // `||`, not `??`: the check below branches on truthiness, so an empty
+    // arrangerId has to fall back to the user's the same way it did before.
+    const arrangerId: string = createEventDto.arrangerId || req.user.arrangerId;
+
     if (createEventDto.arrangerId) {
-      arrangerId = createEventDto.arrangerId;
       /* check if arrangerId is org */
       const org = await this.organizationsService.findByArrangerId(arrangerId);
       if (org) {
@@ -111,8 +113,6 @@ export class EventsController {
           );
         }
       }
-    } else {
-      arrangerId = req.user.arrangerId;
     }
 
     return this.eventsService.create(createEventDto, arrangerId, eventImage);

@@ -220,4 +220,30 @@ describe("OrganizationsService", () => {
       },
     });
   });
+
+  describe("findOrgsByUserIdAndRole", () => {
+    const someFilter = () =>
+      prisma.organization.findMany.mock.calls[0][0].where.organizationRoles
+        .some;
+
+    it("filters on the role when one is given", async () => {
+      prisma.organization.findMany.mockResolvedValueOnce([]);
+
+      await service.findOrgsByUserIdAndRole("user-1", "ADMIN" as any);
+
+      expect(someFilter()).toEqual({ userId: "user-1", role: "ADMIN" });
+    });
+
+    it("passes role through as undefined when none is given", async () => {
+      prisma.organization.findMany.mockResolvedValueOnce([]);
+
+      await service.findOrgsByUserIdAndRole("user-1");
+
+      // Prisma drops undefined fields from a where clause, so this is the
+      // same query as omitting `role` entirely — which is what lets the two
+      // hand-built filter objects collapse into one.
+      expect(someFilter()).toEqual({ userId: "user-1", role: undefined });
+      expect(someFilter().role).toBeUndefined();
+    });
+  });
 });

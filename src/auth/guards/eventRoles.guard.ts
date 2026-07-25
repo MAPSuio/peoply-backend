@@ -41,19 +41,15 @@ export class EventRolesGuard implements CanActivate {
     const user = await this.usersService.findById(valid.sub);
     const urlId = request.params.urlId;
     const id = request.params.id;
-    let event;
-
-    if (!id) {
-      if (!urlId) {
-        throw new NotFoundException(
-          "No id or urlId provided. Use urlId as param in function.",
-        );
-      } else {
-        event = await this.eventsService.findOneWithArrangersByUrlId(urlId);
-      }
-    } else {
-      event = await this.eventsService.findOneWithArrangers(id);
+    if (!id && !urlId) {
+      throw new NotFoundException(
+        "No id or urlId provided. Use urlId as param in function.",
+      );
     }
+
+    const event = id
+      ? await this.eventsService.findOneWithArrangers(id)
+      : await this.eventsService.findOneWithArrangersByUrlId(urlId);
 
     if (!user || !event) {
       return false;

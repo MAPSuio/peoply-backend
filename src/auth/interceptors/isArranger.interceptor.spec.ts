@@ -2,7 +2,7 @@ jest.mock("../auth.service", () => ({
   AuthService: class AuthService {},
 }));
 
-import { ExecutionContext } from "@nestjs/common";
+import { ExecutionContext, NotFoundException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { User } from "@prisma/client";
 import { IsArrangerInterceptor } from "./isArranger.interceptor";
@@ -42,9 +42,9 @@ describe("IsArrangerInterceptor", () => {
     }) as unknown as ExecutionContext;
 
   // isArranger is private; exercise it through the public interceptor surface
-  const runIsArranger = async () => {
+  const runIsArranger = async (params: any = { id: "event-1" }) => {
     const context = buildContext();
-    const req: any = { params: { id: "event-1" } };
+    const req: any = { params };
     return (interceptor as any).isArranger(context, req, user);
   };
 
@@ -124,5 +124,51 @@ describe("IsArrangerInterceptor", () => {
 
     await expect(runIsArranger()).resolves.toBe(true);
     expect(organizationsService.findByArrangerId).not.toHaveBeenCalled();
+  });
+
+  // These three branches were untested, which is what made it safe to leave
+  // `let event;` untyped: nothing exercised the urlId or missing-param paths.
+  describe("resolving the event from route params", () => {
+    const direct = { eventArrangers: [{ arrangerId: "arranger-user-1" }] };
+
+    it("looks the event up by id when id is present", async () => {
+      eventsService.findOneWithArrangers.mockResolvedValueOnce(direct);
+
+      await expect(runIsArranger({ id: "event-1" })).resolves.toBe(true);
+      expect(eventsService.findOneWithArrangers).toHaveBeenCalledWith(
+        "event-1",
+      );
+      expect(eventsService.findOneWithArrangersByUrlId).not.toHaveBeenCalled();
+    });
+
+    it("falls back to urlId when id is absent", async () => {
+      eventsService.findOneWithArrangersByUrlId.mockResolvedValueOnce(direct);
+
+      await expect(runIsArranger({ urlId: "my-event" })).resolves.toBe(true);
+      expect(eventsService.findOneWithArrangersByUrlId).toHaveBeenCalledWith(
+        "my-event",
+      );
+      expect(eventsService.findOneWithArrangers).not.toHaveBeenCalled();
+    });
+
+    it("prefers id over urlId when the route supplies both", async () => {
+      eventsService.findOneWithArrangers.mockResolvedValueOnce(direct);
+
+      // The only case where the two lookups can disagree, and so the only
+      // one that pins the precedence rather than just the happy path.
+      await expect(
+        runIsArranger({ id: "event-1", urlId: "my-event" }),
+      ).resolves.toBe(true);
+      expect(eventsService.findOneWithArrangers).toHaveBeenCalledWith(
+        "event-1",
+      );
+      expect(eventsService.findOneWithArrangersByUrlId).not.toHaveBeenCalled();
+    });
+
+    it("throws when neither id nor urlId is present", async () => {
+      await expect(runIsArranger({})).rejects.toThrow(NotFoundException);
+      expect(eventsService.findOneWithArrangers).not.toHaveBeenCalled();
+      expect(eventsService.findOneWithArrangersByUrlId).not.toHaveBeenCalled();
+    });
   });
 });

@@ -68,19 +68,15 @@ export class IsArrangerInterceptor implements NestInterceptor {
     }
     const urlId = req.params.urlId;
     const id = req.params.id;
-    let event;
-
-    if (!id) {
-      if (!urlId) {
-        throw new NotFoundException(
-          "No id or urlId provided. Use urlId as param in function.",
-        );
-      } else {
-        event = await this.eventsService.findOneWithArrangersByUrlId(urlId);
-      }
-    } else {
-      event = await this.eventsService.findOneWithArrangers(id);
+    if (!id && !urlId) {
+      throw new NotFoundException(
+        "No id or urlId provided. Use urlId as param in function.",
+      );
     }
+
+    const event = id
+      ? await this.eventsService.findOneWithArrangers(id)
+      : await this.eventsService.findOneWithArrangersByUrlId(urlId);
 
     if (!event) {
       return false;

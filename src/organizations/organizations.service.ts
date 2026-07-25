@@ -346,16 +346,13 @@ export class OrganizationsService {
       list of org - List<model Organization>
     */
     try {
-      let args;
-      if (role === undefined) {
-        args = { userId: userId };
-      } else {
-        args = { userId: userId, role: role };
-      }
       return await this.prisma.organization.findMany({
         where: {
           organizationRoles: {
-            some: args,
+            // Prisma drops undefined fields from a where clause, so an
+            // undefined role is already "any role" — the branch that built
+            // two different objects was doing the same thing twice.
+            some: { userId: userId, role: role },
           },
         },
         include: { organizationRoles: { where: { userId: userId } } },

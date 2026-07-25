@@ -109,12 +109,9 @@ export class OrganizationsController {
   @Get("/:orgId")
   async getOrganization(@Param("orgId") orgId: string) {
     try {
-      let org;
-      if (isUUID(orgId)) {
-        org = await this.organizationsService.findOne(orgId);
-      } else {
-        org = await this.organizationsService.findOneByUrlId(orgId);
-      }
+      const org = isUUID(orgId)
+        ? await this.organizationsService.findOne(orgId)
+        : await this.organizationsService.findOneByUrlId(orgId);
       if (!org) {
         throw new OrganizationDoesNotExistException(orgId);
       }
