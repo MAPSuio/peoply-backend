@@ -149,6 +149,9 @@ model UserOrganizationRole {
   updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
 
   @@id([organizationId, userId])
+  // The composite id only serves lookups starting at organizationId; listing
+  // the organizations a user belongs to filters on userId alone.
+  @@index([userId])
   @@map("user_organization_roles")
 }
 
@@ -275,6 +278,10 @@ model EventUpdate {
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
 
+  // Both foreign keys cascade and neither was indexed: reads filter on
+  // eventId, and deleting a user or event had to scan this table.
+  @@index([eventId])
+  @@index([createdByUserId])
   @@map("event_updates")
 }
 
@@ -328,6 +335,8 @@ model ArrangerFollower {
   updatedAt  DateTime @default(now()) @map("updated_at")
 
   @@id([arrangerId, userId])
+  // Listing the arrangers a user follows filters on userId alone.
+  @@index([userId])
   @@map("arranger_follower")
 }
 
@@ -341,6 +350,8 @@ model EventArranger {
   updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@id([eventId, arrangerId])
+  // Listing the events an arranger organises filters on arrangerId alone.
+  @@index([arrangerId])
   @@map("event_arrangers")
 }
 
@@ -362,6 +373,8 @@ model Registration {
   regStatus  RegStatus @map("reg_status")
 
   @@id([eventId, userId])
+  // Listing a user's registrations filters on userId alone.
+  @@index([userId])
   @@map("registrations")
 }
 
@@ -394,6 +407,9 @@ model EventCategory {
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@id([categoryId, eventId])
+  // Reading and replacing an event's categories filters on eventId alone,
+  // which is the trailing column of the composite id.
+  @@index([eventId])
   @@map("event_categories")
 }
 
@@ -406,6 +422,8 @@ model Favorite {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@id([eventId, userId])
+  // Listing a user's favorites filters on userId alone.
+  @@index([userId])
   @@map("favorites")
 }
 
@@ -437,6 +455,9 @@ model EventInvitation {
   invitationStatus InvitationStatus @default(PENDING) @map("invitation_status")
 
   @@unique([eventId, fromUserId, toUserId])
+  // Listing a user's incoming invitations filters on toUserId, which the
+  // unique constraint above cannot serve (it leads with eventId).
+  @@index([toUserId])
   @@map("event_invitations")
 }
 
@@ -454,6 +475,9 @@ model OrganizationInvitation {
   invitationStatus InvitationStatus @default(PENDING) @map("invitation_status")
 
   @@unique([organizationId, organizationRole, toUserId, invitationStatus])
+  // Listing a user's incoming invitations filters on toUserId, which is the
+  // third column of the unique constraint above.
+  @@index([toUserId])
   @@map("organization_invitations")
 }
 
