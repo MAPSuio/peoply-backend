@@ -9,9 +9,6 @@ The project requires **Node >= 20.11.0 < 21** and **npm >= 10 < 11**
 (`engines` in `package.json`). CI runs Node 20.19.5. Check `node -v` before
 opening an issue about a broken install.
 
-> `README.md` still says to run `nvm use 16.20.2`. That instruction is stale
-> and predates the NestJS 11 upgrade — follow `engines`, not the README.
-
 ```bash
 npm ci        # install exactly what the lockfile says
 ```
