@@ -43,7 +43,10 @@ describe("ThreatDetectionService", () => {
     expect(discord.sendAlert).toHaveBeenCalledWith(
       "High request rate",
       expect.arrayContaining([
-        expect.objectContaining({ name: "Requests", value: "500 in the last 60s" }),
+        expect.objectContaining({
+          name: "Requests",
+          value: "500 in the last 60s",
+        }),
       ]),
       0xffff00,
     );
@@ -57,10 +60,14 @@ describe("ThreatDetectionService", () => {
     }
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Elevated request rate: 250 requests in the last 60s"),
+      expect.stringContaining(
+        "Elevated request rate: 250 requests in the last 60s",
+      ),
     );
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Elevated request rate: 400 requests in the last 60s"),
+      expect.stringContaining(
+        "Elevated request rate: 400 requests in the last 60s",
+      ),
     );
   });
 });

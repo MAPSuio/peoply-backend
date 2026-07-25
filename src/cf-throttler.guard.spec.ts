@@ -2,8 +2,7 @@ import { CfThrottlerGuard } from "./cf-throttler.guard";
 
 describe("CfThrottlerGuard", () => {
   // Access protected method via cast
-  const getTracker = (req: unknown) =>
-    (guard as any).getTracker(req);
+  const getTracker = (req: unknown) => (guard as any).getTracker(req);
 
   let guard: CfThrottlerGuard;
 
@@ -17,7 +16,10 @@ describe("CfThrottlerGuard", () => {
   });
 
   it("returns first element when CF-Connecting-IP is an array", async () => {
-    const req = { headers: { "cf-connecting-ip": ["1.2.3.4", "5.6.7.8"] }, ip: "10.0.0.1" };
+    const req = {
+      headers: { "cf-connecting-ip": ["1.2.3.4", "5.6.7.8"] },
+      ip: "10.0.0.1",
+    };
     await expect(getTracker(req)).resolves.toBe("1.2.3.4");
   });
 

@@ -42,9 +42,13 @@ async function bootstrap() {
       const ms = Date.now() - start;
       const cfIp = req.headers["cf-connecting-ip"];
       const ip = cfIp
-        ? Array.isArray(cfIp) ? cfIp[0] : cfIp
+        ? Array.isArray(cfIp)
+          ? cfIp[0]
+          : cfIp
         : req.ip ?? "unknown";
-      httpLogger.log(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ${ip}`);
+      httpLogger.log(
+        `${req.method} ${req.path} ${res.statusCode} ${ms}ms ${ip}`,
+      );
       threatDetection.analyzeRequest(req.method, req.path, res.statusCode, ip);
     });
     next();

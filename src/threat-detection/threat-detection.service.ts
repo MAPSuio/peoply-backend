@@ -148,7 +148,9 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
       if (hits >= BURST_404_LOG_THRESHOLD) {
         this.logActivityIfNotCooling(
           `${ip}:burst404:log`,
-          `Repeated 404s from ${ip}: ${hits} in ${SLIDING_WINDOW_MS / 1000}s | Last path: ${path}`,
+          `Repeated 404s from ${ip}: ${hits} in ${
+            SLIDING_WINDOW_MS / 1000
+          }s | Last path: ${path}`,
         );
       }
       if (hits >= BURST_404_THRESHOLD) {
@@ -177,7 +179,9 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
       if (hits >= AUTH_FAIL_LOG_THRESHOLD) {
         this.logActivityIfNotCooling(
           `${ip}:authfail:log`,
-          `Repeated auth failures from ${ip}: ${hits} in ${SLIDING_WINDOW_MS / 1000}s | Path: ${path}`,
+          `Repeated auth failures from ${ip}: ${hits} in ${
+            SLIDING_WINDOW_MS / 1000
+          }s | Path: ${path}`,
         );
       }
       if (hits >= AUTH_FAIL_THRESHOLD) {
