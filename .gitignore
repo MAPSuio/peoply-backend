@@ -1,5 +1,18 @@
 # secrets
 .env
+# Variants like .env.local and .env.production hold the same credentials as
+# .env, but the bare `.env` pattern above does not match them.
+.env.*
+!.env.example
+
+# curl cookie jars (curl -c/-b). These hold live access and refresh tokens
+# when you log in against a local server, so they must never be committed.
+# Matched by shape, not by one filename: the next `curl -c session.txt`
+# should be covered too.
+cookies.txt
+cookie.txt
+*.cookies
+cookiejar*
 
 # compiled output
 /dist
