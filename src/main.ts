@@ -3,7 +3,7 @@ import { AppModule } from "./app.module";
 import { PrismaExceptionFilter } from "./prisma/prisma-exception.filter";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 
 import * as passport from "passport";
 import * as expressSession from "express-session";

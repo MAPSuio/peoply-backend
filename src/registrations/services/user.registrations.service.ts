@@ -1,17 +1,11 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { PrismaError } from "../../prisma/prisma.constants";
 import {
   CreateRegistrationDto,
   SearchUserRegistrationDto,
   UserUpdateRegistrationDto,
 } from "../dto";
-import {
-  DuplicateRegistrationException,
-  ForeignKeyNotFoundException,
-} from "../exceptions";
 import { EventRegistrationMode, RegStatus, Registration } from ".prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";

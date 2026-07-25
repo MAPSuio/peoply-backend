@@ -1,12 +1,7 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../../prisma/prisma.service";
-import { randomUUID } from "crypto";
-import {
-  BadRequestException,
-  HttpException,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { Provider, User } from ".prisma/client";
 import { CreateUserDto, UpdateUserDto } from "../dto";
 import { PrismaError } from "../../prisma/prisma.constants";

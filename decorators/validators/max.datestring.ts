@@ -8,7 +8,7 @@ export function MaxDateString(
   maxTime: Date,
   validationOptions?: ValidationOptions,
 ) {
-  return function (object: Object, propertyName: string) {
+  return (object: Object, propertyName: string) => {
     registerDecorator({
       name: "MinDateString",
       target: object.constructor,
@@ -19,7 +19,7 @@ export function MaxDateString(
           return maxTime > new Date(args.value);
         },
         defaultMessage() {
-          return "The date is too late. The date has to be before " + maxTime;
+          return `The date is too late. The date has to be before ${maxTime}`;
         },
       },
     });

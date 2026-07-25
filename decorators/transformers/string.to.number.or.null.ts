@@ -20,7 +20,7 @@ const StringToNumberOrNull = () => {
       },
     )(target, key);
   };
-  return function (target: any, key: string) {
+  return (target: any, key: string) => {
     toPlain(target, key);
     toClass(target, key);
   };

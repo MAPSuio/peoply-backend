@@ -95,21 +95,21 @@ export class PrismaExceptionFilter implements ExceptionFilter {
   }
 
   private duplicateMessage(exception: PrismaClientKnownRequestError): string {
-    const fields = this.fieldList(exception.meta?.["target"]);
+    const fields = this.fieldList(exception.meta?.target);
     return fields
       ? `A record with this ${fields} already exists`
       : "A record with these values already exists";
   }
 
   private notFoundMessage(exception: PrismaClientKnownRequestError): string {
-    const model = exception.meta?.["modelName"];
+    const model = exception.meta?.modelName;
     return typeof model === "string" && model
       ? `${model} not found`
       : "The requested record was not found";
   }
 
   private foreignKeyMessage(exception: PrismaClientKnownRequestError): string {
-    const fields = this.fieldList(exception.meta?.["field_name"]);
+    const fields = this.fieldList(exception.meta?.field_name);
     return fields
       ? `Invalid reference in ${fields}`
       : "A referenced record does not exist";

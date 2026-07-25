@@ -1,4 +1,4 @@
-import * as http from "http";
+import * as http from "node:http";
 import { ConfigService } from "@nestjs/config";
 import { DiscordAlertService } from "./discord-alert.service";
 

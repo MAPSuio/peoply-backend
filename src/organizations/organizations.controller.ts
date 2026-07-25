@@ -18,7 +18,6 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { InvitationStatus, OrganizationRole, User } from "@prisma/client";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangersService } from "../arrangers/services";
 import {
@@ -30,7 +29,6 @@ import { CreateOrganizationInvitationDto } from "../invitations/dto/create-organ
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
-import { PrismaError } from "../prisma/prisma.constants";
 import { isUUID } from "../util/uuid";
 import {
   ChangeOwnerDto,

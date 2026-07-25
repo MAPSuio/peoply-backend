@@ -1,14 +1,9 @@
 import { EventRegistrationMode, RegStatus } from ".prisma/client";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
-import { PrismaError } from "../../prisma/prisma.constants";
 import { PrismaService } from "../../prisma/prisma.service";
 import { buildWaitlistedToGoingHtmlEmail } from "../../util/email";
-import {
-  ForeignKeyNotFoundException,
-  RegistrationNotFoundException,
-} from "../exceptions";
+import { ForeignKeyNotFoundException } from "../exceptions";
 
 /**
  * Options for {@link CommonRegistrationService.updateRegistration}.

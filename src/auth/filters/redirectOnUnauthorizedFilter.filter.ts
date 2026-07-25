@@ -20,7 +20,7 @@ export class RedirectOnUnauthorizedFilter implements ExceptionFilter {
 
     const corsOrigin = this.configService.get(CORS_ORIGIN);
     if (!corsOrigin) {
-      throw new Error(CORS_ORIGIN + " is not configured.");
+      throw new Error(`${CORS_ORIGIN} is not configured.`);
     }
     return response.status(status).redirect(corsOrigin);
   }

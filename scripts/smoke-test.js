@@ -1,6 +1,6 @@
-const http = require("http");
-const path = require("path");
-const { spawn } = require("child_process");
+const http = require("node:http");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
 
 const START_TIMEOUT_MS = 60000;
 const POLL_INTERVAL_MS = 2000;

@@ -8,7 +8,7 @@ export function MinDateString(
   minTime: Date,
   validationOptions?: ValidationOptions,
 ) {
-  return function (object: Object, propertyName: string) {
+  return (object: Object, propertyName: string) => {
     registerDecorator({
       name: "MinDateString",
       target: object.constructor,
@@ -19,7 +19,7 @@ export function MinDateString(
           return minTime < new Date(args.value);
         },
         defaultMessage() {
-          return "The date is too early. The date has to be after " + minTime;
+          return `The date is too early. The date has to be after ${minTime}`;
         },
       },
     });

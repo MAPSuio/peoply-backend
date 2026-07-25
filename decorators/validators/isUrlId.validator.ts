@@ -5,7 +5,7 @@ import {
 } from "class-validator";
 
 export function IsUrlId(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return (object: Object, propertyName: string) => {
     registerDecorator({
       name: "IsUrlId",
       target: object.constructor,

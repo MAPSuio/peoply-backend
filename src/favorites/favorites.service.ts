@@ -1,12 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { Favorite } from ".prisma/client";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
-import { PrismaError } from "../prisma/prisma.constants";
 import { PrismaService } from "../prisma/prisma.service";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
-import { DuplicateFavoriteException } from "./exceptions/duplicateFavorite.exception";
-import { FavoriteDoesNotExistException } from "./exceptions/favoriteDoesNotExist.exception";
-import { ForeignKeyNotFoundException } from "./exceptions/foreignKeyNotFound";
 
 @Injectable()
 export class FavoritesService {

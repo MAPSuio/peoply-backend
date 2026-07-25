@@ -8,7 +8,7 @@ export function IsEarlierDateStringThan(
   latestDateVariableName: string,
   validationOptions?: ValidationOptions,
 ) {
-  return function (object: Object, propertyName: string) {
+  return (object: Object, propertyName: string) => {
     registerDecorator({
       name: "IsEarlierDateStringThan",
       target: object.constructor,

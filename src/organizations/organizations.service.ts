@@ -8,9 +8,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
-import { PrismaError } from "../prisma/prisma.constants";
 import {
   ChangeRoleDto,
   CreateOrganizationDto,
@@ -19,7 +17,6 @@ import {
 } from "./dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from ".prisma/client";
-import { DuplicateArrangerException } from "../arrangers/exceptions/duplicateArrangerException";
 import { EventArrangerRole, Organization } from "@prisma/client";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";

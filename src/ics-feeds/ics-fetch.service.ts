@@ -3,10 +3,10 @@ import {
   Injectable,
   RequestTimeoutException,
 } from "@nestjs/common";
-import { lookup } from "dns/promises";
-import * as http from "http";
-import * as https from "https";
-import { isIP } from "net";
+import { lookup } from "node:dns/promises";
+import * as http from "node:http";
+import * as https from "node:https";
+import { isIP } from "node:net";
 
 const MAX_REDIRECTS = 3;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;

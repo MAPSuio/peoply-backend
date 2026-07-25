@@ -9,7 +9,7 @@ export class ModerationService {
     const newUsers = await this.prisma.user.count({
       where: {
         createdAt: {
-          gte: new Date(new Date().getTime() - days * 24 * 60 * 60 * 1000),
+          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
         },
       },
     });
@@ -20,7 +20,7 @@ export class ModerationService {
     const newEvents = await this.prisma.event.count({
       where: {
         createdAt: {
-          gte: new Date(new Date().getTime() - days * 24 * 60 * 60 * 1000),
+          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
         },
       },
     });
@@ -31,7 +31,7 @@ export class ModerationService {
     const newOrgs = await this.prisma.organization.count({
       where: {
         createdAt: {
-          gte: new Date(new Date().getTime() - days * 24 * 60 * 60 * 1000),
+          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
         },
       },
     });
@@ -42,7 +42,7 @@ export class ModerationService {
     const newRegistrations = await this.prisma.registration.count({
       where: {
         createdAt: {
-          gte: new Date(new Date().getTime() - days * 24 * 60 * 60 * 1000),
+          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
         },
       },
     });
@@ -53,7 +53,7 @@ export class ModerationService {
     const newFavorites = await this.prisma.favorite.count({
       where: {
         createdAt: {
-          gte: new Date(new Date().getTime() - days * 24 * 60 * 60 * 1000),
+          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
         },
       },
     });

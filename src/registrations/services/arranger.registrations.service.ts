@@ -1,11 +1,9 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { Event, EventVisibility, RegStatus } from ".prisma/client";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import {
   SearchEventRegistrationDto,
   SearchEventRegistrationCountDto,
 } from "../../events/dto";
-import { PrismaError } from "../../prisma/prisma.constants";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { Registration } from ".prisma/client";
@@ -108,7 +106,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       ? registrations.map((registration) => {
           if (registration.regStatus !== RegStatus.GOING) {
             registration.user.foodPreference = null;
-            // @ts-ignore
+            // @ts-expect-error
             registration.user.userAllergens = [];
           }
           return registration;

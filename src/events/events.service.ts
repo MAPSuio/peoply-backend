@@ -5,10 +5,8 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventArrangerRole, EventVisibility } from ".prisma/client";
-import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
