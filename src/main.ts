@@ -10,6 +10,7 @@ import * as expressSession from "express-session";
 import * as cookieParser from "cookie-parser";
 const helmet = require("helmet");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { setupApiDocs } from "./api-docs/api-docs.setup";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
 import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
 
@@ -100,13 +101,13 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle("Peoply API")
-    .setDescription("The Peoply API description")
+    .setDescription("The API behind peoply.app, a site for student events.")
     .setVersion("1.0")
-    .addTag("peoply")
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api", app, document);
+  // @nestjs/swagger still builds the OpenAPI document from the DTO decorators;
+  // only the UI rendering it changed from Swagger UI to Scalar.
+  setupApiDocs(app, SwaggerModule.createDocument(app, config));
 
   await app.listen(PORT);
 }
