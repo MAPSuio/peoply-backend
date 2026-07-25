@@ -5,46 +5,17 @@ at `api.peoply.app`, backed by Postgres through Prisma.
 
 ## Getting set up
 
-The project requires **Node >= 20.11.0 < 21** and **npm >= 10 < 11**
-(`engines` in `package.json`). CI runs Node 20.19.5. Check `node -v` before
-opening an issue about a broken install.
+`README.md` has the setup: Node 20.19.5 from `.nvmrc`, `npm ci`, and
+`npm run init:dev-db` to bring up the local Postgres. Get that working before
+reading further — the rest of this document assumes you can run the app.
 
-> `README.md` still says to run `nvm use 16.20.2`. That instruction is stale
-> and predates the NestJS 11 upgrade — follow `engines`, not the README.
+Two things worth repeating, because getting them wrong wastes an afternoon:
 
-```bash
-npm ci        # install exactly what the lockfile says
-```
-
-Use `npm ci` rather than `npm install`. `npm install` silently repairs a
-lockfile that has drifted from `package.json`; CI uses `npm ci`, which fails
-instead. A tree that only works under `npm install` is a tree that fails in CI.
-
-### Database
-
-The API does not boot without Postgres — Prisma and the session store both
-connect during startup. Bring up the local database before anything else:
-
-```bash
-cp .env.example .env                       # set DATABASE_URL as described in README.md
-npm run start:dev-db                       # docker-compose in dev-db/
-npx prisma migrate dev                     # apply migrations
-npm run seed:dev-db                        # local users, organizations, events
-npm run dev                                # http://localhost:3000
-```
-
-`npm run init:dev-db` chains the middle three for you.
-
-A Prisma `P1001` error means the database is not up, not that your code is
-wrong.
-
-### Logging in locally
-
-Vipps and Google login are awkward to use against localhost. Set
-`LOCAL_AUTH_ENABLED=true` and the backend exposes dev-only auth endpoints with
-localhost-safe cookies (`SameSite=Lax`, `Secure=false`). See the *Local mock
-auth* section of `README.md` for the endpoints. This flag changes nothing about
-the production auth flow.
+- Use `npm ci`, not `npm install`. `npm install` silently repairs a lockfile
+  that has drifted from `package.json`; CI uses `npm ci`, which fails instead.
+  A tree that only works under `npm install` is a tree that fails in CI.
+- The API does not boot without Postgres. A Prisma `P1001` means the database
+  is not up, not that your code is wrong.
 
 ## Making a change
 
