@@ -1,3 +1,9 @@
+# The only gate on a pull request. A second workflow used to run the same
+# test/lint/build steps with `npm install` instead of `npm ci`; because
+# `npm install` repairs a lockfile that has drifted from package.json instead
+# of failing on it, it reported green on trees this job correctly rejected.
+# Keep the install step as `npm ci` so CI can only pass on a dependency tree
+# that is reproducible from the committed lockfile.
 name: Backend Verification
 
 on:
