@@ -7,7 +7,7 @@ NestJS API for [peoply.app](https://peoply.app), on Postgres via Prisma.
 | Backend | you are here | `http://localhost:3000` | `https://api.peoply.app` |
 | Frontend | [`MAPSuio/peoply-frontend`](https://github.com/MAPSuio/peoply-frontend) | `http://localhost:3001` | `https://peoply.app` |
 
-Node >= 20.11.0 < 21, npm >= 10 < 11. `.nvmrc` pins 20.19.5. Docker needed for the local database.
+Node >= 20.19.0 < 21, npm >= 10 < 11. `.nvmrc` pins 20.19.5. Docker needed for the local database.
 
 ## Run the backend
 
@@ -23,7 +23,7 @@ npm run dev             # http://localhost:3000
 
 `npm run init:dev-db` replaces the docker/migrate/seed steps, but it recreates the database and shells out to `sudo`.
 
-Swagger: <http://localhost:3000/api>. A Prisma `P1001` means the database isn't up.
+API reference: <http://localhost:3000/api>, rendered by [Scalar](https://scalar.com/). The raw OpenAPI document is at `/api/openapi.json`. A Prisma `P1001` means the database isn't up.
 
 | Script | |
 | --- | --- |
