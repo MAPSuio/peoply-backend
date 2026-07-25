@@ -97,3 +97,31 @@ jobs:
 
       - name: Smoke test built backend
         run: npm run test:smoke
+
+  # Deploys prod only after `verify` is green. The App Platform app is
+  # referenced by name, so the spec stays in DigitalOcean rather than in this
+  # repo; it holds production env vars, including the database URL, that must
+  # not be committed here.
+  #
+  # The production build runs `postbuild`, which is `prisma migrate deploy &&
+  # prisma db seed` — so this job migrates and seeds the production database.
+  # Never let two of these run at once, hence the concurrency group.
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-prod-backend
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: digitalocean/app_action/deploy@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          app_name: prod-peoply-backend
+          print_build_logs: true
+          print_deploy_logs: true
