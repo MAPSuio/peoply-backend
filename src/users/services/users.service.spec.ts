@@ -265,4 +265,83 @@ describe("UsersService", () => {
       ).rejects.toMatchObject({ message: expect.stringMatching(/missing/) });
     });
   });
+
+  describe("remove", () => {
+    const buildPrisma = (order: string[]) => {
+      const arrangerDelete = jest.fn().mockImplementation(async () => {
+        order.push("arranger.delete");
+        return {};
+      });
+
+      return {
+        user: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ id: "user-1", arrangerId: "arranger-1" }),
+        },
+        // interactive transaction: hand the callback a client that records order
+        $transaction: jest.fn(async (cb: any) =>
+          cb({
+            event: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            arranger: { delete: arrangerDelete },
+          }),
+        ),
+      } as any;
+    };
+
+    it("finishes releasing registrations before deleting the user", async () => {
+      const order: string[] = [];
+      const prisma = buildPrisma(order);
+
+      const userRegistrationService = {
+        updateAllRegistrationsOfUserToNotGoing: jest.fn(
+          () =>
+            new Promise<void>((resolve) =>
+              setImmediate(() => {
+                order.push("registrations.released");
+                resolve();
+              }),
+            ),
+        ),
+      } as any;
+
+      const service = new UsersService(
+        prisma,
+        {} as any,
+        userRegistrationService,
+      );
+
+      await service.remove("user-1");
+
+      expect(
+        userRegistrationService.updateAllRegistrationsOfUserToNotGoing,
+      ).toHaveBeenCalledWith("user-1");
+      // The old code did not await this, so the arranger (and the user, by
+      // cascade) could be deleted while registrations were still being freed.
+      expect(order).toEqual(["registrations.released", "arranger.delete"]);
+    });
+
+    it("does not delete the user when releasing registrations fails", async () => {
+      const order: string[] = [];
+      const prisma = buildPrisma(order);
+
+      const userRegistrationService = {
+        updateAllRegistrationsOfUserToNotGoing: jest
+          .fn()
+          .mockRejectedValue(new Error("database unavailable")),
+      } as any;
+
+      const service = new UsersService(
+        prisma,
+        {} as any,
+        userRegistrationService,
+      );
+
+      await expect(service.remove("user-1")).rejects.toThrow(
+        "database unavailable",
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(order).toEqual([]);
+    });
+  });
 });

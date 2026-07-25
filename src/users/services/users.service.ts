@@ -498,6 +498,15 @@ export class UsersService {
         throw new UserDoesNotExistException(id);
       }
 
+      // Release the spots this user holds before deleting them, so waitlisted
+      // attendees are promoted. This runs outside the transaction below on
+      // purpose: updateRegistration opens its own transaction per event, and
+      // nesting those inside an open one risks deadlocking against the very
+      // rows this transaction is about to delete.
+      await this.userRegistrationService.updateAllRegistrationsOfUserToNotGoing(
+        user.id,
+      );
+
       await this.prisma.$transaction(async (trx) => {
         //delete all events hosted by user
         await trx.event.deleteMany({
@@ -510,10 +519,6 @@ export class UsersService {
             },
           },
         });
-
-        this.userRegistrationService.updateAllRegistrationsOfUserToNotGoing(
-          user.id,
-        );
 
         // delete arranger which automatically deletes user because of ON DELETE CASCADE in schema.prisma
         await trx.arranger.delete({

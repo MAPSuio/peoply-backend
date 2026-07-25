@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -18,6 +18,8 @@ import { AzureCommunicationService } from "../../azure/azure-communication.servi
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
+  private readonly logger = new Logger(UserRegistrationService.name);
+
   constructor(
     prismaService: PrismaService,
     azureCommunicationService: AzureCommunicationService,
@@ -174,26 +176,45 @@ export class UserRegistrationService extends CommonRegistrationService {
     });
   }
 
+  /**
+   * Releases a user's held spots before their account is deleted, so that
+   * waitlisted attendees are promoted into the seats being freed.
+   *
+   * Only upcoming events are touched: a past event has no spot left to free,
+   * and updateRegistration would reject it anyway.
+   *
+   * A registration that cannot be released must not block the deletion, so
+   * failures are logged and the remaining registrations are still processed.
+   */
   async updateAllRegistrationsOfUserToNotGoing(userId: string) {
-    // get all registrations of user
-    this.prismaService.$transaction(async (trx) => {
-      const registrations = await trx.registration.findMany({
-        where: {
-          userId,
+    const registrations = await this.prismaService.registration.findMany({
+      where: {
+        userId,
+        regStatus: { in: [RegStatus.GOING, RegStatus.WAITLISTED] },
+        event: {
+          OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
         },
-      });
-
-      // update all registrations to not going
-      registrations.forEach(async (registration) => {
-        try {
-          await super.updateRegistration(
-            userId,
-            registration.eventId,
-            RegStatus.NOT_GOING,
-          );
-        } catch (error) {}
-      });
+      },
+      select: { eventId: true },
     });
+
+    // Sequential on purpose: updateRegistration opens its own transaction per
+    // call and promotes from the waitlist, so concurrent calls would race.
+    for (const registration of registrations) {
+      try {
+        await super.updateRegistration(
+          userId,
+          registration.eventId,
+          RegStatus.NOT_GOING,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Could not release registration for user ${userId} on event ${
+            registration.eventId
+          }: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
   }
 
   async update(userId: string, dto: UserUpdateRegistrationDto) {
