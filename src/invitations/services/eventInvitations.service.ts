@@ -59,22 +59,8 @@ export class EventInvitationsService {
         invitationStatus: true,
         createdAt: true,
         updatedAt: true,
-        toUser: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            image: true,
-          },
-        },
-        fromUser: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            image: true,
-          },
-        },
+        toUser: { select: PUBLIC_USER_SELECT },
+        fromUser: { select: PUBLIC_USER_SELECT },
       },
     });
   }

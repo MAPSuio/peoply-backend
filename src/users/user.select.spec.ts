@@ -125,6 +125,28 @@ describe("endpoints that return other people's users", () => {
         return calls;
       },
     ],
+    [
+      "EventInvitationsService.findAllInvitationsForEventIncludingUsers (GET /events/:eventId/invitations)",
+      async () => {
+        const calls: any[] = [];
+        const prisma: any = {
+          event: { findUnique: jest.fn().mockResolvedValue({ endDate: null }) },
+          eventInvitation: {
+            findMany: jest.fn((args) => {
+              calls.push(args);
+              return Promise.resolve([]);
+            }),
+            updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        };
+
+        await new EventInvitationsService(
+          prisma,
+          {} as any,
+        ).findAllInvitationsForEventIncludingUsers("event-1");
+        return calls;
+      },
+    ],
   ];
 
   it.each(cases)("%s never includes a whole user row", async (_name, run) => {

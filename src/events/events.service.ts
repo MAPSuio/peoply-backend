@@ -11,6 +11,7 @@ import { EventArrangerRole, EventVisibility } from ".prisma/client";
 import { PrismaError } from "../prisma/prisma.constants";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
+import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
 import { EventNotFoundException } from "./exceptions";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
@@ -395,25 +396,7 @@ export class EventsService {
         eventArrangers: {
           include: {
             arranger: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    image: true,
-                  },
-                },
-                organization: {
-                  select: {
-                    id: true,
-                    urlId: true,
-                    name: true,
-                    image: true,
-                    orgNr: true,
-                  },
-                },
-              },
+              include: PUBLIC_ARRANGER_INCLUDE,
             },
           },
         },
@@ -458,25 +441,7 @@ export class EventsService {
         eventArrangers: {
           include: {
             arranger: {
-              include: {
-                user: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    id: true,
-                    image: true,
-                  },
-                },
-                organization: {
-                  select: {
-                    id: true,
-                    urlId: true,
-                    name: true,
-                    image: true,
-                    orgNr: true,
-                  },
-                },
-              },
+              include: PUBLIC_ARRANGER_INCLUDE,
             },
           },
         },

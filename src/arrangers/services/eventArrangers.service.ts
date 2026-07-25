@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventVisibility, OrganizationRole } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
+import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";
 
 /**
  * Every query here returns *all* arrangers of each matched event, not only the
@@ -71,25 +72,7 @@ export class EventArrangersService {
             eventArrangers: {
               include: {
                 arranger: {
-                  include: {
-                    user: {
-                      select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        image: true,
-                      },
-                    },
-                    organization: {
-                      select: {
-                        id: true,
-                        urlId: true,
-                        name: true,
-                        image: true,
-                        orgNr: true,
-                      },
-                    },
-                  },
+                  include: PUBLIC_ARRANGER_INCLUDE,
                 },
               },
             },
