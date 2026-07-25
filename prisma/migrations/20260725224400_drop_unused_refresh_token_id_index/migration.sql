@@ -1,0 +1,15 @@
+-- `202603231835_add_refresh_token_id` created this index with raw SQL but never
+-- added the matching `@@index([refreshTokenId])` to the User model, so
+-- schema.prisma and the database have disagreed since March. `prisma migrate
+-- dev` has been generating this DROP on every run since.
+--
+-- Close the drift by dropping rather than by declaring, because no query uses
+-- the index: the only filter on the column is
+-- `where: { id: userId, refreshTokenId: null }` (users.service.ts), which is
+-- served by the primary key on `id`. Everything else reads the field off a row
+-- already fetched by id, or compares it in JS (refresh.strategy.ts).
+--
+-- Dropping an index is a catalog-only change, but it still takes a brief
+-- ACCESS EXCLUSIVE lock on `users`. `CONCURRENTLY` is not an option here:
+-- Prisma runs each migration in a transaction, and Postgres forbids it there.
+DROP INDEX "users_refresh_token_id_idx";
