@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -18,8 +18,6 @@ import { AzureCommunicationService } from "../../azure/azure-communication.servi
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
-  private readonly logger = new Logger(UserRegistrationService.name);
-
   constructor(
     prismaService: PrismaService,
     azureCommunicationService: AzureCommunicationService,
@@ -180,8 +178,10 @@ export class UserRegistrationService extends CommonRegistrationService {
    * Releases a user's held spots before their account is deleted, so that
    * waitlisted attendees are promoted into the seats being freed.
    *
-   * Only upcoming events are touched: a past event has no spot left to free,
-   * and updateRegistration would reject it anyway.
+   * Only upcoming events are touched: a past event has no spot left to free.
+   * The release runs as systemInitiated, so an event whose registration has
+   * already closed still gives its seat back — the user is not choosing to
+   * leave, their account is being deleted.
    *
    * A registration that cannot be released must not block the deletion, so
    * failures are logged and the remaining registrations are still processed.
@@ -206,6 +206,10 @@ export class UserRegistrationService extends CommonRegistrationService {
           userId,
           registration.eventId,
           RegStatus.NOT_GOING,
+          undefined,
+          // The user is not choosing to leave — their account is going away.
+          // Registration being closed must not strand the seat.
+          { systemInitiated: true },
         );
       } catch (error) {
         this.logger.warn(

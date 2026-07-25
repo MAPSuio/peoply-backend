@@ -55,10 +55,14 @@ describe("UserRegistrationService.updateAllRegistrationsOfUserToNotGoing", () =>
 
     await service.updateAllRegistrationsOfUserToNotGoing("user-1");
 
+    // systemInitiated: the account is being deleted, so a closed registration
+    // window must not strand the seat.
     expect(updateRegistration).toHaveBeenCalledWith(
       "user-1",
       "event-1",
       RegStatus.NOT_GOING,
+      undefined,
+      { systemInitiated: true },
     );
   });
 
