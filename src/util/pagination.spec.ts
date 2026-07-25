@@ -20,6 +20,9 @@ const searchDtos = [
 const validateTake = (dto: any, take: string) =>
   validateSync(plainToInstance(dto, { take }));
 
+const validateSkip = (dto: any, skip: string) =>
+  validateSync(plainToInstance(dto, { skip }));
+
 describe.each(searchDtos)("%s take bounds", (_name, dto) => {
   it(`rejects take above MAX_PAGE_SIZE (${MAX_PAGE_SIZE})`, () => {
     const errors = validateTake(dto, String(MAX_PAGE_SIZE + 1));
@@ -52,6 +55,50 @@ describe.each(searchDtos)("%s take bounds", (_name, dto) => {
   });
 
   it("allows take to be omitted", () => {
+    expect(validateSync(plainToInstance(dto, {}))).toHaveLength(0);
+  });
+
+  it("accepts the smallest useful page, take=1", () => {
+    expect(validateTake(dto, "1")).toHaveLength(0);
+  });
+
+  // Not because take=0 is a useful request, but because the lower bound has to
+  // be the same on all five. Four of them already allowed it, so raising them
+  // to match the fifth would have broken clients rather than unbroken one.
+  it("accepts take=0", () => {
+    expect(validateTake(dto, "0")).toHaveLength(0);
+  });
+
+  it("rejects a negative take", () => {
+    const errors = validateTake(dto, "-1");
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0].property).toBe("take");
+    expect(errors[0].constraints).toHaveProperty("min");
+  });
+});
+
+// `skip` is an offset, so 0 is the first page and every paginating client sends
+// it. These run across all five DTOs because the bug they cover was one DTO
+// drifting from the other four rather than a rule being wrong everywhere.
+describe.each(searchDtos)("%s skip bounds", (_name, dto) => {
+  it("accepts skip=0, the first page", () => {
+    expect(validateSkip(dto, "0")).toHaveLength(0);
+  });
+
+  it("accepts a skip past the first page", () => {
+    expect(validateSkip(dto, "20")).toHaveLength(0);
+  });
+
+  it("rejects a negative skip", () => {
+    const errors = validateSkip(dto, "-1");
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0].property).toBe("skip");
+    expect(errors[0].constraints).toHaveProperty("min");
+  });
+
+  it("allows skip to be omitted", () => {
     expect(validateSync(plainToInstance(dto, {}))).toHaveLength(0);
   });
 });
