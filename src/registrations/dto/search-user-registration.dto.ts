@@ -1,8 +1,9 @@
 import { RegStatus } from ".prisma/client";
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsOptional, Min } from "class-validator";
+import { IsEnum, IsInt, IsOptional, Max, Min } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
 
 export class SearchUserRegistrationDto {
   @IsOptional()
@@ -35,7 +36,8 @@ export class SearchUserRegistrationDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(MAX_PAGE_SIZE)
   @Type(() => Number)
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
   take?: number;
 }

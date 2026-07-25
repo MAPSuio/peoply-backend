@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   Min,
   MinLength,
 } from "class-validator";
@@ -16,6 +17,7 @@ import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import { IsUrlId } from "../../../decorators/validators/isUrlId.validator";
 import { PrismaOrderDirections } from "../../prisma/prisma.constants";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
 
 export class SearchEventDto {
   @IsOptional()
@@ -92,8 +94,9 @@ export class SearchEventDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(MAX_PAGE_SIZE)
   @Type(() => Number)
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
   take?: number;
 
   @IsOptional()

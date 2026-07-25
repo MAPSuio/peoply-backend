@@ -17,6 +17,13 @@ import { EventArrangerRole, UserSeenUpdateType } from "@prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
 
+/**
+ * Upper bound on the number of rows a name search may load for in-memory
+ * ranking. Comfortably above MAX_PAGE_SIZE so relevance ordering still has
+ * candidates to choose from, while keeping the query bounded.
+ */
+const USER_SEARCH_CANDIDATE_LIMIT = 500;
+
 const SEARCH_VARIANT_REPLACEMENTS = [
   ["aa", "å"],
   ["ae", "æ"],
@@ -252,9 +259,11 @@ export class UsersService {
         description: true,
       },
       // Relevance is computed in the service, so pagination must happen after
-      // we have ranked the full candidate set.
+      // we have ranked the candidate set. The candidate set is capped so a
+      // broad query (e.g. a single letter) cannot pull the whole user table
+      // into memory; results beyond the cap are not reachable by ranking.
       skip: normalizedName ? undefined : skip,
-      take: normalizedName ? undefined : take,
+      take: normalizedName ? USER_SEARCH_CANDIDATE_LIMIT : take,
     });
 
     if (normalizedName) {

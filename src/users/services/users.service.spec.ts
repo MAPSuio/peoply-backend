@@ -43,10 +43,12 @@ describe("UsersService", () => {
         description: null,
       },
     ]);
+    // Ranking still happens after the query, so `skip` stays unset — but the
+    // candidate set is capped so a broad query cannot read the whole table.
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         skip: undefined,
-        take: undefined,
+        take: 500,
       }),
     );
   });
