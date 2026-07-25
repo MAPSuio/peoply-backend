@@ -103,7 +103,6 @@ async function bootstrap() {
     .setTitle("Peoply API")
     .setDescription("The API behind peoply.app, a site for student events.")
     .setVersion("1.0")
-    .addTag("peoply")
     .build();
 
   // @nestjs/swagger still builds the OpenAPI document from the DTO decorators;
