@@ -1,5 +1,6 @@
-import { NestFactory } from "@nestjs/core";
+import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { PrismaExceptionFilter } from "./prisma/prisma-exception.filter";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import * as crypto from "crypto";
@@ -66,6 +67,10 @@ async function bootstrap() {
 
   // { whitelist : true } this strips any atributes in a dto that has no decorator.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // Maps Prisma error codes to HTTP responses so services do not each repeat
+  // the same try/catch. Registered here rather than as an APP_FILTER provider
+  // because it needs no request-scoped dependencies.
+  app.useGlobalFilters(new PrismaExceptionFilter(app.get(HttpAdapterHost)));
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
     const trustedOrigins = parseTrustedOrigins(process.env.CORS_ORIGIN);

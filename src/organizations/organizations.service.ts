@@ -54,57 +54,48 @@ export class OrganizationsService {
   ) {
     const arrangerId = createUuid();
 
-    try {
-      const newOrganization = await this.prisma.$transaction(async (trx) => {
-        //create arranger
-        await trx.arranger.create({
-          data: { id: arrangerId, isBusiness: true },
-        });
-
-        // urlId of name removing all spaces and special characters and change all to lowercase
-        let urlId: string | null = createOrganizationDto.name
-          .replace(/[^a-zA-Z0-9]/g, "")
-          .toLowerCase();
-
-        // check if urlId is unique
-        const urlIdExists = await trx.organization.findUnique({
-          where: { urlId: urlId },
-        });
-        if (urlIdExists) {
-          urlId = null;
-        }
-
-        //create organization
-        const newOrg = await trx.organization.create({
-          data: {
-            arrangerId,
-            ...createOrganizationDto,
-            urlId,
-          },
-        });
-        //create userOrganizationRole
-        await trx.userOrganizationRole.create({
-          data: {
-            userId: creatorId,
-            organizationId: newOrg.id,
-            role: OrganizationRole.OWNER,
-          },
-        });
-        return newOrg;
+    // The catch this replaces ended in
+    // `throw new HttpException(error + "\nCreate organization error", 500)`,
+    // which put Prisma's raw message — query fragments and column values
+    // included — straight into the response body. P2002 now becomes a 409
+    // through PrismaExceptionFilter, and anything else a plain 500.
+    return await this.prisma.$transaction(async (trx) => {
+      //create arranger
+      await trx.arranger.create({
+        data: { id: arrangerId, isBusiness: true },
       });
 
-      return newOrganization;
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.DuplicateUniqueValue
-      ) {
-        //unique value duplicated in DB
+      // urlId of name removing all spaces and special characters and change all to lowercase
+      let urlId: string | null = createOrganizationDto.name
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .toLowerCase();
 
-        throw new DuplicateArrangerException(arrangerId);
+      // check if urlId is unique
+      const urlIdExists = await trx.organization.findUnique({
+        where: { urlId: urlId },
+      });
+      if (urlIdExists) {
+        urlId = null;
       }
-      throw new HttpException(error + "\nCreate organization error", 500);
-    }
+
+      //create organization
+      const newOrg = await trx.organization.create({
+        data: {
+          arrangerId,
+          ...createOrganizationDto,
+          urlId,
+        },
+      });
+      //create userOrganizationRole
+      await trx.userOrganizationRole.create({
+        data: {
+          userId: creatorId,
+          organizationId: newOrg.id,
+          role: OrganizationRole.OWNER,
+        },
+      });
+      return newOrg;
+    });
   }
 
   private async findManyOrganizations(
@@ -273,66 +264,65 @@ export class OrganizationsService {
         },
       });
     } catch (error) {
-      /* delete uploaded image if anything fails */
+      // Kept for the cleanup only: the image is uploaded before the update,
+      // so a failure would leave it orphaned. It is now awaited and guarded —
+      // the previous call was fire-and-forget, so a storage failure surfaced
+      // as an unhandled rejection instead of a log line.
       if (imageFileName) {
-        this.azureStorageService.delete(
-          imageFileName.slice(imageFileName.lastIndexOf("/") + 1),
-          AzureStorageContainer.ORGANIZATION_IMAGES,
-        );
-      }
-
-      if (error instanceof PrismaClientKnownRequestError) {
-        switch (error.code) {
-          case PrismaError.EntityNotFound:
-            throw new BadRequestException("No such organization exists.");
-
-          default:
-            throw error;
+        try {
+          await this.azureStorageService.delete(
+            imageFileName.slice(imageFileName.lastIndexOf("/") + 1),
+            AzureStorageContainer.ORGANIZATION_IMAGES,
+          );
+        } catch (cleanupError) {
+          this.logger.warn(
+            `Organization ${org.id} update failed and the uploaded image could not be removed: ${
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : cleanupError
+            }`,
+          );
         }
       }
+
       throw error;
     }
   }
 
   async remove(id: string) {
-    try {
-      // get arranger id
-      const org = await this.prisma.organization.findUnique({
-        where: { id },
-      });
-      if (!org) {
-        throw new OrganizationDoesNotExistException(id);
-      }
+    // get arranger id
+    const org = await this.prisma.organization.findUnique({
+      where: { id },
+    });
+    if (!org) {
+      throw new OrganizationDoesNotExistException(id);
+    }
 
-      await this.prisma.$transaction(async (trx) => {
-        //delete all events hosted by organization
-        await trx.event.deleteMany({
-          where: {
-            eventArrangers: {
-              some: {
-                arrangerId: org.arrangerId,
-                role: EventArrangerRole.ADMIN,
-              },
+    // The catch this replaces tested for P2001, which the arranger delete
+    // below does not raise — a missing row raises P2025. Deleting an already
+    // deleted organization answered 500 instead of 404.
+    await this.prisma.$transaction(async (trx) => {
+      //delete all events hosted by organization
+      await trx.event.deleteMany({
+        where: {
+          eventArrangers: {
+            some: {
+              arrangerId: org.arrangerId,
+              role: EventArrangerRole.ADMIN,
             },
           },
-        });
-
-        // delete arranger which automatically deletes organization because of ON DELETE CASCADE in schema.prisma
-        await trx.arranger.delete({
-          where: {
-            id: org.arrangerId,
-          },
-        });
+        },
       });
 
-      return org;
-    } catch (error) {
-      if (error.code === PrismaError.DoesNotExist) {
-        throw new OrganizationDoesNotExistException(id);
-      }
+      // delete arranger which automatically deletes organization because of ON DELETE CASCADE in schema.prisma
+      await trx.arranger.delete({
+        where: {
+          id: org.arrangerId,
+        },
+      });
+    });
 
-      throw error;
-    }
+    return org;
   }
 
   async findOrgsByUserIdAndRole(userId: string, role?: OrganizationRole) {

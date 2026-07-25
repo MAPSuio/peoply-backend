@@ -26,93 +26,78 @@ export class UserRegistrationService extends CommonRegistrationService {
   }
 
   async create(userId: string, createRegistrationDto: CreateRegistrationDto) {
-    try {
-      return this.prismaService.$transaction(async (trx) => {
-        const event = await trx.event.findUnique({
-          where: { id: createRegistrationDto.eventId },
-          include: {
-            registrations: { where: { regStatus: RegStatus.GOING } },
-          },
-        });
+    // P2002 (already registered) -> 409 and P2003 (no such event or user)
+    // -> 400, both handled by PrismaExceptionFilter.
+    return this.prismaService.$transaction(async (trx) => {
+      const event = await trx.event.findUnique({
+        where: { id: createRegistrationDto.eventId },
+        include: {
+          registrations: { where: { regStatus: RegStatus.GOING } },
+        },
+      });
 
-        const user = await trx.user.findUnique({
-          where: { id: userId },
-        });
+      const user = await trx.user.findUnique({
+        where: { id: userId },
+      });
 
-        if (event?.endDate && new Date() > event.endDate) {
-          throw new BadRequestException("Event has ended");
+      if (event?.endDate && new Date() > event.endDate) {
+        throw new BadRequestException("Event has ended");
+      }
+
+      if (event?.regStart && new Date() < event.regStart) {
+        throw new BadRequestException("Registration has not opened yet");
+      }
+
+      if (event?.regEnd && new Date() > event.regEnd) {
+        throw new BadRequestException("Registration has closed");
+      }
+
+      if (event?.formQuestion && !createRegistrationDto.formAnswer) {
+        throw new BadRequestException("Form answer is required");
+      }
+
+      if (event?.hasFood && !user?.foodPreference) {
+        throw new BadRequestException("Food preference is required");
+      }
+
+      if (event) {
+        if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
+          throw new BadRequestException(
+            "Registration for this event does not happen in Peoply",
+          );
         }
 
-        if (event?.regStart && new Date() < event.regStart) {
-          throw new BadRequestException("Registration has not opened yet");
-        }
-
-        if (event?.regEnd && new Date() > event.regEnd) {
-          throw new BadRequestException("Registration has closed");
-        }
-
-        if (event?.formQuestion && !createRegistrationDto.formAnswer) {
-          throw new BadRequestException("Form answer is required");
-        }
-
-        if (event?.hasFood && !user?.foodPreference) {
-          throw new BadRequestException("Food preference is required");
-        }
-
-        if (event) {
-          if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
-            throw new BadRequestException(
-              "Registration for this event does not happen in Peoply",
-            );
-          }
-
-          if (createRegistrationDto.regStatus === RegStatus.GOING) {
-            if (
-              event.capacity === null ||
-              event.registrations.length < event.capacity
-            ) {
-              return trx.registration.create({
-                data: { ...createRegistrationDto, userId },
-              });
-            } else {
-              return trx.registration.create({
-                data: {
-                  eventId: createRegistrationDto.eventId,
-                  userId,
-                  regStatus: RegStatus.WAITLISTED,
-                  formAnswer: createRegistrationDto.formAnswer,
-                },
-              });
-            }
-          } else if (createRegistrationDto.regStatus === RegStatus.INVITED) {
+        if (createRegistrationDto.regStatus === RegStatus.GOING) {
+          if (
+            event.capacity === null ||
+            event.registrations.length < event.capacity
+          ) {
             return trx.registration.create({
               data: { ...createRegistrationDto, userId },
             });
           } else {
-            /* Not possible to create with NOT_GOING_ since this only makes sense if invited */
-            /* Also not possible with WAITLISTED, since this is handled in GOING case */
-            throw new BadRequestException("Invalid registration status");
+            return trx.registration.create({
+              data: {
+                eventId: createRegistrationDto.eventId,
+                userId,
+                regStatus: RegStatus.WAITLISTED,
+                formAnswer: createRegistrationDto.formAnswer,
+              },
+            });
           }
+        } else if (createRegistrationDto.regStatus === RegStatus.INVITED) {
+          return trx.registration.create({
+            data: { ...createRegistrationDto, userId },
+          });
         } else {
-          throw new EventNotFoundException();
+          /* Not possible to create with NOT_GOING_ since this only makes sense if invited */
+          /* Also not possible with WAITLISTED, since this is handled in GOING case */
+          throw new BadRequestException("Invalid registration status");
         }
-      });
-    } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === PrismaError.DuplicateUniqueValue) {
-          throw new DuplicateRegistrationException(
-            createRegistrationDto.eventId,
-            userId,
-          );
-        } else if (error.code === PrismaError.ForeignKeyFailed) {
-          throw new ForeignKeyNotFoundException(
-            createRegistrationDto.eventId,
-            userId,
-          );
-        }
+      } else {
+        throw new EventNotFoundException();
       }
-      throw error;
-    }
+    });
   }
 
   async findAll(

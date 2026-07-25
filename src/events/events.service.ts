@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
 } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../prisma/prisma.service";
@@ -27,6 +28,8 @@ import { AzureCommunicationService } from "../azure/azure-communication.service"
 import { createUuid } from "../util/uuid";
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
@@ -282,6 +285,10 @@ export class EventsService {
       });
       return event;
     } catch (error) {
+      // This catch stays: the image is uploaded before the transaction runs,
+      // so a failed transaction would otherwise orphan it in blob storage.
+      // The Prisma code mapping that used to live here is gone —
+      // PrismaExceptionFilter turns P2003 into 400 and P2002 into 409.
       try {
         if (eventImage) {
           await this.azureStorageService.delete(
@@ -289,25 +296,14 @@ export class EventsService {
             AzureStorageContainer.EVENT_IMAGES,
           );
         }
-      } catch (error) {
-        console.log(error, "Could not delete event image");
+      } catch (cleanupError) {
+        this.logger.warn(
+          `Event creation failed and the uploaded image ${eventImageFileName} could not be removed: ${
+            cleanupError instanceof Error ? cleanupError.message : cleanupError
+          }`,
+        );
       }
-      if (error instanceof PrismaClientKnownRequestError) {
-        switch (error.code) {
-          case PrismaError.ForeignKeyFailed:
-            /* bad category id */
-            throw new BadRequestException("Bad category id");
-
-          case PrismaError.DuplicateUniqueValue:
-            throw new BadRequestException(
-              "Duplicate event id, or duplicates in categoryIds",
-            );
-          default:
-            throw error;
-        }
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
@@ -712,53 +708,47 @@ export class EventsService {
         return event;
       });
     } catch (error) {
-      //delete uploaded image if there was an error
+      // Kept for the cleanup only: the replacement image is uploaded before
+      // the transaction, so a failure would leave it orphaned. The cleanup is
+      // now guarded — an unguarded delete that threw replaced the real error
+      // with the storage error and hid why the update failed.
       if (newImageUrl) {
-        await this.azureStorageService.delete(
-          newImageUrl.slice(newImageUrl.lastIndexOf("/") + 1),
-          AzureStorageContainer.EVENT_IMAGES,
-        );
+        try {
+          await this.azureStorageService.delete(
+            newImageUrl.slice(newImageUrl.lastIndexOf("/") + 1),
+            AzureStorageContainer.EVENT_IMAGES,
+          );
+        } catch (cleanupError) {
+          this.logger.warn(
+            `Event ${id} update failed and the uploaded image could not be removed: ${
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : cleanupError
+            }`,
+          );
+        }
       }
 
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        //errorcode 'P2025' event not found in database
-        throw new EventNotFoundException(id);
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   async remove(id: string) {
-    try {
-      const event = await this.prisma.event.findUnique({
-        where: { id },
-        select: { readOnly: true },
-      });
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      select: { readOnly: true },
+    });
 
-      if (event?.readOnly) {
-        throw new BadRequestException(
-          "Imported ICS events can not be deleted manually",
-        );
-      }
-
-      return await this.prisma.event.delete({
-        where: { id },
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        //errorcode 'P2025' event not found in database
-        throw new EventNotFoundException(id);
-      } else {
-        throw error;
-      }
+    if (event?.readOnly) {
+      throw new BadRequestException(
+        "Imported ICS events can not be deleted manually",
+      );
     }
+
+    // A missing event raises P2025, which becomes 404 in the filter.
+    return await this.prisma.event.delete({
+      where: { id },
+    });
   }
 
   async sendUpdateToEventParticipants(

@@ -13,21 +13,12 @@ export class FavoritesService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async create(userId: string, eventId: string) {
-    try {
-      const registration = await this.prismaService.favorite.create({
-        data: { eventId, userId },
-      });
-      return registration;
-    } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === PrismaError.DuplicateUniqueValue) {
-          throw new DuplicateFavoriteException(eventId, userId);
-        } else if (error.code === PrismaError.ForeignKeyFailed) {
-          throw new ForeignKeyNotFoundException(eventId, userId);
-        }
-      }
-      throw error;
-    }
+    // P2002 (already favourited) -> 409 and P2003 (no such event or user)
+    // -> 400, both handled by PrismaExceptionFilter.
+    const registration = await this.prismaService.favorite.create({
+      data: { eventId, userId },
+    });
+    return registration;
   }
 
   async findAll(
@@ -95,17 +86,15 @@ export class FavoritesService {
   }
 
   async remove(userId: string, eventId: string) {
-    try {
-      return await this.prismaService.favorite.delete({
-        where: {
-          eventId_userId: {
-            userId,
-            eventId,
-          },
+    // The catch this replaces had no condition at all: every failure became
+    // "favorite does not exist", so a dropped connection reported 404.
+    return await this.prismaService.favorite.delete({
+      where: {
+        eventId_userId: {
+          userId,
+          eventId,
         },
-      });
-    } catch (error) {
-      throw new FavoriteDoesNotExistException(userId, eventId);
-    }
+      },
+    });
   }
 }

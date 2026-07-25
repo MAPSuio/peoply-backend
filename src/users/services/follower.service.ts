@@ -52,45 +52,25 @@ export class FollowService {
       throw new ArrangerNotFoundException(arrangerId);
     }
 
-    try {
-      const arrangerFollower = await this.prisma.arrangerFollower.create({
-        data: {
-          arrangerId,
-          userId,
-        },
-      });
+    // Following twice raises P2002 -> 409. This used to answer 400.
+    const arrangerFollower = await this.prisma.arrangerFollower.create({
+      data: {
+        arrangerId,
+        userId,
+      },
+    });
 
-      return arrangerFollower;
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.DuplicateUniqueValue
-      ) {
-        throw new BadRequestException(
-          "User is already following this arranger",
-        );
-      } else {
-        throw error;
-      }
-    }
+    return arrangerFollower;
   }
 
   async unFollow(userId: string, arrangerId: string) {
-    try {
-      return await this.prisma.arrangerFollower.delete({
-        where: {
-          arrangerId_userId: { arrangerId, userId },
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.DoesNotExist
-      ) {
-        throw new NotFoundException("User is not following this arranger.");
-      } else {
-        throw error;
-      }
-    }
+    // The catch this replaces tested for P2001, which Prisma does not raise
+    // here — a delete with no matching row raises P2025. Unfollowing an
+    // arranger you were not following answered 500 instead of 404.
+    return await this.prisma.arrangerFollower.delete({
+      where: {
+        arrangerId_userId: { arrangerId, userId },
+      },
+    });
   }
 }

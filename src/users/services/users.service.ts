@@ -1,7 +1,12 @@
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "crypto";
-import { BadRequestException, HttpException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import { Provider, User } from ".prisma/client";
 import { CreateUserDto, UpdateUserDto } from "../dto";
 import { PrismaError } from "../../prisma/prisma.constants";
@@ -134,6 +139,8 @@ const scoreUserSearchMatch = (
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     private readonly azureStorageService: AzureStorageService,
@@ -201,17 +208,18 @@ export class UsersService {
 
         return newUser;
       } catch (error) {
+        // Both arms of the branch this replaces rethrew, so the only thing it
+        // did was note the collision. Kept as a real log line: a duplicate on
+        // a freshly generated uuid is worth knowing about.
         if (
           error instanceof PrismaClientKnownRequestError &&
           error.code === PrismaError.DuplicateUniqueValue
         ) {
-          //unique value duplicated in DB
-          console.log("Holy shit! uuid collision");
-
-          throw error;
-        } else {
-          throw error;
+          this.logger.error(
+            `uuid collision while creating a user for provider ${provider}`,
+          );
         }
+        throw error;
       }
     }
   }
@@ -468,75 +476,74 @@ export class UsersService {
         });
       });
     } catch (error) {
-      /* delete uploaded image if anything fails */
+      // Kept for the cleanup only: the image is uploaded before the update,
+      // so a failure would leave it orphaned. It is now awaited and guarded —
+      // the previous call was fire-and-forget, so a storage failure surfaced
+      // as an unhandled rejection instead of a log line.
       if (imageFileName) {
-        this.azureStorageService.delete(
-          imageFileName,
-          AzureStorageContainer.PROFILE_IMAGES,
-        );
-      }
-
-      if (error instanceof PrismaClientKnownRequestError) {
-        switch (error.code) {
-          case PrismaError.EntityNotFound:
-            throw new BadRequestException("No such user exists.");
-
-          default:
-            throw error;
+        try {
+          await this.azureStorageService.delete(
+            imageFileName,
+            AzureStorageContainer.PROFILE_IMAGES,
+          );
+        } catch (cleanupError) {
+          this.logger.warn(
+            `User update failed and the uploaded image ${imageFileName} could not be removed: ${
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : cleanupError
+            }`,
+          );
         }
       }
+
       throw error;
     }
   }
 
   async remove(id: string) {
-    try {
-      // get arranger id
-      const user = await this.prisma.user.findUnique({
-        where: { id },
-      });
-      if (!user) {
-        throw new UserDoesNotExistException(id);
-      }
+    // get arranger id
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+    if (!user) {
+      throw new UserDoesNotExistException(id);
+    }
 
-      // Release the spots this user holds before deleting them, so waitlisted
-      // attendees are promoted. This runs outside the transaction below on
-      // purpose: updateRegistration opens its own transaction per event, and
-      // nesting those inside an open one risks deadlocking against the very
-      // rows this transaction is about to delete.
-      await this.userRegistrationService.updateAllRegistrationsOfUserToNotGoing(
-        user.id,
-      );
+    // Release the spots this user holds before deleting them, so waitlisted
+    // attendees are promoted. This runs outside the transaction below on
+    // purpose: updateRegistration opens its own transaction per event, and
+    // nesting those inside an open one risks deadlocking against the very
+    // rows this transaction is about to delete.
+    await this.userRegistrationService.updateAllRegistrationsOfUserToNotGoing(
+      user.id,
+    );
 
-      await this.prisma.$transaction(async (trx) => {
-        //delete all events hosted by user
-        await trx.event.deleteMany({
-          where: {
-            eventArrangers: {
-              some: {
-                arrangerId: user.arrangerId,
-                role: EventArrangerRole.ADMIN,
-              },
+    // The catch this replaces tested for P2001, which the arranger delete
+    // below does not raise — a missing row raises P2025. Deleting an already
+    // deleted user answered 500 instead of 404.
+    await this.prisma.$transaction(async (trx) => {
+      //delete all events hosted by user
+      await trx.event.deleteMany({
+        where: {
+          eventArrangers: {
+            some: {
+              arrangerId: user.arrangerId,
+              role: EventArrangerRole.ADMIN,
             },
           },
-        });
-
-        // delete arranger which automatically deletes user because of ON DELETE CASCADE in schema.prisma
-        await trx.arranger.delete({
-          where: {
-            id: user.arrangerId,
-          },
-        });
+        },
       });
 
-      return user;
-    } catch (error) {
-      if (error.code === PrismaError.DoesNotExist) {
-        throw new UserDoesNotExistException(id);
-      }
+      // delete arranger which automatically deletes user because of ON DELETE CASCADE in schema.prisma
+      await trx.arranger.delete({
+        where: {
+          id: user.arrangerId,
+        },
+      });
+    });
 
-      throw error;
-    }
+    return user;
   }
 
   async findUpdatesSeenByUser(userId: string) {

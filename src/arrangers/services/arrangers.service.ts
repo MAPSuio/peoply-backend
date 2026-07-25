@@ -42,19 +42,9 @@ export class ArrangersService {
   }
 
   async remove(id: string) {
-    try {
-      return await this.prismaService.arranger.delete({
-        where: { id: id },
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        throw new ArrangerNotFoundException(id);
-      } else {
-        throw error;
-      }
-    }
+    // A missing row raises P2025, which PrismaExceptionFilter turns into 404.
+    return await this.prismaService.arranger.delete({
+      where: { id: id },
+    });
   }
 }

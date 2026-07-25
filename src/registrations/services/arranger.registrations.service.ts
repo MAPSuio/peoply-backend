@@ -121,35 +121,26 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     eventId: string,
     isArranger = false,
   ) {
-    try {
-      const event = await this.prismaService.event.findUnique({
-        where: { id: eventId },
-        select: { visibility: true },
-      });
+    const event = await this.prismaService.event.findUnique({
+      where: { id: eventId },
+      select: { visibility: true },
+    });
 
-      if (!event) {
-        throw new EventNotFoundException(eventId);
-      }
-
-      if (!isArranger && event.visibility !== EventVisibility.PUBLIC) {
-        throw new EventNotFoundException(eventId);
-      }
-
-      return await this.prismaService.registration.count({
-        where: searchProps.regStatus
-          ? { eventId: eventId, regStatus: searchProps.regStatus }
-          : { eventId: eventId },
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        throw new EventNotFoundException(eventId);
-      } else {
-        throw error;
-      }
+    // findUnique returns null rather than raising, so the not-found case is
+    // still checked here — the filter only covers errors Prisma throws.
+    if (!event) {
+      throw new EventNotFoundException(eventId);
     }
+
+    if (!isArranger && event.visibility !== EventVisibility.PUBLIC) {
+      throw new EventNotFoundException(eventId);
+    }
+
+    return await this.prismaService.registration.count({
+      where: searchProps.regStatus
+        ? { eventId: eventId, regStatus: searchProps.regStatus }
+        : { eventId: eventId },
+    });
   }
 
   async update(

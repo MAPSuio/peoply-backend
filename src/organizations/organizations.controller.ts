@@ -108,21 +108,17 @@ export class OrganizationsController {
 
   @Get("/:orgId")
   async getOrganization(@Param("orgId") orgId: string) {
-    try {
-      const org = isUUID(orgId)
-        ? await this.organizationsService.findOne(orgId)
-        : await this.organizationsService.findOneByUrlId(orgId);
-      if (!org) {
-        throw new OrganizationDoesNotExistException(orgId);
-      }
-      return org;
-    } catch (error) {
-      if (error.code === PrismaError.DoesNotExist) {
-        throw new OrganizationDoesNotExistException(orgId);
-      }
+    const org = isUUID(orgId)
+      ? await this.organizationsService.findOne(orgId)
+      : await this.organizationsService.findOneByUrlId(orgId);
 
-      throw error;
+    // findOne returns null rather than raising, so this is the real
+    // not-found path. The catch that used to wrap it tested for P2001,
+    // which Prisma never raises here.
+    if (!org) {
+      throw new OrganizationDoesNotExistException(orgId);
     }
+    return org;
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -344,20 +340,10 @@ export class OrganizationsController {
       );
     }
 
-    try {
-      return await this.organizationsService.changeUserRole(
-        orgId,
-        changeRoleDto,
-      );
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        throw new BadRequestException("Can't find user in organization");
-      }
-      throw error;
-    }
+    // A user with no role in the organization raises P2025, which
+    // PrismaExceptionFilter answers with 404 rather than the 400 this
+    // used to return.
+    return await this.organizationsService.changeUserRole(orgId, changeRoleDto);
   }
 
   @OrganizationRoles(OrganizationRole.OWNER)
@@ -368,23 +354,11 @@ export class OrganizationsController {
     @Param("orgId") orgId: string,
     @Body() changeOwnerDto: ChangeOwnerDto,
   ) {
-    try {
-      return await this.organizationsService.changeOwner(
-        orgId,
-        req.user.id,
-        changeOwnerDto.newOwnerId,
-      );
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === PrismaError.EntityNotFound
-      ) {
-        throw new BadRequestException(
-          "New owner is not part of the organization",
-        );
-      }
-      throw error;
-    }
+    return await this.organizationsService.changeOwner(
+      orgId,
+      req.user.id,
+      changeOwnerDto.newOwnerId,
+    );
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
@@ -398,23 +372,11 @@ export class OrganizationsController {
     /* update your own role description in an organization
      */
 
-    try {
-      return await this.organizationsService.changeUserRoleDescription(
-        orgId,
-        userId,
-        updateRoleDto,
-      );
-    } catch (exception) {
-      if (
-        exception instanceof PrismaClientKnownRequestError &&
-        exception.code === PrismaError.EntityNotFound
-      ) {
-        throw new BadRequestException(
-          "Cant find a user with a role in this organization",
-        );
-      }
-      throw exception;
-    }
+    return await this.organizationsService.changeUserRoleDescription(
+      orgId,
+      userId,
+      updateRoleDto,
+    );
   }
 
   @UseGuards(AuthenticatedGuard)

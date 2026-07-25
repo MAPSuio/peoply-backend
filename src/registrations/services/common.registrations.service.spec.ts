@@ -2,7 +2,6 @@ import { EventRegistrationMode, RegStatus } from ".prisma/client";
 import { Logger } from "@nestjs/common";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
 import { CommonRegistrationService } from "./common.registrations.service";
-import { RegistrationNotFoundException } from "../exceptions";
 
 const notFound = () =>
   new PrismaClientKnownRequestError("Record to update not found", "P2025", "4");
@@ -74,15 +73,17 @@ describe("CommonRegistrationService.updateRegistration", () => {
     jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
   });
 
-  it("maps P2025 to RegistrationNotFoundException", async () => {
+  it("lets P2025 through for PrismaExceptionFilter to map", async () => {
     setup(buildEvent());
     prisma.$transaction.mockRejectedValue(notFound());
 
-    // Without `await` on $transaction the rejection escaped the try block
-    // entirely, so this mapping never ran and callers saw a raw Prisma error.
+    // This used to be caught here and rethrown as RegistrationNotFoundException.
+    // The mapping now lives in PrismaExceptionFilter, so the contract for this
+    // service is that the Prisma error reaches it unchanged — still awaited,
+    // so it surfaces as a rejection rather than escaping the call.
     await expect(
       service.updateRegistration("user-1", "event-1", RegStatus.NOT_GOING),
-    ).rejects.toBeInstanceOf(RegistrationNotFoundException);
+    ).rejects.toBeInstanceOf(PrismaClientKnownRequestError);
   });
 
   it("rethrows errors that are not P2025", async () => {
