@@ -90,22 +90,23 @@ export class IsArrangerInterceptor implements NestInterceptor {
     if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
       return true;
     }
-    // check if user is admin of an organization that is arranger of event
+    // check if user is admin of any organization that is arranger of event
     for (const arranger of event.eventArrangers) {
       const org = await this.organizationsService.findByArrangerId(
         arranger.arrangerId,
       );
 
       if (!org) {
-        return false;
+        // this arranger is an individual, not an org — skip
+        continue;
       }
-      // is the user a <role> of the organization?
+      // is the user a <role> of this organization?
       const res = await this.organizationsService.checkUserRole(
         user.id,
         org.id,
         roles,
       );
-      return res;
+      if (res) return true;
     }
     return false;
   }
