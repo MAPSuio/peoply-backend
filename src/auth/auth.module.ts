@@ -7,6 +7,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { UsersModule } from "../users/users.module";
 import { UsersService } from "../users/services";
+import { getTokenExpirySeconds } from "./token-expiry";
 import {
   AccessStrategy,
   buildVippsClient,
@@ -53,9 +54,10 @@ const GoogleStrategyFactory = {
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>("JWT_ACCESS_TOKEN_SECRET"),
         signOptions: {
-          expiresIn: `${configService.get<number>(
+          expiresIn: getTokenExpirySeconds(
+            configService,
             "JWT_ACCESS_TOKEN_EXP_TIME",
-          )}s`,
+          ),
         },
       }),
       inject: [ConfigService],

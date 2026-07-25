@@ -4,6 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { User } from ".prisma/client";
 import { CookieOptions } from "express";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth-origin";
+import { getTokenExpirySeconds } from "./token-expiry";
 
 @Injectable()
 export class AuthService {
@@ -56,9 +57,10 @@ export class AuthService {
     const payload = { sub: user.id, tokenId: user.refreshTokenId };
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>("JWT_REFRESH_TOKEN_SECRET"),
-      expiresIn: `${this.configService.get<number>(
+      expiresIn: getTokenExpirySeconds(
+        this.configService,
         "JWT_REFRESH_TOKEN_EXP_TIME",
-      )}s`,
+      ),
     });
   }
 
