@@ -17,9 +17,7 @@ export const buildVippsClient = async (configService: ConfigService) => {
     `${process.env.VIPPS_OIDC_ISSUER}/.well-known/openid-configuration`,
   );
   const client = new TrustIssuer.Client({
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     client_id: configService.get<string>("VIPPS_OIDC_LOGIN_CLIENT_ID")!,
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     client_secret: configService.get<string>("VIPPS_OIDC_LOGIN_CLIENT_SECRET")!,
   });
   return client;

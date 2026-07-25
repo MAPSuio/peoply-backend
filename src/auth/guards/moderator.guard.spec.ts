@@ -16,7 +16,7 @@ describe("ModeratorGuard", () => {
       switchToHttp: () => ({
         getRequest: () => ({ cookies: { access: accessCookie } }),
       }),
-    } as unknown as ExecutionContext);
+    }) as unknown as ExecutionContext;
 
   beforeEach(() => {
     jest.clearAllMocks();

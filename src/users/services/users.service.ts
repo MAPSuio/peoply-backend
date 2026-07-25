@@ -206,7 +206,6 @@ export class UsersService {
           error.code === PrismaError.DuplicateUniqueValue
         ) {
           //unique value duplicated in DB
-          // eslint-disable-next-line no-console
           console.log("Holy shit! uuid collision");
 
           throw error;

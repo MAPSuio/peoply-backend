@@ -49,6 +49,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
         // it is awaited. A mock that records on call instead of on await
         // cannot observe a missing `await` at all, so model the laziness.
         update: jest.fn().mockImplementation(({ where, data }) => ({
+          // biome-ignore lint/suspicious/noThenProperty: the thenable is the point — it is what makes this mock behave like a PrismaPromise.
           then: (resolve: any, reject: any) => {
             calls.push(
               `update:${where.eventId_userId.userId}:${data.regStatus}`,

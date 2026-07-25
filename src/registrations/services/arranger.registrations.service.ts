@@ -108,7 +108,6 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       ? registrations.map((registration) => {
           if (registration.regStatus !== RegStatus.GOING) {
             registration.user.foodPreference = null;
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             registration.user.userAllergens = [];
           }

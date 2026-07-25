@@ -124,13 +124,11 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(VippsGuard)
   @Get("/login")
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   async login() {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(GoogleGuard)
   @Get("/login/google")
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   async loginGoogle() {}
 
   @Throttle({ default: { limit: 60, ttl: 60000 } })

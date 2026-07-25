@@ -112,7 +112,6 @@ async function sendAlert(alert) {
     req.write(body);
     req.end();
   });
-
 }
 
 async function main() {

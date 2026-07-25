@@ -290,7 +290,6 @@ export class EventsService {
           );
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.log(error, "Could not delete event image");
       }
       if (error instanceof PrismaClientKnownRequestError) {
@@ -374,26 +373,26 @@ export class EventsService {
               },
             }
           : searchProps.userId
-          ? {
-              some: {
-                arranger: {
-                  user: {
-                    id: searchProps.userId,
+            ? {
+                some: {
+                  arranger: {
+                    user: {
+                      id: searchProps.userId,
+                    },
                   },
                 },
-              },
-            }
-          : searchProps.organizationId
-          ? {
-              some: {
-                arranger: {
-                  organization: {
-                    id: searchProps.organizationId,
+              }
+            : searchProps.organizationId
+              ? {
+                  some: {
+                    arranger: {
+                      organization: {
+                        id: searchProps.organizationId,
+                      },
+                    },
                   },
-                },
-              },
-            }
-          : undefined,
+                }
+              : undefined,
         featured: searchProps.featured,
       },
       include: {
@@ -435,7 +434,6 @@ export class EventsService {
       return events
         .map((event) => {
           const titleEditDistance = calculateEditDistance(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             searchProps.title!,
             event.title,
           );

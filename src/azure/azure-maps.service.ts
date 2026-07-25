@@ -17,7 +17,6 @@ export class AzureMapsService {
 
   constructor(configService: ConfigService) {
     const creds = new SubscriptionKeyCredential(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       configService.get<string>("AZURE_MAPS_KEY")!,
     );
     const pipe = MapsURL.newPipeline(creds);

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    // `decorators/` sits outside src/ but is imported from it. The old eslint
+    // glob ({src,apps,libs,test}) never matched it, so it went unchecked.
+    "includes": [
+      "src/**/*.ts",
+      "decorators/**/*.ts",
+      "test/**/*.ts",
+      "scripts/**/*.js"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "javascript": {
+    "parser": {
+      // NestJS puts decorators on parameters: @Body(), @Param(), @Req().
+      // Without this, every controller signature is a parse error.
+      "unsafeParameterDecoratorsEnabled": true
+    },
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        // tsconfig sets emitDecoratorMetadata. Rewriting an injected import
+        // to `import type` erases the runtime value Nest resolves against,
+        // which breaks dependency injection at startup.
+        "useImportType": "off"
+      },
+      "suspicious": {
+        // Carried over from .eslintrc.js, which set no-explicit-any: off.
+        "noExplicitAny": "off",
+        // Pre-existing `let x;` declarations; warn until they are typed.
+        "noImplicitAnyLet": "warn",
+        // Carried over from .eslintrc.js: eqeqeq and no-console were warn.
+        "noDoubleEquals": "warn",
+        "noConsole": "warn"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  }
+}

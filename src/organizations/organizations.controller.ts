@@ -436,9 +436,8 @@ export class OrganizationsController {
     if (!organization) {
       throw new OrganizationDoesNotExistException(id);
     }
-    const invitation = await this.organizationInvitationsService.findOne(
-      inviteId,
-    );
+    const invitation =
+      await this.organizationInvitationsService.findOne(inviteId);
     if (!invitation) {
       throw new OrganizationInvitationDoesNotExistException(inviteId);
     }
@@ -501,9 +500,8 @@ export class OrganizationsController {
     Returns:
         List<UserOrganizationRole> - list of users for the organization
     */
-    const organization = await this.organizationsService.findOrgWithUsers(
-      orgId,
-    );
+    const organization =
+      await this.organizationsService.findOrgWithUsers(orgId);
     return organization?.organizationRoles;
   }
 
@@ -523,9 +521,8 @@ export class OrganizationsController {
     // an owner can delete an admin or member
     // an admin can only delete a member
     // You can't delete yourself if you are the owner
-    const organization = await this.organizationsService.findOrgWithUsers(
-      orgId,
-    );
+    const organization =
+      await this.organizationsService.findOrgWithUsers(orgId);
     if (!organization) {
       throw new OrganizationDoesNotExistException(orgId);
     }

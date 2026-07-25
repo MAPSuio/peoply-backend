@@ -39,7 +39,7 @@ describe("IsArrangerInterceptor", () => {
           params: { id: "event-1" },
         }),
       }),
-    } as unknown as ExecutionContext);
+    }) as unknown as ExecutionContext;
 
   // isArranger is private; exercise it through the public interceptor surface
   const runIsArranger = async () => {

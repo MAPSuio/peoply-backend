@@ -16,7 +16,10 @@ export class RefreshStrategy extends PassportStrategy(
 ) {
   private readonly logger = logger;
 
-  constructor(configService: ConfigService, private userService: UsersService) {
+  constructor(
+    configService: ConfigService,
+    private userService: UsersService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request) => {

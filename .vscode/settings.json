@@ -1,8 +1,9 @@
 {
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
+  "editor.defaultFormatter": "biomejs.biome",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true,
+    "quickfix.biome": "explicit"
   },
   "typescript.preferences.importModuleSpecifier": "relative"
 }

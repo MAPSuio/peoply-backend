@@ -135,7 +135,6 @@ export class OrganizationsService {
       return orgs
         .map((org) => {
           const nameEditDistance = calculateEditDistance(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             searchProps.name!,
             org.name,
           );

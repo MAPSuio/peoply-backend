@@ -7,7 +7,6 @@ import * as crypto from "crypto";
 import * as passport from "passport";
 import * as expressSession from "express-session";
 import * as cookieParser from "cookie-parser";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const helmet = require("helmet");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
@@ -45,7 +44,7 @@ async function bootstrap() {
         ? Array.isArray(cfIp)
           ? cfIp[0]
           : cfIp
-        : req.ip ?? "unknown";
+        : (req.ip ?? "unknown");
       httpLogger.log(
         `${req.method} ${req.path} ${res.statusCode} ${ms}ms ${ip}`,
       );
@@ -59,7 +58,6 @@ async function bootstrap() {
 
   app.use(
     expressSession({
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       secret: process.env.SESSION_SECRET!, // to sign session id
       resave: false,
       saveUninitialized: false,
