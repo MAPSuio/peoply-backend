@@ -30,6 +30,7 @@ import { UuidDto } from "../genericDTOs/uuid.dto";
 import { UpdateUserDto } from "./dto";
 import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
+import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { User, UserSeenUpdateType } from ".prisma/client";
 import { EventArrangersService } from "../arrangers/services";
@@ -54,7 +55,7 @@ export class UsersController {
   @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
-    return req.user;
+    return withoutRefreshTokenId(req.user);
   }
 
   @UseGuards(AuthenticatedGuard)

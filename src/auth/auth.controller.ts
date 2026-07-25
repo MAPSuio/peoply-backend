@@ -22,6 +22,7 @@ import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFi
 import { GoogleGuard } from "./guards/google.guard";
 import { UsersService } from "../users/services";
 import { extractRequestOrigin } from "./auth-origin";
+import { withoutRefreshTokenId } from "../users/user.response";
 
 @Controller("auth")
 export class AuthController {
@@ -156,7 +157,7 @@ export class AuthController {
   @UseGuards(AuthenticatedGuard)
   @Get("/user")
   async user(@Req() req: any) {
-    return { user: req.user };
+    return { user: withoutRefreshTokenId(req.user) };
   }
 
   @Get("/dev-users")
