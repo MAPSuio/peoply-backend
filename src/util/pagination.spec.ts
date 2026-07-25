@@ -44,6 +44,13 @@ describe.each(searchDtos)("%s take bounds", (_name, dto) => {
     expect(validateTake(dto, "10")).toHaveLength(0);
   });
 
+  // The web frontend sends take=500 from the events index and several other
+  // pages. Capping below this returned 400 and broke those pages outright,
+  // so pin the value here rather than only testing the abstract bound.
+  it("accepts take=500, which the web frontend sends today", () => {
+    expect(validateTake(dto, "500")).toHaveLength(0);
+  });
+
   it("allows take to be omitted", () => {
     expect(validateSync(plainToInstance(dto, {}))).toHaveLength(0);
   });

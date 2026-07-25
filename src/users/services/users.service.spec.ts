@@ -1,4 +1,5 @@
 import { UsersService } from "./users.service";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
 
 describe("UsersService", () => {
   it("sorts name searches by relevance before paginating", async () => {
@@ -45,10 +46,11 @@ describe("UsersService", () => {
     ]);
     // Ranking still happens after the query, so `skip` stays unset — but the
     // candidate set is capped so a broad query cannot read the whole table.
+    // The cap is derived from MAX_PAGE_SIZE, so it tracks the page limit.
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         skip: undefined,
-        take: 500,
+        take: MAX_PAGE_SIZE * 5,
       }),
     );
   });

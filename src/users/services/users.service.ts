@@ -16,13 +16,15 @@ import { calculateEditDistance } from "../../util/string";
 import { EventArrangerRole, UserSeenUpdateType } from "@prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
 
 /**
  * Upper bound on the number of rows a name search may load for in-memory
- * ranking. Comfortably above MAX_PAGE_SIZE so relevance ordering still has
- * candidates to choose from, while keeping the query bounded.
+ * ranking. Derived from MAX_PAGE_SIZE rather than hardcoded: ranking happens
+ * after the query, so the candidate set has to stay well above the largest
+ * page a client may ask for, or the best matches never reach the page.
  */
-const USER_SEARCH_CANDIDATE_LIMIT = 500;
+const USER_SEARCH_CANDIDATE_LIMIT = MAX_PAGE_SIZE * 5;
 
 const SEARCH_VARIANT_REPLACEMENTS = [
   ["aa", "å"],
