@@ -1,195 +1,97 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" /></a>
-</p>
+# Peoply backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS API for [peoply.app](https://peoply.app), on Postgres via Prisma.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+| | Repo | Local | Prod |
+| --- | --- | --- | --- |
+| Backend | you are here | `http://localhost:3000` | `https://api.peoply.app` |
+| Frontend | [`MAPSuio/peoply-frontend`](https://github.com/MAPSuio/peoply-frontend) | `http://localhost:3001` | `https://peoply.app` |
 
-## Description
+Node >= 20.11.0 < 21, npm >= 10 < 11. `.nvmrc` pins 20.19.5. Docker needed for the local database.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Installation
+## Run the backend
 
 ```bash
-$ nvm use 16.20.2
-$ npm install
+nvm use
+npm ci
+cp .env.example .env    # DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"
+docker compose -f dev-db/docker-compose.yml up -d
+npx prisma migrate dev
+npm run seed:dev-db     # local users, organizations, events
+npm run dev             # http://localhost:3000
 ```
 
-The project is pinned to Node 16 and npm 8 in `package.json`.
+`npm run init:dev-db` replaces the docker/migrate/seed steps, but it recreates the database and shells out to `sudo`.
 
-## Auth session config
+Swagger: <http://localhost:3000/api>. A Prisma `P1001` means the database isn't up.
 
-The backend requires these auth/session env vars in every environment, including production:
+| Script | |
+| --- | --- |
+| `npm run dev` | watch mode |
+| `npm run build:dev` | compile only |
+| `npm run build` | production — also migrates and seeds `DATABASE_URL` |
+| `npm run lint` / `lint:fix` | Biome |
+
+## Run the frontend against it
 
 ```bash
-JWT_ACCESS_TOKEN_SECRET=change-me
-JWT_ACCESS_TOKEN_EXP_TIME=43200
-JWT_REFRESH_TOKEN_SECRET=change-me
-JWT_REFRESH_TOKEN_EXP_TIME=2592000
-SESSION_SECRET=change-me
+git clone https://github.com/MAPSuio/peoply-frontend.git
+cd peoply-frontend && npm ci && npm run dev   # http://localhost:3001
 ```
 
-- `JWT_ACCESS_TOKEN_EXP_TIME` and `JWT_REFRESH_TOKEN_EXP_TIME` are in seconds.
-- They control both JWT expiry and auth cookie lifetime.
-- These are backend env vars, so they must be set in the backend deployment environment, not in the frontend.
-- If they are missing, backend startup fails because config validation requires them.
+No config needed — the frontend's committed `.env.development` already points at `http://localhost:3000`.
 
-## Running the app
+The ports aren't interchangeable. Auth cookies are cross-origin, so the backend must trust the frontend's origin (both already in `.env.example`):
 
 ```bash
-# watch mode
-$ npm run dev
-
-# build without running Prisma deploy/seed hooks
-$ npm run build:dev
-
-# run compiled app
-$ npm run start
-
-# production build pipeline
-$ npm run build
+CORS_ORIGIN="http://localhost:3001"    # allowlist; wrong value = browser drops the auth cookie
+FRONTEND_URL="http://localhost:3001"   # redirect target after login
 ```
 
-## Running the database in development
+Change both and restart the backend if you move the frontend off 3001.
 
-Do the following steps to start the db in your local environment:
+## Log in locally
 
-- Start Docker Desktop or another Docker daemon first.
-- Create a `.env` file from `.env.example` and set `DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"`.
-- Start the db with `docker-compose up -d` from `dev-db/`, or run `npm run start:dev-db`.
-- Run `npx prisma migrate dev` to apply migrations.
-- Run `npm run seed:dev-db` to load local test users, organizations, and events.
+Set `LOCAL_AUTH_ENABLED=true` in `.env` before `npm run dev` — this skips Vipps/Google and uses localhost-safe cookies. Disabled in production.
 
-Quick start:
+Open in the **browser** to log in as a seeded user (sets the cookie, redirects to the frontend):
 
-```bash
-$ nvm use 16.20.2
-$ cp .env.example .env
-$ docker-compose -f dev-db/docker-compose.yml up -d
-$ npx prisma migrate dev
-$ npm run seed:dev-db
-$ npm run dev
+```text
+http://localhost:3000/auth/dev-login?email=Kristian@gmail.com
 ```
 
-### Local mock auth
-
-If Vipps or Google login is inconvenient locally, you can enable backend-driven mock auth without changing the production auth flow:
-
-This only replaces the external login providers. The backend still needs a running local Postgres instance because Prisma and the session/auth data layer are initialized on startup.
+From the terminal:
 
 ```bash
-# either add this to .env
-LOCAL_AUTH_ENABLED=true
-
-# or export it before starting the backend
-export LOCAL_AUTH_ENABLED=true
-npm run dev
-```
-
-When `LOCAL_AUTH_ENABLED=true`, the backend exposes dev-only endpoints and uses localhost-safe cookie settings (`SameSite=Lax`, `Secure=false`) so browser auth works over plain `http://localhost`.
-
-If you see a Prisma `P1001` error like `Please make sure your database server is running at localhost:5432`, start the dev database first:
-
-```bash
-$ docker compose -f dev-db/docker-compose.yml up -d
-# or
-$ npm run start:dev-db
-```
-
-If `npm run dev` still fails locally because `AZURE_COMMUNICATION_CONNECTION_STRING` is missing or only contains the Azure endpoint, the backend now starts anyway and disables email sending until the env var contains a full connection string.
-
-Useful endpoints:
-
-```bash
-# list local users from the seeded dev database
-$ curl http://localhost:3000/auth/dev-users
-
-# browser login for local frontend testing
-# open this URL directly in the browser
-$ open "http://localhost:3000/auth/dev-login?email=Kristian@gmail.com"
-
-# log in as a seeded user by email
-$ curl -X POST http://localhost:3000/auth/dev-login \
+curl http://localhost:3000/auth/dev-users                    # seeded users
+curl -X POST http://localhost:3000/auth/dev-login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"Kristian@gmail.com"}' \
-  -c cookies.txt
-
-# call an authenticated endpoint with the saved cookies
-$ curl http://localhost:3000/auth/user -b cookies.txt
-
-# clear local auth cookies
-$ curl -X POST http://localhost:3000/auth/dev-logout -b cookies.txt
+  -d '{"email":"Kristian@gmail.com"}' -c cookies.txt
+curl http://localhost:3000/auth/user -b cookies.txt
 ```
 
-These endpoints return `404` unless `LOCAL_AUTH_ENABLED=true`, and they are also disabled automatically when `NODE_ENV=production`.
+`curl -c cookies.txt` logs in `curl`, not your browser — use the URL above for the frontend.
 
-Important:
-
-- `curl -c cookies.txt` saves cookies for `curl`, not for your browser.
-- If the frontend at `http://localhost:3001` should show you as logged in, use the browser URL `http://localhost:3000/auth/dev-login?email=Kristian@gmail.com`.
-- `LOCAL_AUTH_ENABLED=true` must be present in `.env` or exported in the same shell before you run `npm run dev`.
-
-If `npm run dev` fails after a schema change even though the database migration is already applied, regenerate the Prisma client locally:
+## Change the schema
 
 ```bash
-$ npx prisma generate
+npx prisma format
+npx prisma migrate dev --name what_you_changed
+npx prisma generate    # skipping this is why dev fails after a schema change
 ```
 
-Local startup also requires a valid `AZURE_COMMUNICATION_CONNECTION_STRING` if you want email sending enabled. The backend now starts without it, but email delivery is disabled until the env var contains a full Azure Communication Services connection string like:
-
-```bash
-AZURE_COMMUNICATION_CONNECTION_STRING="endpoint=https://example.communication.azure.com/;accesskey=your-key"
-```
-
-When you modify the schema, you must create a new migration:
-
-- Modify `schema.prisma` with desired changes, then run `npx prisma format`.
-- Run `npx prisma migrate dev --name what_you_have_changed` to generate SQL and apply it to the DB.
-- Run `npx prisma generate` to update the Prisma client code that we use in the app.
-
-If you make changes to the production seed script, run it manually with `npx prisma db seed`.
+Migrations hit production automatically on deploy — see [`CONTRIBUTING.md`](CONTRIBUTING.md#database-migrations).
 
 ## Test
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm test            # unit, no database
+npm run test:db     # needs the dev database
+npm run test:e2e    # needs the dev database
+npm run test:smoke  # boots the built app
 ```
 
-## Support
+## More
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — branching, CI checks, deploys, env vars
+- [`docs/threat-detection.md`](docs/threat-detection.md) — request logging
