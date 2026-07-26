@@ -1,0 +1,13 @@
+# Lints the staged files before a commit is created.
+#
+# Biome does the staged-file filtering itself via --staged, so there is no
+# lint-staged layer here. This mirrors `npm run lint`, which is what CI runs:
+# warnings are reported but do not block, so the repo's existing warning debt
+# does not stand between you and a commit.
+#
+# --no-errors-on-unmatched keeps commits that touch only non-source files
+# (migrations, markdown) from failing on "no files were processed".
+#
+# Bypass with `git commit --no-verify`.
+
+node_modules/.bin/biome check --staged --no-errors-on-unmatched

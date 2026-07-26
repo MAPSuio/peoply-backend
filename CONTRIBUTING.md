@@ -75,6 +75,20 @@ npm run test:smoke          # boots the built app and checks it responds
 right local build: plain `npm run build` triggers `postbuild`, which talks to
 whatever database `DATABASE_URL` points at.
 
+### The pre-commit hook
+
+`npm ci` installs a Husky `pre-commit` hook that runs Biome over your staged
+files, so a lint or formatting error is caught before the commit exists rather
+than by CI ten minutes later. It only looks at what you staged, so it stays
+fast, and it does not rewrite your files — run `npm run lint:fix` yourself.
+
+Warnings do not block, matching `npm run lint` in CI. Use
+`git commit --no-verify` to skip the hook when you need to.
+
+The hook needs `node` on `PATH`. Git runs hooks with a minimal environment, so
+under nvm a GUI git client may not find it — commit from a shell where
+`node -v` works.
+
 New behaviour should come with a test. `npm run test:db` and `npm run test:e2e`
 need a running database; `npm test` does not.
 
