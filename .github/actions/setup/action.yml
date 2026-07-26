@@ -1,0 +1,22 @@
+name: Set up the project
+description: >-
+  Installs the pinned Node version and the exact dependency tree from the
+  lockfile. Every CI job needs both, so they are described once here rather
+  than repeated in each workflow.
+
+runs:
+  using: composite
+  steps:
+    # Reads .nvmrc so the version lives in exactly one place. A workflow that
+    # spelled the version out would drift from what developers run locally
+    # without anything failing to point it out.
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+
+    # `npm ci`, never `npm install`. `npm install` repairs a lockfile that has
+    # drifted from package.json instead of failing on it, so a job using it
+    # reports green on trees that are not reproducible from the lockfile.
+    - run: npm ci
+      shell: bash

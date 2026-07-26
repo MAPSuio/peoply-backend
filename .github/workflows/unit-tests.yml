@@ -1,0 +1,49 @@
+# The Jest suite, against a real Postgres with the migrations applied — some
+# tests reach the database, and a mock would not tell us whether a migration
+# lands.
+#
+# This Postgres speaks plaintext, exactly like the local dev database. That is
+# a deliberate limit rather than an oversight: the TLS path production actually
+# uses is covered by the Database TLS workflow, because it cannot be covered
+# here.
+name: Unit tests
+
+on:
+  workflow_call:
+
+jobs:
+  jest:
+    name: Jest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pg
+          POSTGRES_PASSWORD: pg
+          POSTGRES_DB: pg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U pg -d pg"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://pg:pg@localhost:5432/pg?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/load-ci-env
+
+      - name: Apply database migrations
+        run: npm run prisma:deploy
+
+      - name: Test the local startup wrapper
+        run: npm run test:dev-script
+
+      - name: Run unit tests
+        run: npm test -- --runInBand

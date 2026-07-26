@@ -1,0 +1,57 @@
+# Compiles the application and boots the compiled output.
+#
+# Two things are being checked, and they need opposite environments. The build
+# must not reach a database; the smoke test must, because the application
+# connects on startup. So the build step gets a deliberately unreachable
+# DATABASE_URL and the smoke test gets the service container.
+name: Build
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    name: Compile and boot
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pg
+          POSTGRES_PASSWORD: pg
+          POSTGRES_DB: pg
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U pg -d pg"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://pg:pg@localhost:5432/pg?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/load-ci-env
+
+      # `postbuild` used to run `prisma migrate deploy && prisma db seed`. That
+      # passed here and in the old build container, and then blocked every
+      # deploy the moment production's database stopped accepting untrusted
+      # sources — the build container is not part of the app's network. The
+      # migration now runs in the app's PRE_DEPLOY job instead.
+      #
+      # Pointing at a closed port means reintroducing that dependency fails on
+      # the pull request rather than after the merge.
+      - name: Build (must not need a database)
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:1/unused
+        run: npm run build
+
+      - name: Apply database migrations
+        run: npm run prisma:deploy
+
+      - name: Boot the compiled application
+        run: npm run test:smoke

@@ -1,0 +1,10 @@
+name: Load the CI environment
+description: >-
+  Exports the placeholder configuration in `.github/ci.env` to the rest of the
+  job. Used by every job that boots the application.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: grep -Ev '^\s*(#|$)' .github/ci.env >> "$GITHUB_ENV"
