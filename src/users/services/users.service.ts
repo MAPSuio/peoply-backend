@@ -1,4 +1,4 @@
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
 import { HttpException, Injectable, Logger } from "@nestjs/common";
@@ -207,7 +207,7 @@ export class UsersService {
         // did was note the collision. Kept as a real log line: a duplicate on
         // a freshly generated uuid is worth knowing about.
         if (
-          error instanceof PrismaClientKnownRequestError &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === PrismaError.DuplicateUniqueValue
         ) {
           this.logger.error(

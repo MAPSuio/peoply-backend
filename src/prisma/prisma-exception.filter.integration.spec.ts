@@ -1,7 +1,7 @@
 import { Controller, Get, INestApplication, Logger } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { Prisma } from "@prisma/client";
 import * as request from "supertest";
 import { PrismaExceptionFilter } from "./prisma-exception.filter";
 
@@ -11,44 +11,43 @@ import { PrismaExceptionFilter } from "./prisma-exception.filter";
  * serialises what it is handed. This boots an actual Nest application and
  * asserts over the wire instead.
  */
+/**
+ * Read off the installed client rather than hardcoded, so a Prisma upgrade
+ * does not leave a stale version string in the fixtures.
+ */
+const clientVersion = Prisma.prismaVersion.client;
+
 @Controller("probe")
 class ProbeController {
   @Get("not-found")
   notFound() {
-    throw new PrismaClientKnownRequestError(
+    throw new Prisma.PrismaClientKnownRequestError(
       "Invalid `prisma.event.delete()` invocation: secret-query-detail",
-      "P2025",
-      "4.5.0",
-      { modelName: "Event" },
+      { code: "P2025", clientVersion, meta: { modelName: "Event" } },
     );
   }
 
   @Get("duplicate")
   duplicate() {
-    throw new PrismaClientKnownRequestError(
+    throw new Prisma.PrismaClientKnownRequestError(
       "Unique constraint failed: secret-query-detail",
-      "P2002",
-      "4.5.0",
-      { target: ["urlId"] },
+      { code: "P2002", clientVersion, meta: { target: ["urlId"] } },
     );
   }
 
   @Get("foreign-key")
   foreignKey() {
-    throw new PrismaClientKnownRequestError(
+    throw new Prisma.PrismaClientKnownRequestError(
       "Foreign key constraint failed: secret-query-detail",
-      "P2003",
-      "4.5.0",
-      { field_name: "categoryId" },
+      { code: "P2003", clientVersion, meta: { field_name: "categoryId" } },
     );
   }
 
   @Get("unmapped")
   unmapped() {
-    throw new PrismaClientKnownRequestError(
+    throw new Prisma.PrismaClientKnownRequestError(
       "Something else entirely: secret-query-detail",
-      "P2037",
-      "4.5.0",
+      { code: "P2037", clientVersion },
     );
   }
 }

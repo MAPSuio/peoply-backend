@@ -6,7 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { Prisma } from "@prisma/client";
 import { PrismaError } from "./prisma.constants";
 
 /**
@@ -24,13 +24,13 @@ import { PrismaError } from "./prisma.constants";
  * 2. Only the meta fields listed below are used to build a message. They name
  *    models and columns, which the API already exposes through its DTOs.
  */
-@Catch(PrismaClientKnownRequestError)
+@Catch(Prisma.PrismaClientKnownRequestError)
 export class PrismaExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(PrismaExceptionFilter.name);
 
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
-  catch(exception: PrismaClientKnownRequestError, host: ArgumentsHost) {
+  catch(exception: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
     const { status, message } = this.translate(exception);
@@ -60,7 +60,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     );
   }
 
-  private translate(exception: PrismaClientKnownRequestError): {
+  private translate(exception: Prisma.PrismaClientKnownRequestError): {
     status: HttpStatus;
     message: string;
   } {
@@ -94,21 +94,27 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     }
   }
 
-  private duplicateMessage(exception: PrismaClientKnownRequestError): string {
+  private duplicateMessage(
+    exception: Prisma.PrismaClientKnownRequestError,
+  ): string {
     const fields = this.fieldList(exception.meta?.target);
     return fields
       ? `A record with this ${fields} already exists`
       : "A record with these values already exists";
   }
 
-  private notFoundMessage(exception: PrismaClientKnownRequestError): string {
+  private notFoundMessage(
+    exception: Prisma.PrismaClientKnownRequestError,
+  ): string {
     const model = exception.meta?.modelName;
     return typeof model === "string" && model
       ? `${model} not found`
       : "The requested record was not found";
   }
 
-  private foreignKeyMessage(exception: PrismaClientKnownRequestError): string {
+  private foreignKeyMessage(
+    exception: Prisma.PrismaClientKnownRequestError,
+  ): string {
     const fields = this.fieldList(exception.meta?.field_name);
     return fields
       ? `Invalid reference in ${fields}`
