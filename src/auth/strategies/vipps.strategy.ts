@@ -2,7 +2,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import { Provider } from ".prisma/client";
+import { Provider } from "../../generated/prisma/client";
 import {
   Strategy,
   Client,

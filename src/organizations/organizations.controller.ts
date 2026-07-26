@@ -17,7 +17,11 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { InvitationStatus, OrganizationRole, User } from "@prisma/client";
+import {
+  InvitationStatus,
+  OrganizationRole,
+  User,
+} from "../generated/prisma/client";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangersService } from "../arrangers/services";
 import {

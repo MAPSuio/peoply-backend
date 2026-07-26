@@ -1,4 +1,4 @@
-import { Event } from "@prisma/client";
+import { Event } from "../generated/prisma/client";
 
 export function buildWaitlistedToGoingHtmlEmail(event: Event) {
   return (

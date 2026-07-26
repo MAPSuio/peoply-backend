@@ -1,4 +1,7 @@
-import { EventRegistrationMode, RegStatus } from ".prisma/client";
+import {
+  EventRegistrationMode,
+  RegStatus,
+} from "../../generated/prisma/client";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { PrismaService } from "../../prisma/prisma.service";

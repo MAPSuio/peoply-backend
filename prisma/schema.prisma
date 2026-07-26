@@ -1,18 +1,31 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Prisma 6 took `fullTextSearch` to GA for MySQL only. PostgreSQL keeps it in
-// preview under a new name, so the flag is renamed rather than dropped — the
-// `description` filters in EventsService and OrganizationsService use
-// `search:`, which does not exist without it.
+// `prisma-client` rather than `prisma-client-js`: the latter still works in
+// Prisma 7 but is deprecated and slated for removal, and moving later would
+// mean redoing the same import rewrite without the context for it.
+//
+// The client is emitted as TypeScript into `src/generated/prisma`, not into
+// `node_modules`, which is why `output` is mandatory. That directory is
+// git-ignored and rebuilt by the `postinstall` hook — Prisma 7 no longer
+// generates on install by itself. `moduleFormat` is pinned to cjs because
+// this application is CommonJS; the v7 default is ESM.
+//
+// `fullTextSearchPostgres` stays in preview for PostgreSQL. The `description`
+// filters in EventsService and OrganizationsService use `search:`, which does
+// not exist without it.
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "cjs"
   previewFeatures = ["fullTextSearchPostgres"]
 }
 
+// Prisma 7 no longer accepts `url` here. The connection string moved to
+// `prisma.config.ts`, and the client itself is handed a driver adapter — see
+// `src/prisma/prisma.adapter.ts`.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Organization {

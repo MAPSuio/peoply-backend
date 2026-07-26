@@ -8,7 +8,7 @@ import {
   InvitationStatus,
   OrganizationRole,
   RegStatus,
-} from "@prisma/client";
+} from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";

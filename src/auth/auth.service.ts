@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
-import { User } from ".prisma/client";
+import { User } from "../generated/prisma/client";
 import { CookieOptions } from "express";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth-origin";
 import { getTokenExpirySeconds } from "./token-expiry";

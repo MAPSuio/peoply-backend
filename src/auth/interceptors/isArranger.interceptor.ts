@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { OrganizationRole, User } from "@prisma/client";
+import { OrganizationRole, User } from "../../generated/prisma/client";
 import { Observable } from "rxjs";
 import { EventsService } from "../../events/events.service";
 import { OrganizationsService } from "../../organizations/organizations.service";

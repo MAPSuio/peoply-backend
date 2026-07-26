@@ -1,8 +1,8 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
 import { HttpException, Injectable, Logger } from "@nestjs/common";
-import { Provider, User } from ".prisma/client";
+import { Provider, User } from "../../generated/prisma/client";
 import { CreateUserDto, UpdateUserDto } from "../dto";
 import { PrismaError } from "../../prisma/prisma.constants";
 import {
@@ -13,7 +13,10 @@ import { AzureStorageService } from "../../azure/azure-storage.service";
 import { AzureStorageContainer } from "../../azure/azure-storage.constants";
 import { SearchUserDto } from "../dto/search-user.dto";
 import { calculateEditDistance } from "../../util/string";
-import { EventArrangerRole, UserSeenUpdateType } from "@prisma/client";
+import {
+  EventArrangerRole,
+  UserSeenUpdateType,
+} from "../../generated/prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
 import { MAX_PAGE_SIZE } from "../../util/pagination";

@@ -3,7 +3,7 @@ import {
   EventUpdateVisibility,
   EventVisibility,
   RegStatus,
-} from ".prisma/client";
+} from "../generated/prisma/client";
 import { EventNotFoundException } from "./exceptions";
 import { EventsService } from "./events.service";
 

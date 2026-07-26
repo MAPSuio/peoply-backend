@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { EventVisibility, OrganizationRole } from "@prisma/client";
+import {
+  EventVisibility,
+  OrganizationRole,
+} from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";

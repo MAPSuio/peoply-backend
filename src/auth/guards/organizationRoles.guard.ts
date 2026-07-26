@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { OrganizationRole } from ".prisma/client";
+import { OrganizationRole } from "../../generated/prisma/client";
 import { OrganizationsService } from "../../organizations/organizations.service";
 import { UsersService } from "../../users/services";
 import { AuthService } from "../auth.service";

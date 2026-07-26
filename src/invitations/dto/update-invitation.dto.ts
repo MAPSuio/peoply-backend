@@ -1,4 +1,4 @@
-import { InvitationStatus } from ".prisma/client";
+import { InvitationStatus } from "../../generated/prisma/client";
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class UpdateInvitationDto {

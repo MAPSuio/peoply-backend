@@ -4,7 +4,7 @@ jest.mock("../auth.service", () => ({
 
 import { ExecutionContext, NotFoundException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { User } from "@prisma/client";
+import { User } from "../../generated/prisma/client";
 import { IsArrangerInterceptor } from "./isArranger.interceptor";
 
 describe("IsArrangerInterceptor", () => {

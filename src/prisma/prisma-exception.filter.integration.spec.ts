@@ -1,7 +1,7 @@
 import { Controller, Get, INestApplication, Logger } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../generated/prisma/client";
 import * as request from "supertest";
 import { PrismaExceptionFilter } from "./prisma-exception.filter";
 

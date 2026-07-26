@@ -16,8 +16,8 @@ import {
   ChangeRoleDescriptionDTO,
 } from "./dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
-import { OrganizationRole } from ".prisma/client";
-import { EventArrangerRole, Organization } from "@prisma/client";
+import { OrganizationRole } from "../generated/prisma/client";
+import { EventArrangerRole, Organization } from "../generated/prisma/client";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";

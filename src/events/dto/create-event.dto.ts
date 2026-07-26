@@ -1,5 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { EventRegistrationMode, EventVisibility } from "@prisma/client";
+import {
+  EventRegistrationMode,
+  EventVisibility,
+} from "../../generated/prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,

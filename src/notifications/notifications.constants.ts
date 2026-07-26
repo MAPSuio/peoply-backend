@@ -1,4 +1,7 @@
-import { EventInvitation, OrganizationInvitation } from "@prisma/client";
+import {
+  EventInvitation,
+  OrganizationInvitation,
+} from "../generated/prisma/client";
 
 export enum NotificationType {
   INVITATION_EVENT = "INVITATION_EVENT",

@@ -4,7 +4,8 @@ import {
   OrganizationRole,
   RegStatus,
   EventVisibility,
-} from ".prisma/client";
+} from "../src/generated/prisma/client";
+import { createPrismaAdapter } from "../src/prisma/prisma.adapter";
 import { categories } from "./dbProdData";
 import { createUuidV5 } from "../src/util/uuid";
 import {
@@ -22,7 +23,7 @@ import {
   eventIDs,
   allergens,
 } from "./dbTestData";
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
 const TEST_USER_ID = userIDs[0];
 const NON_APPROVED_ORG_INDEX = 1;

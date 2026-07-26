@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { EventUpdateVisibility } from "@prisma/client";
+import { EventUpdateVisibility } from "../../generated/prisma/client";
 import {
   IsBoolean,
   IsEnum,

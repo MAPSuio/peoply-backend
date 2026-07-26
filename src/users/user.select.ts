@@ -1,4 +1,4 @@
-import { Prisma } from ".prisma/client";
+import { Prisma } from "../generated/prisma/client";
 
 /**
  * The only fields of a `User` that may be returned when the user in question is
@@ -14,9 +14,9 @@ import { Prisma } from ".prisma/client";
  * Add a field here only if every consumer of every endpoint below may see it
  * for someone who is not themselves.
  */
-export const PUBLIC_USER_SELECT = Prisma.validator<Prisma.UserSelect>()({
+export const PUBLIC_USER_SELECT = {
   id: true,
   firstName: true,
   lastName: true,
   image: true,
-});
+} satisfies Prisma.UserSelect;

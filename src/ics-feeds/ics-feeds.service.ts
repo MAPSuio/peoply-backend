@@ -12,7 +12,7 @@ import {
   IcsFeedSyncStatus,
   OrganizationRole,
   OrganizationIcsFeed,
-} from ".prisma/client";
+} from "../generated/prisma/client";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrganizationsService } from "../organizations/organizations.service";

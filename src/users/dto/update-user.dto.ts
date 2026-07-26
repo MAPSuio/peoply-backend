@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { FoodPreference } from "@prisma/client";
+import { FoodPreference } from "../../generated/prisma/client";
 import {
   IsArray,
   IsBoolean,

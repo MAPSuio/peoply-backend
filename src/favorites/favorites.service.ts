@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Favorite } from ".prisma/client";
+import { Favorite } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
 

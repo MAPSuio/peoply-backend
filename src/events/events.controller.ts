@@ -1,4 +1,8 @@
-import { OrganizationRole, InvitationStatus, User } from ".prisma/client";
+import {
+  OrganizationRole,
+  InvitationStatus,
+  User,
+} from "../generated/prisma/client";
 import {
   BadRequestException,
   Body,
