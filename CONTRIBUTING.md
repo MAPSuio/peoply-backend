@@ -57,6 +57,35 @@ gone, so `new PrismaClient()` with no arguments throws at runtime rather than
 failing to compile. Construct it through `createPrismaAdapter()` in
 `src/prisma/prisma.adapter.ts` so the connection settings stay in one place.
 
+### TLS against a managed database
+
+Losing the Rust engine also changed how TLS is negotiated, and production is
+the only environment where that shows. Queries now go through
+`@prisma/adapter-pg`, which hands `sslmode` to `pg-connection-string` — and
+there `require` means **verify the certificate chain**, not merely "encrypt"
+as it does in libpq and as the Rust engine treated it. DigitalOcean signs its
+managed databases with a per-project CA that is in no system trust store, so
+`?sslmode=require` alone now fails with `P1011 TlsConnectionError: self-signed
+certificate in certificate chain`.
+
+The fix is to supply that CA rather than to stop verifying. Set
+`DATABASE_CA_CERT` to the certificate itself — `doctl databases get-ca <id>`
+returns it base64-encoded — and `createPrismaAdapter()` uses it to do a real
+`verify-full`, hostname included. Leave the variable unset locally and in CI,
+where Postgres runs without TLS at all.
+
+One trap is worth knowing before you touch that function. `pg` merges the
+parsed connection string *over* the config object you pass it, so **any**
+`sslmode` in the URL replaces your `ssl` settings with its own and the CA is
+silently discarded. That is why the adapter strips `sslmode` before handing
+the URL over. Removing that step reintroduces a bug whose symptom is
+indistinguishable from not having configured a CA at all.
+
+Neither `npm test` nor the CI job exercises any of this — they talk to a
+plaintext Postgres. To test a change here, run a local Postgres with `ssl=on`
+and a self-signed CA, and check `pg_stat_ssl` to confirm the connection is
+genuinely encrypted rather than quietly falling back.
+
 The local database runs Postgres 16, matching production. If you set the
 project up when it was still on Postgres 13, `npm run start:dev-db` alone will
 fail with `FATAL: database files are incompatible with server` — Compose
