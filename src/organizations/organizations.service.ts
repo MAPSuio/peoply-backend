@@ -18,6 +18,7 @@ import {
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from "../generated/prisma/client";
 import { EventArrangerRole, Organization } from "../generated/prisma/client";
+import { buildDescriptionSearchQuery } from "../util/search";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
@@ -101,8 +102,9 @@ export class OrganizationsService {
     take = 10,
     approved?: boolean,
   ) {
-    const generateSearchQuery = (name: string) =>
-      name.toLowerCase().split(" ").join(" & ");
+    const descriptionSearch = searchProps.description
+      ? buildDescriptionSearchQuery(searchProps.description)
+      : undefined;
 
     const orgs = await this.prisma.organization.findMany({
       skip: skip,
@@ -111,8 +113,8 @@ export class OrganizationsService {
         name: searchProps.name
           ? { contains: searchProps.name, mode: "insensitive" }
           : undefined,
-        description: searchProps.description
-          ? { search: generateSearchQuery(searchProps.description) }
+        description: descriptionSearch
+          ? { search: descriptionSearch }
           : undefined,
         orgNr: searchProps.orgNrs ? { in: searchProps.orgNrs } : undefined,
         approved,
