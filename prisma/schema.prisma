@@ -1,14 +1,13 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// `fullTextSearch` stays: the `description` filters in EventsService and
-// OrganizationsService use `search:`, which does not exist without it.
-// `interactiveTransactions` is gone because it went GA in Prisma 4.7 — the
-// flag no longer changes the generated client, and the many
-// `$transaction(async (trx) => ...)` callers keep working without it.
+// Prisma 6 took `fullTextSearch` to GA for MySQL only. PostgreSQL keeps it in
+// preview under a new name, so the flag is renamed rather than dropped — the
+// `description` filters in EventsService and OrganizationsService use
+// `search:`, which does not exist without it.
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearch"]
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
