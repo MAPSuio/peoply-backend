@@ -16,6 +16,7 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from "../generated/prisma/client";
 import { calculateEditDistance } from "../util/string";
+import { buildDescriptionSearchQuery } from "../util/search";
 import {
   EventRegistrationMode,
   EventUpdateVisibility,
@@ -313,8 +314,9 @@ export class EventsService {
     orderBy = "startDate",
     orderDirection = "asc",
   ) {
-    const generateSearchQuery = (name: string) =>
-      name.toLowerCase().split(" ").join(" & ");
+    const descriptionSearch = searchProps.description
+      ? buildDescriptionSearchQuery(searchProps.description)
+      : undefined;
 
     const events = await this.prisma.event.findMany({
       skip,
@@ -328,8 +330,8 @@ export class EventsService {
         title: searchProps.title
           ? { contains: searchProps.title, mode: "insensitive" }
           : undefined,
-        description: searchProps.description
-          ? { search: generateSearchQuery(searchProps.description) }
+        description: descriptionSearch
+          ? { search: descriptionSearch }
           : undefined,
         capacity: searchProps.capacity,
         archivedAt: null,
