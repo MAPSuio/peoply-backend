@@ -1,5 +1,5 @@
 import { ArgumentsHost, HttpStatus, Logger } from "@nestjs/common";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { Prisma } from "@prisma/client";
 import { PrismaExceptionFilter } from "./prisma-exception.filter";
 
 describe("PrismaExceptionFilter", () => {
@@ -15,13 +15,11 @@ describe("PrismaExceptionFilter", () => {
 
   /** Builds the error shape Prisma raises, including its `meta` payload. */
   const prismaError = (code: string, meta?: Record<string, unknown>) => {
-    const error = new PrismaClientKnownRequestError(
+    const error = new Prisma.PrismaClientKnownRequestError(
       // Prisma puts query fragments and column values in here. Every
       // assertion below depends on this string never reaching the client.
       `Invalid \`prisma.event.update()\` invocation: secret-query-detail`,
-      code,
-      "4.5.0",
-      meta,
+      { code, clientVersion: Prisma.prismaVersion.client, meta },
     );
     return error;
   };

@@ -1,10 +1,13 @@
 import { EventRegistrationMode, RegStatus } from ".prisma/client";
 import { Logger } from "@nestjs/common";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { Prisma } from "@prisma/client";
 import { CommonRegistrationService } from "./common.registrations.service";
 
 const notFound = () =>
-  new PrismaClientKnownRequestError("Record to update not found", "P2025", "4");
+  new Prisma.PrismaClientKnownRequestError("Record to update not found", {
+    code: "P2025",
+    clientVersion: Prisma.prismaVersion.client,
+  });
 
 describe("CommonRegistrationService.updateRegistration", () => {
   let prisma: any;
@@ -83,7 +86,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
     // so it surfaces as a rejection rather than escaping the call.
     await expect(
       service.updateRegistration("user-1", "event-1", RegStatus.NOT_GOING),
-    ).rejects.toBeInstanceOf(PrismaClientKnownRequestError);
+    ).rejects.toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
   });
 
   it("rethrows errors that are not P2025", async () => {
