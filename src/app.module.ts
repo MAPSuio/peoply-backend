@@ -24,6 +24,7 @@ import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
 import { CfThrottlerGuard } from "./cf-throttler.guard";
 import { ThreatDetectionModule } from "./threat-detection/threat-detection.module";
 import { FeedbackModule } from "./feedback/feedback.module";
+import { HealthModule } from "./health/health.module";
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { FeedbackModule } from "./feedback/feedback.module";
       }),
     }),
     AuthModule,
+    HealthModule,
     ThreatDetectionModule,
     AzureModule,
     CategoriesModule,
