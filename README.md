@@ -28,8 +28,7 @@ API reference: <http://localhost:3000/api>, rendered by [Scalar](https://scalar.
 | Script | |
 | --- | --- |
 | `npm run dev` | watch mode |
-| `npm run build:dev` | compile only |
-| `npm run build` | production — also migrates and seeds `DATABASE_URL` |
+| `npm run build` | compile only — touches no database |
 | `npm run lint` / `lint:fix` | Biome |
 
 ## Run the frontend against it

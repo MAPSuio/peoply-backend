@@ -52,6 +52,16 @@ the generated types.
 Prisma 7 removed `url` from the `datasource` block. The config file also
 imports `dotenv/config`, because the CLI no longer reads `.env` on its own.
 
+Be aware that the CLI needs `typescript` installed to read a `.ts` config, and
+says nothing when it cannot. Without it the "Loaded Prisma config from
+prisma.config.ts" line simply does not appear and the command proceeds with the
+config ignored. `migrate deploy` still finds the database, because
+`schema.prisma` declares no `url` and Prisma falls back to `DATABASE_URL` — the
+same value the config would have supplied. That fallback is why the mistake is
+survivable and also why it is invisible. If you add anything to
+`prisma.config.ts` that the fallback does not cover, check that line is present
+in the output.
+
 **Every `PrismaClient` needs a driver adapter.** The Rust query engine is
 gone, so `new PrismaClient()` with no arguments throws at runtime rather than
 failing to compile. Construct it through `createPrismaAdapter()` in
@@ -130,13 +140,14 @@ and deploy.
 npx prisma migrate deploy   # schema must be current
 npm test                    # Jest
 npm run lint                # Biome
-npm run build:dev           # nest build, without the production postbuild hooks
+npm run build               # nest build
 npm run test:smoke          # boots the built app and checks it responds
 ```
 
-`npm run lint:fix` applies Biome's fixes. Note that `npm run build:dev` is the
-right local build: plain `npm run build` triggers `postbuild`, which talks to
-whatever database `DATABASE_URL` points at.
+`npm run lint:fix` applies Biome's fixes. `npm run build` compiles and nothing
+else — it used to migrate and seed whatever `DATABASE_URL` pointed at, which is
+why an older `build:dev` script existed to avoid it. Both are gone; see *How
+deploys work* for where migrations moved.
 
 ### The pre-commit hook
 
@@ -177,8 +188,10 @@ Merging to `master` runs the `deploy` job in
 DigitalOcean App Platform. The job needs `verify` green first, so a failing
 build cannot reach production.
 
-The production build runs `postbuild`, which is
-`prisma migrate deploy && prisma db seed`. Two consequences worth internalising:
+Migrations run in the app's `PRE_DEPLOY` job, which executes
+`npm run predeploy:prod` — `prisma migrate deploy` followed by the seed — after
+the image is built and before any new instance takes traffic. Two consequences
+worth internalising:
 
 1. **Every production deploy migrates the production database.** There is no
    separate migration step to forget or to gate.
@@ -186,6 +199,20 @@ The production build runs `postbuild`, which is
    reference data (categories, allergens) with `skipDuplicates: true`, so it is
    idempotent. Keep it that way — anything non-idempotent added there runs on
    every single deploy.
+
+This used to be a `postbuild` hook, so it ran during the build instead. That
+stopped working the moment the database got a trusted-sources rule: build
+containers have no stable address and are not part of the app's network, so
+they cannot be allowed through the firewall. A `PRE_DEPLOY` job runs in the
+app's own network and is covered by the rule. If you ever move this back into
+the build, deploys will fail with `P1001: Can't reach database server` while
+production keeps serving the previous release.
+
+The job runs from the compiled output — `node dist/prisma/seed.js`, not
+`prisma db seed` — because `ts-node` is a devDependency and need not exist in
+the runtime image. For the same reason `prisma` is a regular dependency rather
+than a devDependency: `postinstall` runs `prisma generate`, so it has to
+survive a production install anyway.
 
 The App Platform spec lives in DigitalOcean, not in this repository, and it
 holds production environment variables including the database URL. Do not
