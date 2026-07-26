@@ -5,8 +5,8 @@ at `api.peoply.app`, backed by Postgres through Prisma.
 
 ## Getting set up
 
-The project requires **Node >= 20.11.0 < 21** and **npm >= 10 < 11**
-(`engines` in `package.json`). CI runs Node 20.19.5. Check `node -v` before
+The project requires **Node >= 24 < 25** and **npm >= 11 < 12**
+(`engines` in `package.json`). CI runs Node 24.18.0. Check `node -v` before
 opening an issue about a broken install.
 
 ```bash

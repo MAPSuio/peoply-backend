@@ -7,7 +7,7 @@ NestJS API for [peoply.app](https://peoply.app), on Postgres via Prisma.
 | Backend | you are here | `http://localhost:3000` | `https://api.peoply.app` |
 | Frontend | [`MAPSuio/peoply-frontend`](https://github.com/MAPSuio/peoply-frontend) | `http://localhost:3001` | `https://peoply.app` |
 
-Node >= 20.19.0 < 21, npm >= 10 < 11. `.nvmrc` pins 20.19.5. Docker needed for the local database.
+Node >= 24 < 25, npm >= 11 < 12. `.nvmrc` pins 24.18.0. Docker needed for the local database.
 
 ## Run the backend
 
