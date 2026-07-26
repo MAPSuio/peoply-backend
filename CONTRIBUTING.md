@@ -35,6 +35,14 @@ npm run dev                                # http://localhost:3000
 A Prisma `P1001` error means the database is not up, not that your code is
 wrong.
 
+The local database runs Postgres 16, matching production. If you set the
+project up when it was still on Postgres 13, `npm run start:dev-db` alone will
+fail with `FATAL: database files are incompatible with server` — Compose
+carries the old data directory over when it recreates the container. Run
+`npm run init:dev-db` once instead; it tears the container down first, so the
+new one initialises a fresh Postgres 16 directory and re-seeds it. Local data
+is lost, which is why this is safe to do here and nowhere else.
+
 ### Logging in locally
 
 Vipps and Google login are awkward to use against localhost. Set
