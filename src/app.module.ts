@@ -49,6 +49,9 @@ import { FeedbackModule } from "./feedback/feedback.module";
         JWT_ACCESS_TOKEN_SECRET: Joi.string().required(),
         JWT_REFRESH_TOKEN_SECRET: Joi.string().required(),
         DATABASE_URL: Joi.string().required(),
+        // Optional: only managed databases with a private CA need it. Unset
+        // locally and in CI, where Postgres runs without TLS.
+        DATABASE_CA_CERT: Joi.string().optional(),
         SESSION_SECRET: Joi.string().required(),
         VIPPS_OIDC_ISSUER: Joi.string().required(),
         VIPPS_OIDC_LOGIN_REDIRECT_URI: Joi.string().required(),
