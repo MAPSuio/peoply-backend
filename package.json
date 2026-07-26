@@ -37,6 +37,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:db": "jest --config test/jest-db-tests.json",
+    "test:database-tls": "jest --config test/jest-database-tls.json --runInBand",
     "test:dev-script": "node scripts/run-dev.test.js",
     "test:smoke": "node scripts/smoke-test.js"
   },

@@ -1,0 +1,45 @@
+# The entry point. Everything that gates a pull request is called from here,
+# one reusable workflow per concern, so a failed check names what broke rather
+# than reporting "Backend Verification" for lint, tests, the build and the
+# database alike.
+#
+# The checks run independently and in parallel; the deploy is the only thing
+# that waits, and it waits for all of them.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+# A second push to the same branch makes the first one irrelevant. Cancel it
+# rather than paying for both — except on master, where a cancelled run would
+# leave the deploy in an undefined state.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
+
+  unit-tests:
+    name: Unit tests
+    uses: ./.github/workflows/unit-tests.yml
+
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
+
+  database-tls:
+    name: Database TLS
+    uses: ./.github/workflows/database-tls.yml
+
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [lint, unit-tests, build, database-tls]
+    uses: ./.github/workflows/deploy-production.yml
+    secrets: inherit

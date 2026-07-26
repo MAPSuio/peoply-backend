@@ -1,0 +1,12 @@
+{
+  "rootDir": "..",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "testEnvironment": "node",
+  "testRegex": "test/database-tls/.*\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.ts$": "ts-jest"
+  },
+  "globalSetup": "<rootDir>/test/database-tls/global-setup.js",
+  "globalTeardown": "<rootDir>/test/database-tls/global-teardown.js",
+  "testTimeout": 30000
+}

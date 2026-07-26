@@ -1,0 +1,36 @@
+# Ships master to DigitalOcean App Platform. Called from `ci.yml` only after
+# every check is green.
+#
+# The app is referenced by name, so the spec stays in DigitalOcean rather than
+# in this repository — it holds the production environment, including the
+# database URL and the CA certificate, which must not be committed here.
+#
+# Migrating and seeding happens in the app's PRE_DEPLOY job, not in the build:
+# the build container sits outside the app's network, and the database only
+# accepts connections from trusted sources. So this still migrates production,
+# one step later.
+name: Deploy to production
+
+on:
+  workflow_call:
+
+jobs:
+  digitalocean:
+    name: App Platform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Two deploys of the same app at once leave it in an undefined state, and a
+    # cancelled deploy is worse than a queued one.
+    concurrency:
+      group: deploy-prod-backend
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: digitalocean/app_action/deploy@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          app_name: prod-peoply-backend
+          print_build_logs: true
+          print_deploy_logs: true

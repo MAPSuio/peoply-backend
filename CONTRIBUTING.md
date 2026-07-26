@@ -132,9 +132,7 @@ Merge, revert and `fixup!`/`squash!` messages are exempt, so `git merge` and
 
 ## Checks
 
-Run these before pushing. They mirror the `verify` job in
-`.github/workflows/backend_verification.yml`, and a red job blocks both merge
-and deploy.
+Run these before pushing. A red check blocks both merge and deploy.
 
 ```bash
 npx prisma migrate deploy   # schema must be current
@@ -142,12 +140,42 @@ npm test                    # Jest
 npm run lint                # Biome
 npm run build               # nest build
 npm run test:smoke          # boots the built app and checks it responds
+npm run test:database-tls   # connects over TLS; needs Docker
 ```
 
 `npm run lint:fix` applies Biome's fixes. `npm run build` compiles and nothing
 else — it used to migrate and seed whatever `DATABASE_URL` pointed at, which is
 why an older `build:dev` script existed to avoid it. Both are gone; see *How
 deploys work* for where migrations moved.
+
+### What CI runs
+
+`.github/workflows/ci.yml` is the entry point. It calls one workflow per
+concern so a red check names what broke, instead of reporting the same
+"Backend Verification" for a formatting slip and a failed deploy alike:
+
+| Workflow | Checks | Needs a database |
+| --- | --- | --- |
+| `lint.yml` | Biome | no |
+| `unit-tests.yml` | Jest, against a migrated Postgres | plaintext |
+| `build.yml` | compiles, then boots the compiled app | plaintext, and *not* during the build |
+| `database-tls.yml` | connects through a privately signed certificate | starts its own |
+| `deploy-production.yml` | ships `master` to App Platform | — |
+
+Two pieces are shared rather than repeated: `.github/actions/setup` installs
+the Node version from `.nvmrc` and runs `npm ci`, and `.github/ci.env` holds
+the placeholder configuration the application's Joi schema demands at startup.
+**Adding a required environment variable means adding it to `.github/ci.env`**
+— otherwise the app fails to boot in CI with a validation error.
+
+The TLS workflow is the one worth understanding. Every other Postgres in this
+project — CI's service container, the local dev database — speaks plaintext, so
+before it existed the TLS path was first executed in production. That is how
+`P1011 TlsConnectionError: self-signed certificate in certificate chain` broke
+every deploy after the Prisma 7 upgrade while CI stayed green. The harness in
+`test/database-tls/` generates a throwaway CA, starts a Postgres that presents
+a certificate signed by it, and connects through the real adapter. Nothing is
+committed, so there is no key material in the repository.
 
 ### The pre-commit hook
 
@@ -182,11 +210,11 @@ more care than ordinary code:
 
 ## How deploys work
 
-Merging to `master` runs the `deploy` job in
-`.github/workflows/backend_verification.yml`, which calls
+Merging to `master` runs `.github/workflows/deploy-production.yml`, which calls
 `digitalocean/app_action/deploy@v2` and deploys the `prod-peoply-backend` app on
-DigitalOcean App Platform. The job needs `verify` green first, so a failing
-build cannot reach production.
+DigitalOcean App Platform. `ci.yml` only reaches it once lint, the unit tests,
+the build and the TLS check are all green, so a failing check cannot reach
+production.
 
 Migrations run in the app's `PRE_DEPLOY` job, which executes
 `npm run predeploy:prod` — `prisma migrate deploy` followed by the seed — after
@@ -227,10 +255,9 @@ Deploys are gated on CI rather than on App Platform's own push hook
 `.env` (git-ignored), in the App Platform app for production, or in repository
 secrets for CI. Nothing secret belongs in this repository.
 
-The CI job supplies its own throwaway values for every required variable, so
-adding a new mandatory env var means adding it to
-`.github/workflows/backend_verification.yml` as well — otherwise the app fails
-to boot in CI even though the code is fine.
+CI supplies its own throwaway values for every required variable from
+`.github/ci.env`, so adding a new mandatory env var means adding it there as
+well — otherwise the app fails to boot in CI even though the code is fine.
 
 ## Prior art
 

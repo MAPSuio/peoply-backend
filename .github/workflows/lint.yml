@@ -1,0 +1,17 @@
+# Formatting and lint rules, via Biome. Reads the source and nothing else, so
+# it needs neither a database nor the application's configuration — keeping it
+# separate means it answers in under a minute instead of waiting behind the
+# jobs that do.
+name: Lint
+
+on:
+  workflow_call:
+
+jobs:
+  biome:
+    name: Biome
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run lint

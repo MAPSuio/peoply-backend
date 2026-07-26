@@ -1,0 +1,27 @@
+# The workflow that exists because CI was green during an outage.
+#
+# After the Prisma 7 upgrade every production deploy failed with
+# `P1011 TlsConnectionError: self-signed certificate in certificate chain`.
+# Nothing in CI caught it, and nothing in CI could have: the managed database
+# presents a certificate signed by a private CA, while every Postgres in CI and
+# in local development speaks plaintext. The TLS path was first executed in
+# production.
+#
+# This job starts a Postgres that presents a privately signed certificate and
+# connects to it through the real adapter, so that path now runs on every pull
+# request. It needs no service container — the test harness generates the
+# certificates and starts the server itself, which is also what makes it
+# runnable locally with `npm run test:database-tls`.
+name: Database TLS
+
+on:
+  workflow_call:
+
+jobs:
+  tls:
+    name: Connect over TLS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run test:database-tls
