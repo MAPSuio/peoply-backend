@@ -96,6 +96,13 @@ npm run test:smoke         # boots the built app
 npm run test:database-tls  # connects over TLS; starts its own Postgres, needs Docker
 ```
 
+## Health checks
+
+```bash
+curl localhost:3000/_health     # {"status":"ok"} — the process is up
+curl localhost:3000/readiness   # also checks the database; 503 if it is down
+```
+
 ## More
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — branching, CI checks, deploys, env vars

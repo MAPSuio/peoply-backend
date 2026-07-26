@@ -5,7 +5,18 @@ const { spawn } = require("node:child_process");
 const START_TIMEOUT_MS = 60000;
 const POLL_INTERVAL_MS = 2000;
 const PORT = process.env.SMOKE_TEST_PORT || "3100";
-const TARGET_URL = `http://127.0.0.1:${PORT}/api/`;
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
+/** The endpoint we poll to decide the process has finished starting. */
+const LIVENESS_URL = `${BASE_URL}/_health`;
+
+/**
+ * Asserted once the process is up. `/readiness` is the one that earns its
+ * keep: the database driver connects lazily, so a build whose database
+ * configuration is broken still boots and still serves the docs page. Before
+ * this ran here, CI called that a pass.
+ */
+const REQUIRED_URLS = [`${BASE_URL}/readiness`, `${BASE_URL}/api/`];
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,7 +38,7 @@ async function waitForServer() {
 
   while (Date.now() - startedAt < START_TIMEOUT_MS) {
     try {
-      const status = await request(TARGET_URL);
+      const status = await request(LIVENESS_URL);
       if (status >= 200 && status < 400) {
         return status;
       }
@@ -38,7 +49,19 @@ async function waitForServer() {
     await wait(POLL_INTERVAL_MS);
   }
 
-  throw new Error(`Backend did not become reachable at ${TARGET_URL}`);
+  throw new Error(`Backend did not become reachable at ${LIVENESS_URL}`);
+}
+
+async function assertServing() {
+  for (const url of REQUIRED_URLS) {
+    const status = await request(url);
+
+    if (status < 200 || status >= 400) {
+      throw new Error(`${url} answered HTTP ${status}`);
+    }
+
+    console.log(`${url} -> HTTP ${status}`);
+  }
 }
 
 async function main() {
@@ -100,8 +123,9 @@ async function main() {
   });
 
   try {
-    const status = await Promise.race([waitForServer(), childExit]);
-    console.log(`Smoke test passed with HTTP ${status}`);
+    await Promise.race([waitForServer(), childExit]);
+    await Promise.race([assertServing(), childExit]);
+    console.log("Smoke test passed.");
   } catch (error) {
     stopChild();
     await wait(1000);

@@ -249,6 +249,45 @@ commit a `.do/app.yaml` — it would put those values in git history.
 Deploys are gated on CI rather than on App Platform's own push hook
 (`deploy_on_push` is off), so the workflow is the only path to production.
 
+### Health checks
+
+Two endpoints, answering two different questions:
+
+| Endpoint | Answers | Touches the database |
+| --- | --- | --- |
+| `GET /_health` | the process is up and routing works | no |
+| `GET /readiness` | the app can actually serve traffic | yes — `SELECT 1` |
+
+The split exists because the database driver connects lazily. An instance
+whose database configuration is broken still boots, still listens, and still
+passes a TCP check — it just answers 500 to every request that touches data.
+That is not hypothetical: it is how a `P1011` TLS failure reached production
+and stayed there until somebody opened the site.
+
+So `/readiness` is what everything checks:
+
+- **App Platform** uses it as the component's health check. A release that
+  cannot reach the database never passes, so it is never promoted and the
+  previous release keeps serving.
+- **`npm run test:smoke`** asserts it after booting the compiled output, so a
+  change that breaks the database path fails on the pull request.
+- **The deploy workflow** polls it against the live URL afterwards, so a
+  release that got through anyway turns the run red instead of going unnoticed.
+
+Two properties are load-bearing, and both are covered by tests in
+`src/health/`:
+
+- The probe result is cached for two seconds and concurrent probes share a
+  single query. `/readiness` is unauthenticated, so without that it would be a
+  free database query per request.
+- The driver's error is logged and never returned. It names the database host
+  and user.
+
+Both endpoints skip the rate limiter. A throttled probe returns 429, the
+platform reads that as unhealthy, and it restarts an instance that was fine —
+turning a traffic spike into an outage. The cache bounds database load
+instead, which holds regardless of source IP.
+
 ## Environment variables
 
 `.env.example` documents what the app needs. Real values belong in your local
