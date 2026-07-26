@@ -6,7 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { EventArrangerRole, EventVisibility } from ".prisma/client";
+import { EventArrangerRole, EventVisibility } from "../generated/prisma/client";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
@@ -14,13 +14,13 @@ import { EventNotFoundException } from "./exceptions";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
-import { Event } from ".prisma/client";
+import { Event } from "../generated/prisma/client";
 import { calculateEditDistance } from "../util/string";
 import {
   EventRegistrationMode,
   EventUpdateVisibility,
   RegStatus,
-} from "@prisma/client";
+} from "../generated/prisma/client";
 import { EmailRecipients } from "@azure/communication-email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";

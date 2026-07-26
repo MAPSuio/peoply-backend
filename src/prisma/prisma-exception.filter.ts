@@ -6,7 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../generated/prisma/client";
 import { PrismaError } from "./prisma.constants";
 
 /**

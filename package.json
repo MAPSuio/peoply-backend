@@ -14,6 +14,7 @@
     "prepare": "husky",
     "prisma:deploy": "npx prisma migrate deploy",
     "prebuild": "rimraf dist",
+    "postinstall": "prisma generate",
     "build": "nest build",
     "postbuild": "npm run prisma:deploy && npm run seed:prod-db",
     "build:dev": "npm run prebuild && nest build",
@@ -53,7 +54,8 @@
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^11.4.6",
     "@nestjs/throttler": "^6.5.0",
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
     "@scalar/api-reference": "^1.63.0",
     "@scalar/nestjs-api-reference": "^1.2.11",
     "azure-maps-rest": "^2.0.8",
@@ -98,7 +100,7 @@
     "jest": "^30.4.2",
     "jest-mock-extended": "^4.0.1",
     "jest-util": "^30.4.1",
-    "prisma": "^6.19.3",
+    "prisma": "^7.9.0",
     "source-map-support": "^0.5.21",
     "supertest": "^6.2.2",
     "ts-jest": "^29.4.11",
@@ -159,8 +161,5 @@
     "word-wrap": "^1.2.5",
     "ws": "^7.5.10",
     "xml2js": "^0.6.2"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   }
 }

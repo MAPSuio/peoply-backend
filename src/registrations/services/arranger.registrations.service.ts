@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Event, EventVisibility, RegStatus } from ".prisma/client";
+import {
+  Event,
+  EventVisibility,
+  RegStatus,
+} from "../../generated/prisma/client";
 import {
   SearchEventRegistrationDto,
   SearchEventRegistrationCountDto,
 } from "../../events/dto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CommonRegistrationService } from "./common.registrations.service";
-import { Registration } from ".prisma/client";
+import { Registration } from "../../generated/prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";

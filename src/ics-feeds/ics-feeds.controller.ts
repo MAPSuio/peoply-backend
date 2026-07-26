@@ -8,7 +8,7 @@ import {
   Put,
   UseGuards,
 } from "@nestjs/common";
-import { OrganizationRole } from ".prisma/client";
+import { OrganizationRole } from "../generated/prisma/client";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { AuthenticatedGuard, OrganizationRolesGuard } from "../auth/guards";
 import { IcsFeedsService } from "./ics-feeds.service";

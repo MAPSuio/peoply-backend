@@ -1,4 +1,4 @@
-import { Prisma } from ".prisma/client";
+import { Prisma } from "../generated/prisma/client";
 import { PUBLIC_USER_SELECT } from "../users/user.select";
 
 /**
@@ -12,16 +12,15 @@ import { PUBLIC_USER_SELECT } from "../users/user.select";
  * `user` goes through {@link PUBLIC_USER_SELECT} — the same boundary every
  * other endpoint returning someone else's row is held to.
  */
-export const PUBLIC_ARRANGER_INCLUDE =
-  Prisma.validator<Prisma.ArrangerInclude>()({
-    user: { select: PUBLIC_USER_SELECT },
-    organization: {
-      select: {
-        id: true,
-        urlId: true,
-        name: true,
-        image: true,
-        orgNr: true,
-      },
+export const PUBLIC_ARRANGER_INCLUDE = {
+  user: { select: PUBLIC_USER_SELECT },
+  organization: {
+    select: {
+      id: true,
+      urlId: true,
+      name: true,
+      image: true,
+      orgNr: true,
     },
-  });
+  },
+} satisfies Prisma.ArrangerInclude;

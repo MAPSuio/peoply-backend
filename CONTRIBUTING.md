@@ -35,6 +35,28 @@ npm run dev                                # http://localhost:3000
 A Prisma `P1001` error means the database is not up, not that your code is
 wrong.
 
+### Where Prisma keeps its configuration
+
+Three things about Prisma 7 are worth knowing before the first `Cannot find
+module` sends you looking in the wrong place.
+
+**The generated client is build output.** It is emitted as TypeScript into
+`src/generated/prisma`, which is git-ignored. Prisma 7 does not generate on
+install by itself, so `postinstall` runs `prisma generate` — that is what puts
+it there. If your editor reports that `../generated/prisma/client` does not
+exist, you have not installed yet; run `npm ci`. Never edit anything under
+that directory, and never import from `@prisma/client` — it no longer holds
+the generated types.
+
+**The connection string lives in `prisma.config.ts`, not `schema.prisma`.**
+Prisma 7 removed `url` from the `datasource` block. The config file also
+imports `dotenv/config`, because the CLI no longer reads `.env` on its own.
+
+**Every `PrismaClient` needs a driver adapter.** The Rust query engine is
+gone, so `new PrismaClient()` with no arguments throws at runtime rather than
+failing to compile. Construct it through `createPrismaAdapter()` in
+`src/prisma/prisma.adapter.ts` so the connection settings stay in one place.
+
 The local database runs Postgres 16, matching production. If you set the
 project up when it was still on Postgres 13, `npm run start:dev-db` alone will
 fail with `FATAL: database files are incompatible with server` — Compose

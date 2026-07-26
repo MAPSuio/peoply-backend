@@ -1,4 +1,4 @@
-import { OrganizationRole } from ".prisma/client";
+import { OrganizationRole } from "../../generated/prisma/client";
 import { IsEnum, IsNotEmpty, IsUUID } from "class-validator";
 
 export class CreateOrganizationInvitationDto {

@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { InvitationStatus, OrganizationRole } from "@prisma/client";
+import {
+  InvitationStatus,
+  OrganizationRole,
+} from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrganizationInvitationDto } from "../dto/create-organizationInvitation.dto";
 import { createUuid } from "../../util/uuid";

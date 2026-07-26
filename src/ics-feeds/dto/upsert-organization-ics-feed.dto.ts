@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { EventRegistrationMode } from ".prisma/client";
+import { EventRegistrationMode } from "../../generated/prisma/client";
 import { IsEnum, IsInt, IsOptional, IsUrl, Max, Min } from "class-validator";
 
 export class UpsertOrganizationIcsFeedDto {

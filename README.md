@@ -80,6 +80,11 @@ npx prisma migrate dev --name what_you_changed
 npx prisma generate    # skipping this is why dev fails after a schema change
 ```
 
+`generate` writes TypeScript to `src/generated/prisma`, which is git-ignored
+and recreated by `postinstall`. Import from `../generated/prisma/client`, not
+from `@prisma/client`. The connection string lives in `prisma.config.ts` —
+see [`CONTRIBUTING.md`](CONTRIBUTING.md#where-prisma-keeps-its-configuration).
+
 Migrations hit production automatically on deploy — see [`CONTRIBUTING.md`](CONTRIBUTING.md#database-migrations).
 
 ## Test

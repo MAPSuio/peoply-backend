@@ -1,6 +1,9 @@
-import { EventRegistrationMode, RegStatus } from ".prisma/client";
+import {
+  EventRegistrationMode,
+  RegStatus,
+} from "../../generated/prisma/client";
 import { Logger } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { CommonRegistrationService } from "./common.registrations.service";
 
 const notFound = () =>

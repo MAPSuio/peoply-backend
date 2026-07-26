@@ -32,7 +32,7 @@ import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { User, UserSeenUpdateType } from ".prisma/client";
+import { User, UserSeenUpdateType } from "../generated/prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { SearchUserDto } from "./dto/search-user.dto";

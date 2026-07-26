@@ -1,6 +1,6 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
-import { RegStatus } from "@prisma/client";
+import { RegStatus } from "../../generated/prisma/client";
 import { IsBoolean, IsEnum, IsOptional } from "class-validator";
 import { ArrangerAllowedRegStatus } from "../../users/user.constants";
 import { CreateRegistrationDto } from "./create-registration.dto";

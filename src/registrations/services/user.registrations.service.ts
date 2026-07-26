@@ -6,7 +6,11 @@ import {
   SearchUserRegistrationDto,
   UserUpdateRegistrationDto,
 } from "../dto";
-import { EventRegistrationMode, RegStatus, Registration } from ".prisma/client";
+import {
+  EventRegistrationMode,
+  RegStatus,
+  Registration,
+} from "../../generated/prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 

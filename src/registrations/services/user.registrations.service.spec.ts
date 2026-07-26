@@ -1,4 +1,4 @@
-import { RegStatus } from ".prisma/client";
+import { RegStatus } from "../../generated/prisma/client";
 import { Logger } from "@nestjs/common";
 import { UserRegistrationService } from "./user.registrations.service";
 import { CommonRegistrationService } from "./common.registrations.service";
