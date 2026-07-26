@@ -33,7 +33,7 @@ jobs:
       DATABASE_URL: postgresql://pg:pg@localhost:5432/pg?schema=public
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/load-ci-env
 
