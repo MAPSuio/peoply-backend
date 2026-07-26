@@ -1,0 +1,8 @@
+# Checks the commit message against Conventional Commits.
+#
+# Rules live in commitlint.config.js. Merge, revert and fixup!/squash! messages
+# are ignored by the shared config, so they are not rejected here.
+#
+# Bypass with `git commit --no-verify`.
+
+node_modules/.bin/commitlint --edit "$1"
