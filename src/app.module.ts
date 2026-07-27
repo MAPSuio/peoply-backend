@@ -79,6 +79,7 @@ import { LocationSearchModule } from "./location-search/location-search.module";
           .default("entur"),
         ENTUR_GEOCODER_CLIENT_NAME: Joi.when("LOCATION_SEARCH_PROVIDER", {
           is: "entur",
+          // biome-ignore lint/suspicious/noThenProperty: Joi.when uses "then" as API key.
           then: Joi.string().required(),
           otherwise: Joi.string().optional(),
         }),
