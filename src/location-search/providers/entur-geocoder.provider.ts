@@ -55,7 +55,7 @@ export class EnturGeocoderProvider implements LocationSearchProvider {
       "ENTUR_GEOCODER_CLIENT_NAME",
     );
     if (!clientName) {
-      throw new Error(
+      throw new BadGatewayException(
         "ENTUR_GEOCODER_CLIENT_NAME must be set when LOCATION_SEARCH_PROVIDER=entur",
       );
     }
