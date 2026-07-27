@@ -26,6 +26,7 @@ import { ThreatDetectionModule } from "./threat-detection/threat-detection.modul
 import { FeedbackModule } from "./feedback/feedback.module";
 import { HealthModule } from "./health/health.module";
 import { RecommendationsModule } from "./recommendations/recommendations.module";
+import { LocationSearchModule } from "./location-search/location-search.module";
 
 @Module({
   imports: [
@@ -72,8 +73,11 @@ import { RecommendationsModule } from "./recommendations/recommendations.module"
         AZURE_STORAGE_ACCOUNT: Joi.string().required(),
         AZURE_STORAGE_KEY: Joi.string().required(),
         AZURE_STORAGE_SKIP_INIT: Joi.boolean().optional(),
-        AZURE_MAPS_KEY: Joi.string().required(),
         AZURE_COMMUNICATION_CONNECTION_STRING: Joi.string().optional(),
+        LOCATION_SEARCH_PROVIDER: Joi.string()
+          .valid("entur", "geonorge")
+          .default("entur"),
+        ENTUR_GEOCODER_CLIENT_NAME: Joi.string().optional(),
         DISCORD_ALERT_WEBHOOK_URL: Joi.string().uri().optional(),
         THREAT_DETECTION_ENABLED: Joi.boolean().default(true),
         THREAT_ALERT_COOLDOWN_MS: Joi.number().default(300000),
@@ -85,6 +89,7 @@ import { RecommendationsModule } from "./recommendations/recommendations.module"
     AzureModule,
     CategoriesModule,
     PrismaModule,
+    LocationSearchModule,
     FeedbackModule,
     FavoritesModule,
     NotificationsModule,
