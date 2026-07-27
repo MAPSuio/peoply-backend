@@ -3,29 +3,25 @@ import { ConfigService } from "@nestjs/config";
 import {
   Aborter,
   MapsURL,
-  Pipeline,
   SearchURL,
   SubscriptionKeyCredential,
 } from "azure-maps-rest";
 
+const AZURE_MAPS_TIMEOUT_MS = 15_000;
+
 @Injectable()
 export class AzureMapsService {
-  private credentials: SubscriptionKeyCredential;
-  private pipeline: Pipeline;
   readonly searchURL: SearchURL;
-  readonly aborter: Aborter;
 
   constructor(configService: ConfigService) {
     const creds = new SubscriptionKeyCredential(
-      configService.get<string>("AZURE_MAPS_KEY")!,
+      configService.getOrThrow<string>("AZURE_MAPS_KEY"),
     );
     const pipe = MapsURL.newPipeline(creds);
-    const searchURL = new SearchURL(pipe);
-    const aborter = Aborter.none;
+    this.searchURL = new SearchURL(pipe);
+  }
 
-    this.credentials = creds;
-    this.pipeline = pipe;
-    this.searchURL = searchURL;
-    this.aborter = aborter;
+  get aborter(): Aborter {
+    return Aborter.timeout(AZURE_MAPS_TIMEOUT_MS);
   }
 }

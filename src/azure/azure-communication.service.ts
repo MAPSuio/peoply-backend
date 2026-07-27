@@ -3,8 +3,10 @@ import {
   EmailMessage,
   SendEmailResult,
 } from "@azure/communication-email";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, RequestTimeoutException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+
+const AZURE_EMAIL_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class AzureCommunicationService {
@@ -41,6 +43,38 @@ export class AzureCommunicationService {
       return null;
     }
 
-    return await this.client.send(emailMessage);
+    // This SDK version does not expose an abortable public send API, so bound
+    // the await time here to keep request paths from hanging indefinitely.
+    return await this.withTimeout(
+      this.client.send(emailMessage),
+      AZURE_EMAIL_TIMEOUT_MS,
+      "Timed out while sending email via Azure Communication Services",
+    );
+  }
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string,
+  ): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            reject(
+              new RequestTimeoutException(`${message} after ${timeoutMs}ms`),
+            );
+          }, timeoutMs);
+          timeoutHandle?.unref?.();
+        }),
+      ]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 }
