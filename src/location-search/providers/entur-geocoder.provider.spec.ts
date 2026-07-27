@@ -7,6 +7,11 @@ describe("EnturGeocoderProvider", () => {
 
   let provider: EnturGeocoderProvider;
   let fetchMock: jest.Mock;
+  const originalFetch = global.fetch;
+
+  afterAll(() => {
+    global.fetch = originalFetch as any;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

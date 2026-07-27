@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
   IsNumber,
@@ -13,6 +13,7 @@ import {
 import { ToBoolean } from "../../../decorators/transformers";
 
 export class LocationSearchQueryDto {
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @ApiProperty({ description: "Free-text address or place query." })
