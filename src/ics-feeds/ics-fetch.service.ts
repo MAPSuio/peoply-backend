@@ -12,6 +12,21 @@ const MAX_REDIRECTS = 3;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 15_000;
 
+// Node >= 20 (autoSelectFamily) calls lookup with { all: true } and expects an
+// array of { address, family }; older callers expect (err, address, family).
+export function createPinnedLookup(resolvedAddress: string) {
+  return (_hostname: string, options: unknown, callback: any) => {
+    const family = resolvedAddress.includes(":") ? 6 : 4;
+
+    if ((options as { all?: boolean } | undefined)?.all) {
+      callback(null, [{ address: resolvedAddress, family }]);
+      return;
+    }
+
+    callback(null, resolvedAddress, family);
+  };
+}
+
 interface CalendarResponse {
   url: string;
   body: string;
@@ -147,10 +162,7 @@ export class IcsFetchService {
         {
           method: "GET",
           timeout: REQUEST_TIMEOUT_MS,
-          lookup: (_hostname: string, _options: unknown, callback: any) => {
-            const family = resolvedAddress.includes(":") ? 6 : 4;
-            callback(null, resolvedAddress, family);
-          },
+          lookup: createPinnedLookup(resolvedAddress),
           headers: {
             Accept: "text/calendar, text/plain;q=0.9, */*;q=0.1",
             "User-Agent": "Peoply-ICS-Importer/1.0",
