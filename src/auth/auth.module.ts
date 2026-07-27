@@ -1,8 +1,15 @@
 // src/auth/auth.module.ts
-import { forwardRef, Module } from "@nestjs/common";
+import {
+  forwardRef,
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
+import { LegacyRefreshCookieMiddleware } from "./legacy-refresh-cookie.middleware";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { UsersModule } from "../users/users.module";
@@ -70,7 +77,18 @@ const GoogleStrategyFactory = {
     AuthService,
     AccessStrategy,
     RefreshStrategy,
+    LegacyRefreshCookieMiddleware,
   ],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(LegacyRefreshCookieMiddleware)
+      .forRoutes(
+        { path: "auth/refresh", method: RequestMethod.POST },
+        { path: "auth/callback", method: RequestMethod.GET },
+        { path: "auth/callback/google", method: RequestMethod.GET },
+      );
+  }
+}

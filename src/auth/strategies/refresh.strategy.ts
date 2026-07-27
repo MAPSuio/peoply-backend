@@ -4,6 +4,7 @@ import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request } from "express";
 import { UsersService } from "../../users/services";
+import { collectRefreshCookies, pickRefreshToken } from "../refresh-cookie";
 
 // Module-scoped so the cookie extractor can log before `this` is available
 // (the extractor is passed into super(), where `this` is not yet initialized).
@@ -23,13 +24,25 @@ export class RefreshStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req: Request) => {
-          const token = req.cookies.refresh;
+          // Read the raw header rather than req.cookies: with duplicate
+          // `refresh` cookies (the pre-2026-03-23 "/auth/refresh"-path one
+          // shadowing the current "/auth" one) cookie-parser only exposes
+          // the stale duplicate, which 401s here without a trace.
+          const candidates = collectRefreshCookies(req.headers.cookie);
+          const token = pickRefreshToken(req.headers.cookie);
+
+          if (candidates.length > 1) {
+            logger.warn(
+              `Refresh: ${candidates.length} duplicate refresh cookies sent, picked an unexpired one`,
+            );
+          }
+
           if (!token) {
             // Cookie absent → passport rejects before validate() runs, so this
             // is the only place a missing/blocked refresh cookie is visible.
             logger.warn("Refresh denied: missing_cookie");
           }
-          return token;
+          return token ?? null;
         },
       ]),
       ignoreExpiration: false,
