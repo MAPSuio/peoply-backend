@@ -1,8 +1,8 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { Models } from "azure-maps-rest";
 import { AuthenticatedGuard } from "../auth/guards";
+import { AzureMapsFuzzySearchQueryDto } from "./dto/azure-maps-fuzzy-search-query.dto";
 import { AzureMapsService } from "./azure-maps.service";
-import { AzureMapsFuzzySearchParams } from "./types/fuzzy-search.type";
 
 @Controller("/maps")
 export class AzureMapsController {
@@ -12,33 +12,16 @@ export class AzureMapsController {
   @Get("/fuzzySearch")
   async searchFuzzy(
     @Query()
-    params: AzureMapsFuzzySearchParams,
+    params: AzureMapsFuzzySearchQueryDto,
   ) {
-    const q = params.query;
-
-    // options is the params object without the query
-    const options = Object.keys(params).reduce(
-      (acc: Models.SearchGetSearchFuzzyOptionalParams, key) => {
-        if (key !== "query") {
-          if (key.includes("Set")) {
-            acc[key] = params[key].split(",");
-          } else {
-            // if the key in Models.SearchGetSearchFuzzyOptionalParams is a number, convert to number
-            if (Number(params[key])) {
-              acc[key] = Number(params[key]);
-            } else {
-              acc[key] = params[key];
-            }
-          }
-        }
-        return acc;
-      },
-      {},
-    );
+    const { query, ...rawOptions } = params;
+    const options = Object.fromEntries(
+      Object.entries(rawOptions).filter(([, value]) => value !== undefined),
+    ) as Models.SearchGetSearchFuzzyOptionalParams;
 
     const res = await this.azureMaps.searchURL.searchFuzzy(
       this.azureMaps.aborter,
-      q,
+      query,
       options,
     );
 
