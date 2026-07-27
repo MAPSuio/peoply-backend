@@ -27,9 +27,14 @@ export class RefreshStrategy extends PassportStrategy(
           // Read the raw header rather than req.cookies: with duplicate
           // `refresh` cookies (the pre-2026-03-23 "/auth/refresh"-path one
           // shadowing the current "/auth" one) cookie-parser only exposes
-          // the stale duplicate, which 401s here without a trace.
+          // the stale duplicate, which 401s here without a trace. The secret
+          // is passed so the pick can skip duplicates whose signature is
+          // from a rotated secret — their exp alone does not identify them.
           const candidates = collectRefreshCookies(req.headers.cookie);
-          const token = pickRefreshToken(req.headers.cookie);
+          const token = pickRefreshToken(
+            req.headers.cookie,
+            configService.get<string>("JWT_REFRESH_TOKEN_SECRET"),
+          );
 
           if (candidates.length > 1) {
             logger.warn(
