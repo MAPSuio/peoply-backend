@@ -25,6 +25,7 @@ import { CfThrottlerGuard } from "./cf-throttler.guard";
 import { ThreatDetectionModule } from "./threat-detection/threat-detection.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { HealthModule } from "./health/health.module";
+import { RecommendationsModule } from "./recommendations/recommendations.module";
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { HealthModule } from "./health/health.module";
     InvitationsModule,
     AllergensModule,
     IcsFeedsModule,
+    RecommendationsModule,
   ],
   controllers: [AppController],
   providers: [
