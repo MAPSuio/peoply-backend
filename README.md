@@ -106,4 +106,5 @@ curl localhost:3000/readiness   # also checks the database; 503 if it is down
 ## More
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — branching, CI checks, deploys, env vars
+- [`docs/location-search.md`](docs/location-search.md) — provider evaluation, architecture, config
 - [`docs/threat-detection.md`](docs/threat-detection.md) — request logging

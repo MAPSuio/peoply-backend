@@ -58,7 +58,6 @@
     "@prisma/client": "^7.9.0",
     "@scalar/api-reference": "^1.63.0",
     "@scalar/nestjs-api-reference": "^1.2.11",
-    "azure-maps-rest": "^2.0.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.6",
@@ -131,8 +130,6 @@
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "^3.15.0"
     },
-    "@azure/ms-rest-azure-js": "^2.1.0",
-    "@azure/ms-rest-js": "^2.7.0",
     "@babel/traverse": "^7.23.2",
     "@babel/helpers": "^7.26.10",
     "@sideway/formula": "^3.0.1",
