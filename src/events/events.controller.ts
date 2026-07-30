@@ -23,6 +23,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
@@ -45,9 +46,6 @@ import { SendUpdateDto } from "./dto/send-update.dto";
 import { EventsService } from "./events.service";
 import { EventNotFoundException } from "./exceptions";
 
-// file size limit 50 MB
-const MAX_FILE_SIZE_MB: number = 50 * 1024 * 1024;
-
 @Controller("events")
 export class EventsController {
   constructor(
@@ -59,23 +57,7 @@ export class EventsController {
 
   @UseGuards(AuthenticatedGuard)
   @Post()
-  @UseInterceptors(
-    FileInterceptor("eventImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        fileSize: MAX_FILE_SIZE_MB,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("eventImage", IMAGE_UPLOAD_OPTIONS))
   async create(
     @Req() req: any,
     @Body() createEventDto: CreateEventDto,
@@ -156,24 +138,7 @@ export class EventsController {
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Patch(":id")
-  @UseInterceptors(
-    FileInterceptor("eventImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        // filesize limit 50 MB
-        fileSize: MAX_FILE_SIZE_MB,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("eventImage", IMAGE_UPLOAD_OPTIONS))
   async update(
     @Param("id") id: string,
     @Body() updateEventDto: UpdateEventDto,
