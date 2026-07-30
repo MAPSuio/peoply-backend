@@ -84,7 +84,11 @@ export class UsersController {
     @UploadedFile() profileImage?: Express.Multer.File,
   ) {
     const user: User = req.user;
-    return this.userService.update(user, data, profileImage);
+    /* update() returns the row straight from prisma with no select, so the
+       same strip GET /users/me does applies here too. */
+    return withoutRefreshTokenId(
+      await this.userService.update(user, data, profileImage),
+    );
   }
 
   @UseGuards(AuthenticatedGuard)

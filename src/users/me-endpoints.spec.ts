@@ -35,6 +35,34 @@ describe("endpoints that return the caller's own row", () => {
     expect(body.email).toBe("ada@example.com");
   });
 
+  it("PATCH /users/me omits refreshTokenId", async () => {
+    /* update() has no `select`, so prisma hands back the whole row - the
+       endpoint is the only thing standing between it and the response. */
+    const userService = {
+      update: jest.fn().mockResolvedValue({
+        id: "user-1",
+        firstName: "Ada",
+        email: "ada@example.com",
+        refreshTokenId: "session-handle-abc",
+      }),
+    };
+    const controller = new UsersController(
+      {} as any,
+      {} as any,
+      userService as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+    const body: any = await controller.updateUser(req(), {} as any);
+
+    expect(body).not.toHaveProperty("refreshTokenId");
+    expect(body.email).toBe("ada@example.com");
+  });
+
   it("GET /auth/user omits refreshTokenId", async () => {
     const controller = new AuthController({} as any, {} as any, {} as any);
 
