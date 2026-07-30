@@ -106,9 +106,13 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     });
 
     // remove foodPreference if not going
+    //
+    // `user` is only included when includeUsers is set, so without it there is
+    // nothing to redact - and dereferencing it threw a TypeError, i.e. a 500 on
+    // the default shape of this request for any event that serves food.
     return eventHasFood
       ? registrations.map((registration) => {
-          if (registration.regStatus !== RegStatus.GOING) {
+          if (registration.user && registration.regStatus !== RegStatus.GOING) {
             registration.user.foodPreference = null;
             // @ts-expect-error
             registration.user.userAllergens = [];
