@@ -84,7 +84,12 @@ export class UsersController {
     @UploadedFile() profileImage?: Express.Multer.File,
   ) {
     const user: User = req.user;
-    return this.userService.update(user, data, profileImage);
+    // The row Prisma hands back from `update` is the full record, so the same
+    // subtraction GET /users/me applies has to happen here too — otherwise
+    // saving the settings page is enough to read the session handle back out.
+    return withoutRefreshTokenId(
+      await this.userService.update(user, data, profileImage),
+    );
   }
 
   @UseGuards(AuthenticatedGuard)
