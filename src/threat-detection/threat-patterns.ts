@@ -46,6 +46,21 @@ export const SLIDING_WINDOW_MS = 60_000; // 60s
 /** How often to run in-memory cleanup of expired entries */
 export const CLEANUP_INTERVAL_MS = 120_000; // 2 min
 
+/**
+ * Hard cap on how many distinct source IPs each tracking map holds.
+ *
+ * The sweep above bounds how long an entry lives, not how many arrive between
+ * two sweeps — and the maps are keyed by client IP, which is chosen by whoever
+ * sends the request. Rotating the source IP also sidesteps the per-IP
+ * throttler, so nothing bounded the arrival rate either: 500,000 distinct IPs
+ * inside one two-minute window measured at 92.6 MB of heap, allocated by the
+ * threat detection itself in the act of noticing the attack.
+ *
+ * 10,000 IPs per map is far above any real traffic pattern — a whole
+ * university's NAT ranges do not come close — and roughly 2 MB across all four.
+ */
+export const MAX_TRACKED_IPS = 10_000;
+
 /** Global requests per minute threshold before alerting */
 export const REQUEST_RATE_THRESHOLD = 500;
 

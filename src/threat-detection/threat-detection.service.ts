@@ -14,12 +14,14 @@ import {
   BURST_404_LOG_THRESHOLD,
   CLEANUP_INTERVAL_MS,
   DEFAULT_ALERT_COOLDOWN_MS,
+  MAX_TRACKED_IPS,
   REQUEST_RATE_THRESHOLD,
   REQUEST_RATE_LOG_THRESHOLDS,
   SAFE_PATHS,
   SLIDING_WINDOW_MS,
   SUSPICIOUS_PATH_PATTERNS,
 } from "./threat-patterns";
+import { evictToCapacity } from "../util/bounded-map";
 
 @Injectable()
 export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
@@ -216,6 +218,7 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     if (!timestamps) {
       timestamps = [];
       windowMap.set(ip, timestamps);
+      this.enforceIpCap(windowMap, "request windows");
     }
     timestamps.push(now);
 
@@ -241,6 +244,7 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     if (last && now - last < this.alertCooldownMs) return;
 
     this.alertCooldowns.set(key, now);
+    this.enforceIpCap(this.alertCooldowns, "alert cooldowns");
     // Fire-and-forget — never block the request
     this.discord.sendAlert(title, fields, color).catch(() => undefined);
   }
@@ -252,7 +256,36 @@ export class ThreatDetectionService implements OnModuleInit, OnModuleDestroy {
     if (last && now - last < this.alertCooldownMs) return;
 
     this.activityLogCooldowns.set(key, now);
+    this.enforceIpCap(this.activityLogCooldowns, "activity log cooldowns");
     this.logger.warn(message);
+  }
+
+  /**
+   * Keeps a tracking map under MAX_TRACKED_IPS.
+   *
+   * Evicting means forgetting an IP that was being watched, so a flood can
+   * push a genuine slow prober out of the window — but a map that grows with
+   * the attacker's IP rotation takes the process down, and detecting nothing
+   * because the container was OOM-killed is strictly worse. Hitting the cap is
+   * itself a signal, so it is logged (through the cooldown, or the log would
+   * flood alongside the map).
+   */
+  private enforceIpCap(map: Map<string, unknown>, label: string): void {
+    const removed = evictToCapacity(map, MAX_TRACKED_IPS);
+
+    if (removed > 0) {
+      const now = Date.now();
+      const last = this.activityLogCooldowns.get(`cap:${label}`);
+
+      if (!last || now - last >= this.alertCooldownMs) {
+        this.activityLogCooldowns.set(`cap:${label}`, now);
+        this.logger.warn(
+          `Threat detection ${label} hit the ${MAX_TRACKED_IPS} IP cap and ` +
+            `dropped ${removed} entries — source IPs are being rotated faster ` +
+            "than they can be tracked.",
+        );
+      }
+    }
   }
 
   private cleanupExpired(): void {
