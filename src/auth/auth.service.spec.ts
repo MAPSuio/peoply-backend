@@ -2,6 +2,7 @@ jest.mock("@nestjs/jwt", () => ({
   JwtService: class JwtService {},
 }));
 
+import { UnauthorizedException } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
@@ -84,5 +85,41 @@ describe("AuthService", () => {
 
   it("rejects missing origin by default", () => {
     expect(() => service.assertTrustedOrigin({})).toThrow("Untrusted origin");
+  });
+
+  describe("requireValidAccessToken", () => {
+    beforeEach(() => {
+      jwtService.verify.mockReset();
+    });
+
+    it("returns the payload for a valid token", () => {
+      jwtService.verify.mockReturnValueOnce({ sub: "user-1" });
+
+      expect(service.requireValidAccessToken("token")).toEqual({
+        sub: "user-1",
+      });
+    });
+
+    it.each([undefined, "", null as any])(
+      "answers 401 rather than 500 when the cookie is %p",
+      (token) => {
+        expect(() => service.requireValidAccessToken(token)).toThrow(
+          UnauthorizedException,
+        );
+        /* Never even reaches jsonwebtoken. */
+        expect(jwtService.verify).not.toHaveBeenCalled();
+      },
+    );
+
+    it("answers 401 rather than 500 when verification throws", () => {
+      /* This is what the four guards used to let escape as a 500. */
+      jwtService.verify.mockImplementationOnce(() => {
+        throw new Error("jwt expired");
+      });
+
+      expect(() => service.requireValidAccessToken("stale")).toThrow(
+        UnauthorizedException,
+      );
+    });
   });
 });

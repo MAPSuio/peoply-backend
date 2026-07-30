@@ -23,7 +23,9 @@ export class UserIdVerificationGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     //fetch the user id from the request
     const request = context.switchToHttp().getRequest();
-    const valid = this.authService.validateJWT(request.cookies.access);
+    const valid = this.authService.requireValidAccessToken(
+      request.cookies.access,
+    );
     const validUser = await this.usersService.findById(valid.sub);
     //fetch the user id from the request params
     const requestedUserId = request.params.userId;
