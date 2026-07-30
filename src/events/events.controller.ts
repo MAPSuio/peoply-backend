@@ -348,6 +348,6 @@ export class EventsController {
     @Param("id") id: string,
     @Param("updateId") updateId: string,
   ) {
-    return this.eventsService.deleteUpdateForEvent(updateId);
+    return this.eventsService.deleteUpdateForEvent(id, updateId);
   }
 }

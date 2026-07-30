@@ -10,7 +10,10 @@ import { EventArrangerRole, EventVisibility } from "../generated/prisma/client";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
-import { EventNotFoundException } from "./exceptions";
+import {
+  EventNotFoundException,
+  EventUpdateNotFoundException,
+} from "./exceptions";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
@@ -802,6 +805,23 @@ export class EventsService {
     userId?: string,
     isArranger?: boolean,
   ) {
+    // The route carries interceptors rather than a guard, because updates on a
+    // public event are public. That makes this the only place the event's own
+    // visibility is enforced — without it, the ALL-visibility branch below
+    // answered for any event id to any caller, including private events that
+    // GET /events/:id refuses to return to the very same caller.
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, visibility: true },
+    });
+
+    if (
+      !event ||
+      !(await this.canViewEvent(event.id, event.visibility, userId, isArranger))
+    ) {
+      throw new EventNotFoundException(eventId);
+    }
+
     if (userId) {
       // if user is GOING or arranger, show all updates
       const registration = await this.prisma.registration.findUnique({
@@ -909,11 +929,21 @@ export class EventsService {
     return Boolean(unapprovedOrganizationArranger);
   }
 
-  async deleteUpdateForEvent(updateId: string) {
-    return await this.prisma.eventUpdate.update({
-      where: { id: updateId },
+  /**
+   * `EventRolesGuard` authorises the caller against the event in the URL, so
+   * the write has to be constrained to that same event. Filtering on the
+   * update id alone let an arranger of any event delete an update belonging to
+   * any other event — the id is not a secret, `getUpdatesForEvent` returns it.
+   */
+  async deleteUpdateForEvent(eventId: string, updateId: string) {
+    const { count } = await this.prisma.eventUpdate.updateMany({
+      where: { id: updateId, eventId },
       data: { visibility: EventUpdateVisibility.DELETED },
     });
+
+    if (count === 0) {
+      throw new EventUpdateNotFoundException(updateId);
+    }
   }
 
   private generateUrlId() {
