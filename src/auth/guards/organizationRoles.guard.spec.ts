@@ -16,7 +16,7 @@ describe("OrganizationRolesGuard", () => {
     checkUserRole: jest.fn(),
   } as any;
   const authService = {
-    validateJWT: jest.fn(),
+    requireValidAccessToken: jest.fn(),
   } as any;
   const usersService = {
     findById: jest.fn(),
@@ -36,7 +36,7 @@ describe("OrganizationRolesGuard", () => {
   });
 
   it("resolves organization urlId before checking role", async () => {
-    authService.validateJWT.mockReturnValueOnce({ sub: "user-1" });
+    authService.requireValidAccessToken.mockReturnValueOnce({ sub: "user-1" });
     usersService.findById.mockResolvedValueOnce({ id: "user-1" });
     organizationsService.findOneByUrlId.mockResolvedValueOnce({
       id: "org-uuid",

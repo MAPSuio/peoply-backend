@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { User } from "../generated/prisma/client";
@@ -40,6 +44,30 @@ export class AuthService {
 
   validateJWT(token: string) {
     return this.jwtService.verify(token);
+  }
+
+  /**
+   * Same verification as `validateJWT`, but for callers that cannot treat a
+   * bad token as "anonymous".
+   *
+   * The interceptors wrap `validateJWT` in a try/catch and fall back to
+   * `req.user = undefined`; the guards called it bare, so a missing, expired
+   * or malformed cookie escaped as a jsonwebtoken error and the client got a
+   * 500 instead of a 401. Today `AuthenticatedGuard` always runs first and
+   * shields them, which makes this defence in depth rather than a live bug -
+   * but nothing enforces that ordering, and a guard used on its own would
+   * regress it silently.
+   */
+  requireValidAccessToken(token: string | undefined) {
+    if (!token) {
+      throw new UnauthorizedException();
+    }
+
+    try {
+      return this.validateJWT(token);
+    } catch {
+      throw new UnauthorizedException();
+    }
   }
 
   validateRefreshJWT(token: string) {

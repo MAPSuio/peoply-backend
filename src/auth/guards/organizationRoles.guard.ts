@@ -29,7 +29,9 @@ export class OrganizationRolesGuard implements CanActivate {
       throw new RolesNotFoundException();
     }
     const request = context.switchToHttp().getRequest();
-    const valid = this.authService.validateJWT(request.cookies.access);
+    const valid = this.authService.requireValidAccessToken(
+      request.cookies.access,
+    );
     const user = await this.usersService.findById(valid.sub);
     const requestedOrgId = request.params.orgId;
 

@@ -6,7 +6,7 @@ import { ExecutionContext, ForbiddenException } from "@nestjs/common";
 import { ModeratorGuard } from "./moderator.guard";
 
 describe("ModeratorGuard", () => {
-  const authService = { validateJWT: jest.fn() } as any;
+  const authService = { requireValidAccessToken: jest.fn() } as any;
   const usersService = { findById: jest.fn() } as any;
 
   let guard: ModeratorGuard;
@@ -39,7 +39,7 @@ describe("ModeratorGuard", () => {
 
   it("allows access when user email is in allowlist", async () => {
     process.env.MODERATOR_EMAILS = "admin@peoply.app, mod@peoply.app";
-    authService.validateJWT.mockReturnValueOnce({ sub: "user-1" });
+    authService.requireValidAccessToken.mockReturnValueOnce({ sub: "user-1" });
     usersService.findById.mockResolvedValueOnce({ email: "Admin@Peoply.App" });
 
     await expect(guard.canActivate(makeContext("token"))).resolves.toBe(true);
@@ -47,7 +47,7 @@ describe("ModeratorGuard", () => {
 
   it("throws ForbiddenException when user email is not in allowlist", async () => {
     process.env.MODERATOR_EMAILS = "admin@peoply.app";
-    authService.validateJWT.mockReturnValueOnce({ sub: "user-1" });
+    authService.requireValidAccessToken.mockReturnValueOnce({ sub: "user-1" });
     usersService.findById.mockResolvedValueOnce({ email: "hacker@evil.com" });
 
     await expect(guard.canActivate(makeContext("token"))).rejects.toThrow(
@@ -57,7 +57,7 @@ describe("ModeratorGuard", () => {
 
   it("throws ForbiddenException when user is not found", async () => {
     process.env.MODERATOR_EMAILS = "admin@peoply.app";
-    authService.validateJWT.mockReturnValueOnce({ sub: "user-1" });
+    authService.requireValidAccessToken.mockReturnValueOnce({ sub: "user-1" });
     usersService.findById.mockResolvedValueOnce(null);
 
     await expect(guard.canActivate(makeContext("token"))).rejects.toThrow(

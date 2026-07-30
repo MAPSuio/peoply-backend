@@ -17,7 +17,7 @@ describe("EventRolesGuard", () => {
     findOneWithArrangers: jest.fn(),
     findOneWithArrangersByUrlId: jest.fn(),
   } as any;
-  const authService = { validateJWT: jest.fn() } as any;
+  const authService = { requireValidAccessToken: jest.fn() } as any;
   const usersService = { findById: jest.fn() } as any;
   const prisma = {} as any;
 
@@ -47,7 +47,7 @@ describe("EventRolesGuard", () => {
       eventsService,
     );
     reflector.get = jest.fn().mockReturnValue(["ADMIN"]);
-    authService.validateJWT.mockReturnValue({ sub: "user-1" });
+    authService.requireValidAccessToken.mockReturnValue({ sub: "user-1" });
     usersService.findById.mockResolvedValue({
       id: "user-1",
       arrangerId: "arranger-user-1",
