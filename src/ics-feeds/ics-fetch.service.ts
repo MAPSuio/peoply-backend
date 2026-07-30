@@ -36,21 +36,13 @@ function ipv6Groups(address: string): number[] | null {
   // A trailing dotted quad ("::ffff:1.2.3.4") spells out the last two groups.
   // Fold it back into hex first so the group count comes out at eight.
   const dotted = address.match(/(\d{1,3}(?:\.\d{1,3}){3})$/);
-  const expanded = dotted
-    ? address.slice(0, -dotted[1].length) +
-      dotted[1]
-        .split(".")
-        .map(Number)
-        .reduce<number[]>(
-          (groups, octet, index) =>
-            index % 2 === 0
-              ? [...groups, octet << 8]
-              : [...groups.slice(0, -1), groups[groups.length - 1] | octet],
-          [],
-        )
-        .map((group) => group.toString(16))
-        .join(":")
-    : address;
+  let expanded = address;
+
+  if (dotted) {
+    const [a, b, c, d] = dotted[1].split(".").map(Number);
+    const asGroups = `${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+    expanded = address.slice(0, -dotted[1].length) + asGroups;
+  }
 
   const halves = expanded.split("::");
 
