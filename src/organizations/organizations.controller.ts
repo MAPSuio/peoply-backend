@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  ParseArrayPipe,
   Patch,
   Post,
   Query,
@@ -294,7 +295,15 @@ export class OrganizationsController {
   async sendInvitations(
     @Req() req: any,
     @Param("orgId") orgId: string,
-    @Body() createOrgInvitesDtos: CreateOrganizationInvitationDto[],
+    /* The global ValidationPipe sees `Array` as the metatype for a bare-array
+       body and skips it, so the decorators on the DTO never ran. */
+    @Body(
+      new ParseArrayPipe({
+        items: CreateOrganizationInvitationDto,
+        whitelist: true,
+      }),
+    )
+    createOrgInvitesDtos: CreateOrganizationInvitationDto[],
   ) {
     return this.organizationInvitationsService.createInvitations(
       orgId,

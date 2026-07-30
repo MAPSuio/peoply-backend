@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
   InvitationStatus,
   OrganizationRole,
@@ -70,6 +70,18 @@ export class OrganizationInvitationsService {
     fromUserId: string,
     createOrgInvitesDtos: CreateOrganizationInvitationDto[],
   ) {
+    /* Ownership is transferred through PATCH /:orgId/owner, which is OWNER
+       only, and PATCH /:orgId/roles refuses to hand out OWNER outright. This
+       endpoint is open to ADMIN, so without the same rule an admin could
+       invite a second account as OWNER, accept from it, and end up able to
+       delete the organization and demote the real owner. */
+    const ownerInvite = createOrgInvitesDtos.find(
+      (dto) => dto.role === OrganizationRole.OWNER,
+    );
+    if (ownerInvite) {
+      throw new ForbiddenException("Cannot invite a user as owner");
+    }
+
     /* Have to createMany followed by findMany to get returned elements
      *  this is because createMany doesnt return the created elements
      * ref: https://github.com/prisma/prisma/issues/8131
