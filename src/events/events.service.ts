@@ -18,6 +18,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from "../generated/prisma/client";
+import { escapeHtml } from "../util/html";
 import { calculateEditDistance } from "../util/string";
 import { buildDescriptionSearchQuery } from "../util/search";
 import {
@@ -959,11 +960,19 @@ export class EventsService {
   }
 
   private buildEventUpdateHtmlEmail(updateDto: SendUpdateDto, event: Event) {
+    /* The arranger types these into plain text inputs, so no markup is meant
+       to survive, and the event title can come straight from a third-party
+       ICS feed. */
+    const subject = escapeHtml(updateDto.subject);
+    const replyTo = escapeHtml(updateDto.replyTo);
+    const title = escapeHtml(event.title);
+    const urlId = escapeHtml(event.urlId);
+
     return (
-      `<h1>${updateDto.subject}</h1>\n` +
+      `<h1>${subject}</h1>\n` +
       `${updateDto.body
         .split("\n")
-        .map((p) => `<p>${p}</p>`)
+        .map((p) => `<p>${escapeHtml(p)}</p>`)
         .join("")}\n` +
       `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
       `<p>
@@ -971,12 +980,12 @@ export class EventsService {
         updateDto.replyTo
           ? "Svar på denne mailen eller send mail til e-posten under for å sende svar til arrangøren.\n" +
             "<br>" +
-            `<a href="mailto:${updateDto.replyTo}?subject=SV: ${updateDto.subject}">${updateDto.replyTo}</a>`
+            `<a href="mailto:${replyTo}?subject=SV: ${subject}">${replyTo}</a>`
           : ""
       }
     </p>` +
       "<p>" +
-      `Du mottar denne e-posten fordi du har meldt deg på <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      `Du mottar denne e-posten fordi du har meldt deg på <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
       "</p>" +
       "<p>" +
       `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +

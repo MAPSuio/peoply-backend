@@ -20,6 +20,7 @@ import { AzureCommunicationService } from "../azure/azure-communication.service"
 import { IcsFetchService } from "./ics-fetch.service";
 import { IcsParserService, ParsedIcsEvent } from "./ics-parser.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
+import { escapeHtml } from "../util/html";
 import { createUuid } from "../util/uuid";
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
@@ -417,15 +418,17 @@ export class IcsFeedsService {
 
   private buildFailureEmail(organizationName: string, error?: string | null) {
     return (
-      `<h1>ICS-synkronisering feiler for ${organizationName}</h1>` +
+      `<h1>ICS-synkronisering feiler for ${escapeHtml(organizationName)}</h1>` +
       `<p>Peoply har feilet tre ganger på rad ved import av organisasjonens ICS-kalender.</p>` +
-      `<p>Siste feil: ${error ?? "Ukjent feil"}</p>`
+      /* The error text is whatever the remote server or the parser produced,
+         so it is as untrusted as the feed itself. */
+      `<p>Siste feil: ${escapeHtml(error ?? "Ukjent feil")}</p>`
     );
   }
 
   private buildDisabledEmail(organizationName: string) {
     return (
-      `<h1>ICS-integrasjonen for ${organizationName} er deaktivert</h1>` +
+      `<h1>ICS-integrasjonen for ${escapeHtml(organizationName)} er deaktivert</h1>` +
       `<p>Peoply har ikke klart å synkronisere kalenderen på syv dager, og integrasjonen er derfor deaktivert.</p>` +
       `<p>Oppdater URL-en eller trigge en ny synkronisering fra organisasjonens innstillinger for å aktivere den igjen.</p>`
     );
