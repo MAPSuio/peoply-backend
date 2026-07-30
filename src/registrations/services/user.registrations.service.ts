@@ -8,6 +8,7 @@ import {
 } from "../dto";
 import {
   EventRegistrationMode,
+  EventVisibility,
   RegStatus,
   Registration,
 } from "../../generated/prisma/client";
@@ -59,6 +60,28 @@ export class UserRegistrationService extends CommonRegistrationService {
       }
 
       if (event) {
+        /* A registration is not just an intent to attend - canViewEvent treats
+         * GOING/WAITLISTED/INVITED as permission to read the event, its
+         * updates and its attendee list. So creating one on an event you were
+         * never invited to hands you access to it, and a seat.
+         *
+         * PUBLIC and UNLISTED are open by design: "alle med lenken kan se
+         * arrangementet" is what the product promises for unlisted. PRIVATE is
+         * invitation-only, and the invitation flow always writes an INVITED
+         * registration up front, so an invited user reaches GOING through
+         * PATCH rather than here. Nothing legitimate creates a registration on
+         * a private event. */
+        if (event.visibility === EventVisibility.PRIVATE) {
+          const invitation = await trx.eventInvitation.findFirst({
+            where: { eventId: event.id, toUserId: userId },
+            select: { id: true },
+          });
+
+          if (!invitation) {
+            throw new EventNotFoundException(event.id);
+          }
+        }
+
         if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
           throw new BadRequestException(
             "Registration for this event does not happen in Peoply",

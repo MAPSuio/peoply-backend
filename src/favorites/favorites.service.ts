@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Favorite } from "../generated/prisma/client";
+import {
+  EventVisibility,
+  Favorite,
+  RegStatus,
+} from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { EventNotFoundException } from "../events/exceptions";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
 
 @Injectable()
@@ -8,12 +13,41 @@ export class FavoritesService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async create(userId: string, eventId: string) {
+    /* findAll returns the whole event row when includeEvent=true, so a
+     * favourite is a read handle on the event, not just a bookmark. Nothing
+     * checked that the caller could see the event, which made favouriting a
+     * private event a way to read it - including for a user the arranger had
+     * banned, since a ban blocks re-registration but never blocked this. */
+    const event = await this.prismaService.event.findUnique({
+      where: { id: eventId },
+      select: { visibility: true },
+    });
+
+    if (!event) {
+      throw new EventNotFoundException(eventId);
+    }
+
+    if (event.visibility === EventVisibility.PRIVATE) {
+      const registration = await this.prismaService.registration.findUnique({
+        where: { eventId_userId: { eventId, userId } },
+        select: { regStatus: true },
+      });
+
+      const mayView =
+        registration?.regStatus === RegStatus.INVITED ||
+        registration?.regStatus === RegStatus.GOING ||
+        registration?.regStatus === RegStatus.WAITLISTED;
+
+      if (!mayView) {
+        throw new EventNotFoundException(eventId);
+      }
+    }
+
     // P2002 (already favourited) -> 409 and P2003 (no such event or user)
     // -> 400, both handled by PrismaExceptionFilter.
-    const registration = await this.prismaService.favorite.create({
+    return this.prismaService.favorite.create({
       data: { eventId, userId },
     });
-    return registration;
   }
 
   async findAll(
