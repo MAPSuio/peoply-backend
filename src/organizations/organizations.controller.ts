@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  ParseArrayPipe,
   Patch,
   Post,
   Query,
@@ -294,7 +295,17 @@ export class OrganizationsController {
   async sendInvitations(
     @Req() req: any,
     @Param("orgId") orgId: string,
-    @Body() createOrgInvitesDtos: CreateOrganizationInvitationDto[],
+    // The global ValidationPipe skips array bodies outright - Array is in its
+    // list of types not to validate - so the decorators on
+    // CreateOrganizationInvitationDto never ran and neither did whitelisting.
+    // ParseArrayPipe applies both per element.
+    @Body(
+      new ParseArrayPipe({
+        items: CreateOrganizationInvitationDto,
+        whitelist: true,
+      }),
+    )
+    createOrgInvitesDtos: CreateOrganizationInvitationDto[],
   ) {
     return this.organizationInvitationsService.createInvitations(
       orgId,
