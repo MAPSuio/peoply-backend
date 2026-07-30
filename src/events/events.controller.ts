@@ -11,6 +11,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   NotImplementedException,
   Param,
   Patch,
@@ -29,6 +30,7 @@ import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
 import { IsArrangerInterceptor } from "../auth/interceptors/isArranger.interceptor";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
+import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerUpdateRegistrationDto } from "../registrations/dto";
@@ -55,6 +57,7 @@ export class EventsController {
     private readonly eventsService: EventsService,
     private readonly arrangerRegistrationService: ArrangerRegistrationService,
     private readonly eventInvitationsService: EventInvitationsService,
+    private readonly coOrganizerInvitationsService: EventCoOrganizerInvitationsService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -119,7 +122,12 @@ export class EventsController {
       }
     }
 
-    return this.eventsService.create(createEventDto, arrangerId, eventImage);
+    return this.eventsService.create(
+      createEventDto,
+      arrangerId,
+      req.user.id,
+      eventImage,
+    );
   }
 
   // TODO: Should add a guard that gets the user, but is undefined if not logged in
@@ -175,12 +183,18 @@ export class EventsController {
     }),
   )
   async update(
+    @Req() req: any,
     @Param("id") id: string,
     @Body() updateEventDto: UpdateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
     //the user has to be the arranger or the admin of the organization
-    return this.eventsService.update(updateEventDto, id, eventImage);
+    return this.eventsService.update(
+      updateEventDto,
+      id,
+      req.user.id,
+      eventImage,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -349,5 +363,104 @@ export class EventsController {
     @Param("updateId") updateId: string,
   ) {
     return this.eventsService.deleteUpdateForEvent(id, updateId);
+  }
+
+  /** Every co-organizer invitation on this event, for the event's own admins. */
+  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @UseGuards(AuthenticatedGuard, EventRolesGuard)
+  @Get(":id/coorganizer-invitations")
+  async getCoOrganizerInvitations(@Param("id") id: string) {
+    return this.coOrganizerInvitationsService.findAllForEvent(id);
+  }
+
+  /**
+   * Answers a co-organizer invitation.
+   *
+   * Two different parties can act here, so the guard is only
+   * AuthenticatedGuard and the authority check lives below:
+   *   - an ADMIN/OWNER of the invited organization accepts, declines or
+   *     ignores it, and may decline one it had previously accepted in order to
+   *     take the organization back off the event;
+   *   - an admin of the event cancels one it sent.
+   */
+  @UseGuards(AuthenticatedGuard)
+  @Patch(":id/coorganizer-invitations/:invitationId")
+  async respondToCoOrganizerInvitation(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Param("invitationId") invitationId: string,
+    @Body() updateInvitationDto: UpdateInvitationDto,
+  ) {
+    const user: User = req.user;
+    const invitation =
+      await this.coOrganizerInvitationsService.findOne(invitationId);
+
+    // Checked before authority so that guessing an invitation id cannot be
+    // used to probe which events a given id belongs to.
+    if (!invitation || invitation.eventId !== id) {
+      throw new NotFoundException(
+        `Co-organizer invitation ${invitationId} does not exist on event ${id}`,
+      );
+    }
+
+    const { status } = updateInvitationDto;
+
+    if (status === InvitationStatus.CANCELLED) {
+      const isEventAdmin = await this.eventsService.isEventAdmin(id, user.id);
+      if (!isEventAdmin) {
+        throw new UnauthorizedException(
+          "Only an admin of the event can cancel the invitation",
+        );
+      }
+
+      if (invitation.invitationStatus === InvitationStatus.CANCELLED) {
+        throw new BadRequestException("Invitation is already cancelled");
+      }
+
+      return this.coOrganizerInvitationsService.respond(
+        invitationId,
+        status,
+        user.id,
+      );
+    }
+
+    if (!this.coOrganizerInvitationsService.isOrganizationResponse(status)) {
+      throw new BadRequestException(
+        "You can only update to ACCEPTED, DECLINED, IGNORED, or CANCELLED",
+      );
+    }
+
+    const canRespond =
+      await this.coOrganizerInvitationsService.canRespondOnBehalfOf(
+        user.id,
+        invitation.organizationId,
+      );
+
+    if (!canRespond) {
+      throw new UnauthorizedException(
+        "User is not an admin of the invited organization",
+      );
+    }
+
+    // DECLINED stays open on an accepted invitation — that is how an
+    // organization withdraws from an event it is already on.
+    const isWithdrawal =
+      status === InvitationStatus.DECLINED &&
+      invitation.invitationStatus === InvitationStatus.ACCEPTED;
+
+    if (
+      invitation.invitationStatus !== InvitationStatus.PENDING &&
+      !isWithdrawal
+    ) {
+      throw new BadRequestException(
+        "Invitation status is not PENDING, cannot update",
+      );
+    }
+
+    return this.coOrganizerInvitationsService.respond(
+      invitationId,
+      status,
+      user.id,
+    );
   }
 }
