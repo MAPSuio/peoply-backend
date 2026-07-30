@@ -81,6 +81,7 @@ describe("public endpoints still ask Prisma for the same arranger", () => {
           {} as any,
           {} as any,
           {} as any,
+          {} as any,
         ).findAll();
         return calls;
       },
@@ -102,6 +103,7 @@ describe("public endpoints still ask Prisma for the same arranger", () => {
 
         await new EventsService(
           prisma,
+          {} as any,
           {} as any,
           {} as any,
           {} as any,
