@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -25,6 +26,31 @@ import { createUuid } from "../util/uuid";
 const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
 const LOCK_TTL_MS = 30 * 60 * 1000;
 const DISABLE_AFTER_FAILURE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const GENERIC_SYNC_ERROR = "Kunne ikke hente kalenderen";
+
+/**
+ * `lastSyncError` is persisted and handed back by GET /organizations/:orgId/ics-feed,
+ * so whatever goes in it is readable by the caller who chose the URL.
+ *
+ * Raw Node network errors turn that into a probe of our own network: an
+ * organiser could point a feed at an internal address and read back
+ * "connect ECONNREFUSED 10.0.0.5:8443" versus a TLS error naming the internal
+ * hostnames in the certificate's SAN list - open/closed port discrimination
+ * and internal DNS disclosure, from a field meant to say the calendar was
+ * unreachable.
+ *
+ * Our own HttpExceptions are curated strings written for organisers, so those
+ * pass through. Everything else collapses to one message; the detail is still
+ * logged server-side.
+ */
+export function toPublicSyncError(error: unknown): string {
+  if (error instanceof HttpException) {
+    return error.message;
+  }
+
+  return GENERIC_SYNC_ERROR;
+}
 
 @Injectable()
 export class IcsFeedsService {
@@ -189,8 +215,7 @@ export class IcsFeedsService {
         data: {
           lastSyncedAt: new Date(),
           lastSyncStatus: IcsFeedSyncStatus.FAILED,
-          lastSyncError:
-            error instanceof Error ? error.message : "Unknown ICS sync failure",
+          lastSyncError: toPublicSyncError(error),
           consecutiveFailures: {
             increment: 1,
           },
