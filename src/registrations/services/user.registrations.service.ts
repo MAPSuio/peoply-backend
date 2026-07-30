@@ -8,6 +8,8 @@ import {
 } from "../dto";
 import {
   EventRegistrationMode,
+  EventVisibility,
+  OrganizationRole,
   RegStatus,
   Registration,
 } from "../../generated/prisma/client";
@@ -56,6 +58,40 @@ export class UserRegistrationService extends CommonRegistrationService {
 
       if (event?.hasFood && !user?.foodPreference) {
         throw new BadRequestException("Food preference is required");
+      }
+
+      if (event && event.visibility !== EventVisibility.PUBLIC) {
+        /* `canViewEvent` grants read access to a non-public event on the
+           strength of an INVITED/GOING/WAITLISTED registration - so creating
+           one's own registration was enough to read an event one was never
+           invited to. Whoever already holds such a registration goes through
+           PATCH, not POST (the row is unique per event+user), which leaves
+           arrangers as the only legitimate caller here. */
+        const isDirectArranger = user
+          ? await trx.eventArranger.count({
+              where: { eventId: event.id, arrangerId: user.arrangerId },
+            })
+          : 0;
+
+        const isOrganizationAdmin = await trx.userOrganizationRole.count({
+          where: {
+            userId,
+            role: {
+              in: [OrganizationRole.ADMIN, OrganizationRole.OWNER],
+            },
+            organization: {
+              arranger: {
+                eventArrangers: { some: { eventId: event.id } },
+              },
+            },
+          },
+        });
+
+        if (!isDirectArranger && !isOrganizationAdmin) {
+          /* Same 404 the event itself answers with, so this does not confirm
+             that an event with that id exists. */
+          throw new EventNotFoundException();
+        }
       }
 
       if (event) {
