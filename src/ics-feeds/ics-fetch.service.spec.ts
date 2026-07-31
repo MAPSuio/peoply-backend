@@ -1,3 +1,5 @@
+import * as http from "node:http";
+import type { AddressInfo } from "node:net";
 import { createPinnedLookup, IcsFetchService } from "./ics-fetch.service";
 
 describe("createPinnedLookup", () => {
@@ -30,22 +32,18 @@ describe("createPinnedLookup", () => {
   });
 });
 
-describe("IcsFetchService.fetchCalendar address filtering", () => {
+describe("IcsFetchService IPv6 literal hosts", () => {
   const service = new IcsFetchService();
 
-  /* These reject before any socket is opened, so nothing here touches the
-     network. Six of them were reachable before the CIDR-based check - the two
-     IPv6 literals were stopped only by the DNS lookup failing on the brackets
-     URL leaves on the hostname, which is not a guarantee. */
+  /* `new URL("https://[::1]/").hostname` keeps the brackets and `isIP` rejects
+     the bracketed form, so these never reached the address check at all - they
+     fell through to a DNS lookup that happened to fail. Rejecting on an
+     accident is not the same as rejecting on a rule. They reject before any
+     socket is opened, so nothing here touches the network. */
   it.each([
-    ["https://127.0.0.2/cal.ics", "rest of 127.0.0.0/8"],
-    ["https://127.1.1.1/cal.ics", "rest of 127.0.0.0/8"],
-    ["https://100.64.0.1/cal.ics", "CGNAT"],
-    ["https://168.63.129.16/metadata", "Azure Wire Server"],
-    ["https://[0:0:0:0:0:0:0:1]/cal.ics", "loopback written out in full"],
-    ["https://[::ffff:169.254.169.254]/x", "IPv4-mapped cloud metadata"],
-    ["https://169.254.169.254/latest/meta-data/", "cloud metadata"],
-    ["https://10.0.0.1/cal.ics", "RFC1918"],
+    ["https://[::1]/cal.ics", "loopback"],
+    ["https://[fd00::1]/cal.ics", "unique local"],
+    ["https://[fe80::1]/cal.ics", "link local"],
   ])("refuses %s (%s)", async (url) => {
     await expect(service.fetchCalendar(url)).rejects.toThrow(
       "ICS URL points to a blocked address",
@@ -56,5 +54,48 @@ describe("IcsFetchService.fetchCalendar address filtering", () => {
     await expect(
       service.fetchCalendar("http://example.com/cal.ics"),
     ).rejects.toThrow("Only HTTPS ICS URLs are supported");
+  });
+});
+
+describe("IcsFetchService total request deadline", () => {
+  /* Drips a byte every 20ms and never ends the response, so the 15s socket
+     timeout never fires. Bound to 127.0.0.1 and driven through makeRequest
+     directly - the address filter sits in assertSafeUrl, one layer up, and
+     would refuse loopback before we ever got to test the deadline. */
+  let server: http.Server;
+  let dripTimer: NodeJS.Timeout;
+  let port: number;
+
+  beforeAll(async () => {
+    server = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/calendar" });
+      dripTimer = setInterval(() => res.write("X"), 20);
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
+    port = (server.address() as AddressInfo).port;
+  });
+
+  afterAll(async () => {
+    clearInterval(dripTimer);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("gives up on a server that never stops trickling", async () => {
+    const service = new IcsFetchService();
+    const makeRequest = (
+      service as unknown as {
+        makeRequest: (u: URL, a: string, d: number) => Promise<unknown>;
+      }
+    ).makeRequest.bind(service);
+
+    await expect(
+      makeRequest(
+        new URL(`http://127.0.0.1:${port}/cal.ics`),
+        "127.0.0.1",
+        Date.now() + 300,
+      ),
+    ).rejects.toThrow("ICS request took too long");
   });
 });

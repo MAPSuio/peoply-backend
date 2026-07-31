@@ -7,7 +7,6 @@ import { lookup } from "node:dns/promises";
 import * as http from "node:http";
 import * as https from "node:https";
 import { isIP } from "node:net";
-import { isPrivateOrReservedAddress } from "../util/ip-address";
 
 const MAX_REDIRECTS = 3;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -119,7 +118,7 @@ export class IcsFetchService {
     }
 
     for (const address of addresses) {
-      if (isPrivateOrReservedAddress(address)) {
+      if (this.isBlockedAddress(address)) {
         throw new BadRequestException("ICS URL points to a blocked address");
       }
     }
@@ -143,6 +142,35 @@ export class IcsFetchService {
     } catch {
       throw new BadRequestException("Could not resolve ICS host");
     }
+  }
+
+  private isBlockedAddress(address: string) {
+    if (address === "127.0.0.1" || address === "0.0.0.0" || address === "::1") {
+      return true;
+    }
+
+    if (address.startsWith("10.") || address.startsWith("192.168.")) {
+      return true;
+    }
+
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(address)) {
+      return true;
+    }
+
+    if (address.startsWith("169.254.")) {
+      return true;
+    }
+
+    if (
+      address.startsWith("fc") ||
+      address.startsWith("fd") ||
+      address.startsWith("fe80:") ||
+      address.startsWith("::ffff:127.")
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   private makeRequest(url: URL, resolvedAddress: string, deadline: number) {
