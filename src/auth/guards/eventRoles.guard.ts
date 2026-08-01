@@ -5,7 +5,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { OrganizationRole } from "../../generated/prisma/client";
+import {
+  EventArrangerRole,
+  OrganizationRole,
+} from "../../generated/prisma/client";
+import { EVENT_ARRANGER_ROLES_KEY } from "../../../decorators/eventArrangerRoles.decorator";
 import { EventsService } from "../../events/events.service";
 import { OrganizationsService } from "../../organizations/organizations.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -17,6 +21,11 @@ import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
     To use this guard with orgs, one must also specify which org roles that can access, e.g. ADMIN. This is done by adding the decorator @OrganizationRoles(OrganizationRole.ADMIN) to the controller method, before the @UseGuards(EventRolesGuard). This example uses the ADMIN role, but other or more roles can be added.
     Requires urlId to be in the request params.
   */
+const ALL_EVENT_ARRANGER_ROLES = [
+  EventArrangerRole.ADMIN,
+  EventArrangerRole.COLLABORATOR,
+];
+
 @Injectable()
 export class EventRolesGuard implements CanActivate {
   constructor(
@@ -55,12 +64,38 @@ export class EventRolesGuard implements CanActivate {
       return false;
     }
 
+    /* Which kind of arranger the route is open to. `EventArranger.role` was
+       never read anywhere for authorization, so a COLLABORATOR added as
+       co-organizer had exactly the powers of the event's own arranger - it
+       could delete the event outright, or drop every other co-organizer.
+       Absent means both roles, which is the case for most routes. */
+    const allowedArrangerRoles =
+      this.reflector.get<EventArrangerRole[]>(
+        EVENT_ARRANGER_ROLES_KEY,
+        context.getHandler(),
+      ) ?? ALL_EVENT_ARRANGER_ROLES;
+
     //user is arranger of event
-    if (event.eventArrangers.find((e) => e.arrangerId === user.arrangerId)) {
-      return true;
+    const directArranger = event.eventArrangers.find(
+      (e) => e.arrangerId === user.arrangerId,
+    );
+    if (directArranger) {
+      if (allowedArrangerRoles.includes(directArranger.role)) {
+        /* Read downstream to decide whether the co-organizer list may be
+           edited, which cannot be expressed as a whole-route rule. */
+        request.eventArrangerRole = directArranger.role;
+        return true;
+      }
+      /* Fall through rather than returning: the same person may also be an
+         admin of an organization that arranges this event with a higher role. */
     }
+
     // check if user is admin of any organization that is arranger of event
     for (const arranger of event.eventArrangers) {
+      if (!allowedArrangerRoles.includes(arranger.role)) {
+        continue;
+      }
+
       const org = await this.organizationsService.findByArrangerId(
         arranger.arrangerId,
       );
@@ -75,7 +110,10 @@ export class EventRolesGuard implements CanActivate {
         org.id,
         roles,
       );
-      if (res) return true;
+      if (res) {
+        request.eventArrangerRole = arranger.role;
+        return true;
+      }
     }
     return false;
   }
