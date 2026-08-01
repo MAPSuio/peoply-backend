@@ -29,6 +29,13 @@ import { EmailRecipients } from "@azure/communication-email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { createUuid } from "../util/uuid";
+/**
+ * How many email-bearing updates one event may send in a rolling 24 hours.
+ * Attendees cannot opt out per event, only from all arranger mail, so this is
+ * the only thing bounding how often an arranger can reach them.
+ */
+const MAX_EMAIL_UPDATES_PER_DAY = 5;
+
 @Injectable()
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
@@ -733,26 +740,47 @@ export class EventsService {
     let azureMessageId: string | null = null;
 
     if (updateDto.sendEmail) {
-      // get all exisitng updates within the last 24 hours
-      const existingUpdates = await this.prisma.eventUpdate.findMany({
-        where: {
-          eventId,
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      /* Counting here and writing the row that increments the count after the
+         send left the whole window open: concurrent requests all read the same
+         count, all passed, and all sent. Each send is a BCC to every attendee,
+         so the cap was the only thing standing between one arranger and an
+         unbounded blast. Reserve the slot instead - count and insert together,
+         behind a row lock on the event so two requests cannot interleave.
+
+         A send that fails afterwards therefore burns a slot. That is the right
+         way round for a rate limit: the alternative is what this replaces. */
+      const reserved = await this.prisma.$transaction(async (trx) => {
+        // Tagged template: `eventId` is bound as a parameter, never interpolated.
+        await trx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+
+        const sentInLastDay = await trx.eventUpdate.count({
+          where: {
+            eventId,
+            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            sendEmail: true,
           },
-          sendEmail: true,
-        },
-        orderBy: { createdAt: "desc" },
+        });
+
+        if (sentInLastDay >= MAX_EMAIL_UPDATES_PER_DAY) {
+          throw new HttpException(
+            "Too many updates sent",
+            HttpStatus.TOO_MANY_REQUESTS,
+          );
+        }
+
+        return trx.eventUpdate.create({
+          data: {
+            eventId,
+            body: updateDto.body,
+            subject: updateDto.subject,
+            replyTo: updateDto.replyTo,
+            azureMessageId: null,
+            sendEmail: updateDto.sendEmail,
+            visibility: updateDto.visibility,
+            createdByUserId,
+          },
+        });
       });
-
-      const allowedToSendEmail = existingUpdates.length < 5;
-
-      if (!allowedToSendEmail) {
-        throw new HttpException(
-          "Too many updates sent",
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      }
 
       const registrations = (
         await this.prisma.registration.findMany({
@@ -770,7 +798,11 @@ export class EventsService {
         })),
       };
 
-      if (toEmails.to.length > 0) {
+      /* `to` is the hardcoded single-element array two lines up, so this read
+         `1 > 0` and was always true. The recipients are the BCC list, and it
+         is empty when nobody attending has opted in - in which case there was
+         nothing to send, yet a slot was spent and an empty mail went out. */
+      if (toEmails.bCC && toEmails.bCC.length > 0) {
         const sendResult = await this.azureCommunicationService.send({
           sender: "no-reply@peoply.app",
           recipients: toEmails,
@@ -784,6 +816,15 @@ export class EventsService {
         });
         azureMessageId = sendResult?.messageId ?? null;
       }
+
+      if (azureMessageId) {
+        await this.prisma.eventUpdate.update({
+          where: { id: reserved.id },
+          data: { azureMessageId },
+        });
+      }
+
+      return;
     }
 
     await this.prisma.eventUpdate.create({
