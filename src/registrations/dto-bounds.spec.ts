@@ -91,6 +91,28 @@ describe("registration and event DTO bounds", () => {
       ).resolves.toMatchObject({ capacity: 50 });
     });
 
+    it("treats an explicit null as unlimited, not as zero", async () => {
+      /* StringToNumberOrNull ran `new Number(null).valueOf()`, which is 0 -
+         so a null capacity silently became an event nobody can register for,
+         which is the very state this DTO change exists to prevent. */
+      await expect(
+        parse(UpdateEventDto, { ...base, capacity: null }),
+      ).resolves.toMatchObject({ capacity: null });
+    });
+
+    it("treats an empty capacity field as unlimited", async () => {
+      await expect(
+        parse(UpdateEventDto, { ...base, capacity: "" }),
+      ).resolves.toMatchObject({ capacity: null });
+    });
+
+    it("keeps a null latitude null", async () => {
+      /* Same transformer, same bug: 0 is a real coordinate. */
+      await expect(
+        parse(UpdateEventDto, { ...base, latitude: null }),
+      ).resolves.toMatchObject({ latitude: null });
+    });
+
     it("still allows capacity to be omitted, meaning unlimited", async () => {
       await expect(parse(UpdateEventDto, base)).resolves.not.toHaveProperty(
         "capacity",
