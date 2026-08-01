@@ -9,6 +9,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   IsUUID,
   MinLength,
@@ -36,8 +37,15 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiProperty()
   description: string;
 
+  /* Overrides CreateEventDto's `@IsPositive()`, which is why it needs its
+     own. The guard that stops capacity being lowered below the current GOING
+     count reads `capacity > 0` (events.service.ts), so `capacity: 0` and
+     negatives went straight past it - leaving an event whose seat check can
+     never pass and whose attendees are stuck. `null` still means unlimited:
+     @IsOptional() skips it. */
   @IsOptional()
   @IsNumber()
+  @IsPositive()
   @StringToNumberOrNull()
   @ApiProperty()
   capacity?: number;
