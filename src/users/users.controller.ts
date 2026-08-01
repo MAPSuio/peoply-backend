@@ -7,6 +7,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseEnumPipe,
   Patch,
   Post,
   Query,
@@ -289,7 +290,10 @@ export class UsersController {
   @Get("me/seenUpdate/:update")
   async seenUpdate(
     @Req() req: any,
-    @Param("update") update: UserSeenUpdateType,
+    /* An unknown value used to reach Prisma's enum and come back as a
+       500; ParseEnumPipe turns it into the 400 it always was. */
+    @Param("update", new ParseEnumPipe(UserSeenUpdateType))
+    update: UserSeenUpdateType,
   ) {
     const user: User = req.user;
     return this.userService.userSeenUpdate(user.id, update);
@@ -305,7 +309,10 @@ export class UsersController {
   @Post("me/seenUpdate/:update")
   async markUserSeenUpdate(
     @Req() req: any,
-    @Param("update") update: UserSeenUpdateType,
+    /* An unknown value used to reach Prisma's enum and come back as a
+       500; ParseEnumPipe turns it into the 400 it always was. */
+    @Param("update", new ParseEnumPipe(UserSeenUpdateType))
+    update: UserSeenUpdateType,
   ) {
     const user: User = req.user;
     return this.userService.markUserSeenUpdate(user.id, update);
