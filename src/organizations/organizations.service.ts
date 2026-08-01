@@ -25,6 +25,7 @@ import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { calculateEditDistance } from "../util/string";
 import { createUuid, isUUID } from "../util/uuid";
 import { postDiscordWebhook } from "../threat-detection/discord-webhook";
+import { toDiscordFieldValue } from "../threat-detection/discord-field";
 
 const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
@@ -255,11 +256,16 @@ export class OrganizationsService {
     try {
       return await this.prisma.organization.update({
         where: { id: org.id },
+        /* The DTO spread goes first now. It used to come last, so anything the
+           client sent under `image` overrode the name of the file that had
+           just been uploaded. `image` is no longer a DTO property, which
+           closes that on its own — this is belt and braces, so re-adding the
+           field one day cannot silently reopen it. */
         data: {
+          ...normalizedUpdateOrganizationDto,
           ...(imageFileName !== undefined && {
             image: imageFileName,
           }),
-          ...normalizedUpdateOrganizationDto,
         },
       });
     } catch (error) {
@@ -461,8 +467,9 @@ export class OrganizationsService {
   private async getLatestOrganizationReport(
     reporterId: string,
     organizationId: string,
+    client: Pick<PrismaService, "organizationReport"> = this.prisma,
   ) {
-    return this.prisma.organizationReport.findFirst({
+    return client.organizationReport.findFirst({
       where: {
         userId: reporterId,
         organizationId,
@@ -479,10 +486,12 @@ export class OrganizationsService {
   async getOrganizationReportStatus(
     reporterId: string,
     organizationId: string,
+    client?: Pick<PrismaService, "organizationReport">,
   ) {
     const latestReport = await this.getLatestOrganizationReport(
       reporterId,
       organizationId,
+      client,
     );
 
     if (!latestReport) {
@@ -514,10 +523,30 @@ export class OrganizationsService {
   }
 
   async reportOrganization(reporterId: string, organization: Organization) {
-    const reportStatus = await this.getOrganizationReportStatus(
-      reporterId,
-      organization.id,
-    );
+    /* Reading the cooldown and then inserting the report is a check-then-act,
+       and OrganizationReport has only an index on (organizationId, userId,
+       createdAt) - no unique constraint to fall back on. N concurrent reports
+       for the same organization from one account all observed no prior report,
+       all passed the once-per-hour check, all inserted, and all posted an
+       alert that pings @everyone. Holding the organization row makes them take
+       turns, so the second one sees the first one's row. */
+    const reportStatus = await this.prisma.$transaction(async (trx) => {
+      await trx.$queryRaw`SELECT id FROM organizations WHERE id = ${organization.id} FOR UPDATE`;
+
+      const status = await this.getOrganizationReportStatus(
+        reporterId,
+        organization.id,
+        trx,
+      );
+
+      if (status.canReport) {
+        await trx.organizationReport.create({
+          data: { organizationId: organization.id, userId: reporterId },
+        });
+      }
+
+      return status;
+    });
 
     if (!reportStatus.canReport) {
       throw new HttpException(
@@ -557,13 +586,6 @@ export class OrganizationsService {
     const frontendUrl = process.env.FRONTEND_URL ?? "https://peoply.app";
     const organizationPath = `/orgs/${organization.urlId ?? organization.id}`;
 
-    await this.prisma.organizationReport.create({
-      data: {
-        organizationId: organization.id,
-        userId: reporterId,
-      },
-    });
-
     try {
       const response = await postDiscordWebhook(
         webhookUrl,
@@ -578,8 +600,12 @@ export class OrganizationsService {
               color: 0xffa500,
               fields: [
                 {
+                  /* The organization's own author chose this. Unbounded, it
+                     made the whole webhook 400 and the report never reached
+                     anyone; unescaped, it could draw convincing extra fields
+                     and appear to name a different organization. */
                   name: "Forening",
-                  value: organization.name,
+                  value: toDiscordFieldValue(organization.name),
                   inline: true,
                 },
                 {
@@ -589,9 +615,11 @@ export class OrganizationsService {
                 },
                 {
                   name: "Rapportert av",
-                  value: reporter
-                    ? `${reporterName} (${reporter.email})`
-                    : reporterId,
+                  value: toDiscordFieldValue(
+                    reporter
+                      ? `${reporterName} (${reporter.email})`
+                      : reporterId,
+                  ),
                 },
                 {
                   name: "Side",
