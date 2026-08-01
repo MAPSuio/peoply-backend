@@ -4,9 +4,12 @@ import { AuthService } from "./auth.service";
    with the dev-login flag on issued session cookies without it. */
 describe("AuthService cookie security", () => {
   const build = (config: Record<string, unknown>) =>
-    new AuthService({} as any, {
-      get: (key: string) => config[key],
-    } as any);
+    new AuthService(
+      {} as any,
+      {
+        get: (key: string) => config[key],
+      } as any,
+    );
 
   /* baseCookieOptions is private and only observable through the cookies the
      service hands out; getAccessTokenCookie is the cheapest way in. */
