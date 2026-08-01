@@ -261,18 +261,26 @@ export class OrganizationsController {
       return res.status(200).send(emptyCalendar);
     }
 
+    /* The date floor belongs in the query: fetching every event this
+       organization has ever run only to drop the past ones in JS is what made
+       this endpoint grow without bound. */
     const eventRelations =
-      await this.eventArrangersService.findAllPublicWithEvents(arrangerId);
+      await this.eventArrangersService.findAllPublicWithEvents(arrangerId, {
+        fromDate: new Date(),
+      });
+    const seen = new Set<string>();
     const events = eventRelations
       .map(({ event }: { event: any }) => event)
-      .filter((event: any) => new Date(event.startDate) >= new Date())
-      .sort((a: any, b: any) => +new Date(a.startDate) - +new Date(b.startDate))
-      .filter(
-        (event: any, index: number, collection: any[]) =>
-          collection.findIndex(
-            (candidate: any) => candidate.id === event.id,
-          ) === index,
-      );
+      .filter((event: any) => {
+        /* An event co-arranged by two of this organization's arrangers comes
+           back once per arranger. The old dedup scanned the whole array per
+           element, so a busy calendar cost O(n²). */
+        if (seen.has(event.id)) {
+          return false;
+        }
+        seen.add(event.id);
+        return true;
+      });
 
     const calendar = createOrganizationCalendarIcs(
       organization,
