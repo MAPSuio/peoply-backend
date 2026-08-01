@@ -16,7 +16,7 @@ export function MaxSearchTokens(
   max: number,
   validationOptions?: ValidationOptions,
 ) {
-  return (object: Object, propertyName: string) => {
+  return (object: object, propertyName: string) => {
     registerDecorator({
       name: "MaxSearchTokens",
       target: object.constructor,
