@@ -39,7 +39,7 @@ export function toDiscordFieldValue(value: unknown, fallback = "—"): string {
 
   const escaped = collapsed
     .replace(/\\/g, "\\\\")
-    .replace(/([*_`~|>#\[\]])/g, "\\$1");
+    .replace(/([*_`~|>#[\]])/g, "\\$1");
 
   return escaped.length > MAX_FIELD_LENGTH
     ? `${escaped.slice(0, MAX_FIELD_LENGTH - 1)}…`
