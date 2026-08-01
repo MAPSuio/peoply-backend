@@ -176,7 +176,14 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       regStatus.regStatus,
     );
 
-    if (user.allowEmailFromArranger) {
+    /* `updated` is undefined when no status branch matched - the transaction
+       wrote nothing and threw nothing. Mailing on that turned this endpoint
+       into a targeted email sender: an arranger who invites someone (which
+       force-creates their registration) can then PATCH them to a status they
+       already hold, over and over, and every call sends real mail from
+       no-reply@peoply.app to that person. Only announce a change that
+       happened. */
+    if (updated && user.allowEmailFromArranger) {
       switch (regStatus.regStatus) {
         case RegStatus.NOT_GOING:
           await this.azureCommunicationService.send({
