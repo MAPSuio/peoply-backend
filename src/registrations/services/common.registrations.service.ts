@@ -3,6 +3,7 @@ import {
   RegStatus,
 } from "../../generated/prisma/client";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { lockEventForSeatChange } from "../event-seat-lock";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { buildWaitlistedToGoingHtmlEmail } from "../../util/email";
@@ -49,6 +50,12 @@ export class CommonRegistrationService {
   async remove(eventId: string, userId: string) {
     // P2025 from the delete below becomes 404 in PrismaExceptionFilter.
     return await this.prismaService.$transaction(async (trx) => {
+      /* Deleting a registration frees a seat and promotes the head of the
+         waitlist. Two concurrent removals used to read the same
+         `waitlisted[0]` and both promote that one person: two seats freed, one
+         filled, and the second lost with people still waiting. */
+      await lockEventForSeatChange(trx, eventId);
+
       const event = await trx.event.findUnique({
         where: { id: eventId },
         include: { registrations: { orderBy: { updatedAt: "asc" } } },
@@ -109,6 +116,12 @@ export class CommonRegistrationService {
     // the seat is released before the caller continues. P2025 from either
     // update becomes 404 in PrismaExceptionFilter.
     return await this.prismaService.$transaction(async (trx) => {
+      /* This path both takes a seat (NOT_GOING/INVITED -> GOING, which reads
+         `going.length < capacity`) and frees one (-> NOT_GOING, which promotes
+         the head of the waitlist). Both are read-modify-writes on the same
+         count, so both need the event held for the duration. */
+      await lockEventForSeatChange(trx, eventId);
+
       const event = await trx.event.findUnique({
         where: { id: eventId },
         include: {
