@@ -1,4 +1,4 @@
-import { PartialType } from "@nestjs/mapped-types";
+import { OmitType, PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import { EventVisibility } from "../../generated/prisma/client";
 import {
@@ -24,7 +24,16 @@ import {
 import { CreateEventDto } from "./create-event.dto";
 import { StringToNumberOrNull } from "../../../decorators/transformers/string.to.number.or.null";
 
-export class UpdateEventDto extends PartialType(CreateEventDto) {
+/* `arrangerId` is inherited from CreateEventDto, so whitelist:true kept it -
+   but `Event` has no such column (the relation lives in EventArranger), and
+   `update` spreads whatever is left straight into `trx.event.update`. Any
+   PATCH carrying it raised a PrismaClientValidationError, which
+   PrismaExceptionFilter does not catch, i.e. a 500. Omitted rather than
+   validated: there is no code path that moves an existing event to another
+   arranger, so accepting the field at all was the mistake. */
+export class UpdateEventDto extends PartialType(
+  OmitType(CreateEventDto, ["arrangerId"] as const),
+) {
   @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" })
