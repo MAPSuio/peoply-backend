@@ -12,6 +12,7 @@ import {
   Registration,
 } from "../../generated/prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
+import { lockEventForSeatChange } from "../event-seat-lock";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 
 @Injectable()
@@ -27,6 +28,10 @@ export class UserRegistrationService extends CommonRegistrationService {
     // P2002 (already registered) -> 409 and P2003 (no such event or user)
     // -> 400, both handled by PrismaExceptionFilter.
     return this.prismaService.$transaction(async (trx) => {
+      /* Before the seat count is read, so two concurrent registrations for the
+         same event cannot both see the last free seat. */
+      await lockEventForSeatChange(trx, createRegistrationDto.eventId);
+
       const event = await trx.event.findUnique({
         where: { id: createRegistrationDto.eventId },
         include: {
