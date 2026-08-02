@@ -453,17 +453,29 @@ export class EventsService {
             category: true,
           },
         },
+        /* Unbounded, and this is reached from the unauthenticated
+           `GET /events/:id`, so a large event returns one array element per
+           registration to any caller. Every consumer only ever computes
+           `filter(GOING).length` from it, which `goingCount` below now answers
+           directly. Kept for now so deployed clients keep working; see the note
+           in the pull request about removing it. */
         registrations: {
           select: { regStatus: true },
+        },
+        _count: {
+          select: {
+            registrations: { where: { regStatus: RegStatus.GOING } },
+          },
         },
       },
     });
 
     if (!event || event.archivedAt) {
       throw new EventNotFoundException(urlId);
-    } else {
-      return event;
     }
+
+    const { _count, ...rest } = event;
+    return { ...rest, goingCount: _count.registrations };
   }
 
   async findOneVisibleToUser(
