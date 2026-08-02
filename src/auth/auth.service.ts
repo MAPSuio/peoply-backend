@@ -20,12 +20,36 @@ export class AuthService {
     );
   }
 
+  /**
+   * Whether the deployment is *positively known* to be plaintext, read from
+   * the origins we accept rather than from any feature flag.
+   *
+   * Deliberately phrased so that anything unclear - no origins configured, a
+   * mix of schemes - counts as not plaintext and therefore keeps `Secure`.
+   * Getting it wrong in that direction breaks a local login; getting it wrong
+   * the other way makes real session cookies replayable over http.
+   */
+  private isPlaintextDeployment() {
+    const origins = parseTrustedOrigins(
+      this.configService.get<string>("CORS_ORIGIN"),
+    );
+
+    return (
+      origins.length > 0 &&
+      origins.every((origin) => origin.startsWith("http://"))
+    );
+  }
+
   private baseCookieOptions(): {
     sameSite: "none" | "lax";
     httpOnly: boolean;
     secure: boolean;
   } {
-    return this.isLocalAuthEnabled()
+    /* The relaxed pair exists for `http://localhost`, where `Secure` would
+       stop the cookie being stored at all. LOCAL_AUTH_ENABLED alone did not
+       establish that - it is a feature flag, and an https staging box with it
+       on was handed cookies with no `Secure` at all. */
+    return this.isLocalAuthEnabled() && this.isPlaintextDeployment()
       ? {
           sameSite: "lax",
           httpOnly: true,

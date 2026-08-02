@@ -6,6 +6,10 @@ import { AuthService } from "./auth.service";
 
 describe("AuthService", () => {
   let localAuthEnabled = false;
+  /* Cookie security follows the scheme of the origins we accept, so a test
+     about localhost has to say so rather than leaving production's origin in
+     place - LOCAL_AUTH_ENABLED on its own no longer relaxes the cookies. */
+  let corsOrigin = "https://peoply.app";
 
   const configService = {
     get: jest.fn((key: string) => {
@@ -17,7 +21,7 @@ describe("AuthService", () => {
         case "LOCAL_AUTH_ENABLED":
           return localAuthEnabled;
         case "CORS_ORIGIN":
-          return "https://peoply.app";
+          return corsOrigin;
         default:
           return undefined;
       }
@@ -33,6 +37,7 @@ describe("AuthService", () => {
 
   beforeEach(() => {
     localAuthEnabled = false;
+    corsOrigin = "https://peoply.app";
     configService.get.mockClear();
     service = new AuthService(jwtService, configService);
   });
@@ -58,6 +63,7 @@ describe("AuthService", () => {
 
   it("uses localhost-safe cookies when local auth is enabled", () => {
     localAuthEnabled = true;
+    corsOrigin = "http://localhost:3001";
     service = new AuthService(jwtService, configService);
 
     expect(service.getAccessCookieOptions()).toMatchObject({
