@@ -1,4 +1,5 @@
 import {
+  EventArrangerRole,
   OrganizationRole,
   InvitationStatus,
   User,
@@ -8,6 +9,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -24,6 +26,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
+import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
@@ -175,15 +178,32 @@ export class EventsController {
     }),
   )
   async update(
+    @Req() req: any,
     @Param("id") id: string,
     @Body() updateEventDto: UpdateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
+    /* `syncCoOrganizers` deleteMany's the co-organizers this does not list, so
+       passing an empty array is how a co-organizer would remove every other
+       one - including the arranger that invited them. Editing the event itself
+       is fine; editing who owns it is not. */
+    if (
+      updateEventDto.coOrganizerOrganizationIds !== undefined &&
+      req.eventArrangerRole === EventArrangerRole.COLLABORATOR
+    ) {
+      throw new ForbiddenException(
+        "Co-organizers cannot change the list of co-organizers",
+      );
+    }
+
     //the user has to be the arranger or the admin of the organization
     return this.eventsService.update(updateEventDto, id, eventImage);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  /* Deleting cascades to every registration on the event. A co-organizer was
+     invited to help run it, not to be able to destroy someone else's. */
+  @EventArrangerRoles(EventArrangerRole.ADMIN)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Delete(":id")
   async remove(@Req() @Param("id") id: string) {
