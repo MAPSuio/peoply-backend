@@ -21,7 +21,14 @@ describe("OrganizationsService", () => {
     userOrganizationRole: {
       findFirst: jest.fn(),
     },
+    /* The cooldown check and the report insert now share one transaction
+       behind a row lock on the organization, so the mock has to hand the
+       callback a client. Same object: these tests assert on the calls, not on
+       transactional isolation. */
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    $transaction: jest.fn(),
   };
+  prisma.$transaction.mockImplementation((cb: any) => cb(prisma));
   const azureStorageService = {};
   const config = {
     get: jest.fn(),
