@@ -2,7 +2,11 @@ import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
 import { HttpException, Injectable, Logger } from "@nestjs/common";
-import { Provider, User } from "../../generated/prisma/client";
+import {
+  OrganizationRole,
+  Provider,
+  User,
+} from "../../generated/prisma/client";
 import { CreateUserDto, UpdateUserDto } from "../dto";
 import { PrismaError } from "../../prisma/prisma.constants";
 import {
@@ -521,6 +525,8 @@ export class UsersService {
     // below does not raise — a missing row raises P2025. Deleting an already
     // deleted user answered 500 instead of 404.
     await this.prisma.$transaction(async (trx) => {
+      await this.reassignOwnedOrganizations(trx, user.id);
+
       //delete all events hosted by user
       await trx.event.deleteMany({
         where: {
@@ -542,6 +548,67 @@ export class UsersService {
     });
 
     return user;
+  }
+
+  /**
+   * Hands on every organization this user is the sole OWNER of, before the
+   * cascade takes their role rows with them.
+   *
+   * `OrganizationsController` keeps the "an organization always has an owner"
+   * invariant in three places - `"You can't delete the owner"`,
+   * `"Cannot change to owner"`, `"Cannot change role of owner"` - and account
+   * deletion went around all of them. Deleting the arranger cascades to the
+   * user and on to `UserOrganizationRole`, but the organization has its own
+   * arranger and survives. Since `PATCH /:orgId/roles` refuses to grant OWNER
+   * and `PATCH /:orgId/owner` requires being one, nobody could ever be promoted
+   * again: the organization, its events and its ICS feed stayed live with
+   * nobody able to edit or remove them.
+   *
+   * Successor is the longest-standing ADMIN, then the longest-standing MEMBER.
+   * An organization with no other members at all has nobody to hand it to and
+   * is deleted with the account.
+   */
+  private async reassignOwnedOrganizations(
+    trx: Prisma.TransactionClient,
+    userId: string,
+  ) {
+    const ownedOrganizations = await trx.userOrganizationRole.findMany({
+      where: { userId, role: OrganizationRole.OWNER },
+      select: { organizationId: true },
+    });
+
+    for (const { organizationId } of ownedOrganizations) {
+      /* Ordered so ADMIN comes before MEMBER, and within a role the one who
+         has been there longest wins. `role` is an enum, so this relies on the
+         declaration order in the schema (ADMIN, MEMBER) rather than on the
+         alphabet - hence the explicit find below rather than taking [0]. */
+      const candidates = await trx.userOrganizationRole.findMany({
+        where: { organizationId, userId: { not: userId } },
+        select: { userId: true, role: true },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const successor =
+        candidates.find(({ role }) => role === OrganizationRole.ADMIN) ??
+        candidates.find(({ role }) => role === OrganizationRole.MEMBER);
+
+      if (!successor) {
+        /* Nobody left to hand it to. Leaving it would strand the organization
+           exactly as before, so it goes with the account. */
+        await trx.organization.delete({ where: { id: organizationId } });
+        this.logger.warn(
+          `Deleted organization ${organizationId}: its only owner deleted their account and it had no other members`,
+        );
+        continue;
+      }
+
+      await trx.userOrganizationRole.update({
+        where: {
+          organizationId_userId: { organizationId, userId: successor.userId },
+        },
+        data: { role: OrganizationRole.OWNER },
+      });
+    }
   }
 
   async findUpdatesSeenByUser(userId: string) {
