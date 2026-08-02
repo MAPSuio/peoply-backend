@@ -23,6 +23,14 @@ export class AccessStrategy extends PassportStrategy(Strategy, "access_token") {
   }
 
   async validate(payload: any) {
+    /* Defence in depth behind the env check that keeps the two secrets apart:
+       `tokenId` is what getRefreshToken adds and getAccessToken does not, so a
+       payload carrying it is a refresh token whatever secret verified it. This
+       costs no token migration - access tokens have never had the claim. */
+    if (payload.tokenId !== undefined) {
+      throw new UnauthorizedException();
+    }
+
     const user = await this.userService.findById(payload.sub);
 
     if (!user) {
