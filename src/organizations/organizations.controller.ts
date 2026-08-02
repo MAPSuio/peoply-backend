@@ -399,7 +399,15 @@ export class OrganizationsController {
     }
     const invitation =
       await this.organizationInvitationsService.findOne(inviteId);
-    if (!invitation) {
+    /* The handler loaded the organization from `:id` only to 404 on it, then
+       looked the invitation up by `inviteId` alone - so an invitation for one
+       organization could be driven through another organization's path. No
+       privilege was gained (accept applies the invitation's own organizationId),
+       but the differing responses made this an existence-and-status oracle for
+       arbitrary invitation ids, and any per-organization auditing or rate
+       limiting on the route was meaningless. Same 404 either way, so a
+       mismatched pair does not confirm the invitation exists. */
+    if (!invitation || invitation.organizationId !== organization.id) {
       throw new OrganizationInvitationDoesNotExistException(inviteId);
     }
 
