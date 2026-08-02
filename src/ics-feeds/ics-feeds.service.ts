@@ -92,8 +92,28 @@ export class IcsFeedsService {
       throw new NotFoundException("Organization ICS feed was not found");
     }
 
-    return this.prisma.organizationIcsFeed.delete({
-      where: { organizationId: orgId },
+    return this.prisma.$transaction(async (trx) => {
+      /* Event.organizationIcsFeed cascades on delete, so removing the feed row
+         would take every imported event with it - and each of those cascades
+         further into registrations, favourites, invitations and updates. An
+         event that leaves the feed is archived rather than deleted (see
+         upsertImportedEvents), and disconnecting a feed is a smaller act than
+         that, so it must not be more destructive. Archive first, then detach:
+         once organizationIcsFeedId is null the rows are outside the cascade,
+         but they are also no longer findable by feed id. */
+      await trx.event.updateMany({
+        where: { organizationIcsFeedId: feed.id, archivedAt: null },
+        data: { archivedAt: new Date() },
+      });
+
+      await trx.event.updateMany({
+        where: { organizationIcsFeedId: feed.id },
+        data: { organizationIcsFeedId: null },
+      });
+
+      return trx.organizationIcsFeed.delete({
+        where: { organizationId: orgId },
+      });
     });
   }
 
