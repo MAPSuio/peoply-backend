@@ -14,7 +14,9 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   IsUUID,
+  MaxLength,
   MinLength,
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
@@ -96,8 +98,12 @@ export class CreateEventDto {
   @ApiProperty()
   registrationMode?: EventRegistrationMode;
 
+  /* Rendered by JoinButton as window.open(externalUrl), so a javascript: or
+     data: value here is stored XSS. The form already restricts this to
+     ^https?://, but only in the browser. */
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true })
+  @MaxLength(2048)
   @ApiProperty()
   externalUrl?: string;
 
