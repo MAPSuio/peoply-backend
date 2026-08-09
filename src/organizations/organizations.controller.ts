@@ -17,6 +17,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
 import {
   InvitationStatus,
   OrganizationRole,
@@ -125,24 +126,7 @@ export class OrganizationsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
-  @UseInterceptors(
-    FileInterceptor("orgImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        // filesize limit 50 MB
-        fileSize: 50 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("orgImage", IMAGE_UPLOAD_OPTIONS))
   @Patch("/:orgId")
   async update(
     @Req() req: any,

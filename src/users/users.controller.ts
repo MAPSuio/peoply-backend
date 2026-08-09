@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -33,6 +32,7 @@ import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
 import { User, UserSeenUpdateType } from "../generated/prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -60,24 +60,7 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @UseInterceptors(
-    FileInterceptor("profileImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        // filesize limit 50 MB
-        fileSize: 50 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("profileImage", IMAGE_UPLOAD_OPTIONS))
   @Patch("me")
   async updateUser(
     @Req() req: any,
