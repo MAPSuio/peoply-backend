@@ -217,4 +217,32 @@ describe("IcsParserService", () => {
 
     expect(() => service.parse("not-an-ics-file")).toThrow(BadRequestException);
   });
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "not-a-url",
+  ])("drops a remote URL of %s rather than storing it", (url) => {
+    /* The frontend hands externalUrl to window.open, and this value is
+       written by whoever owns the remote calendar. Dropped rather than
+       rejected - one bad URL must not fail the whole feed sync. */
+    (ical.sync.parseICS as jest.Mock).mockReturnValueOnce({
+      event1: {
+        type: "VEVENT",
+        uid: "event-1@example.com",
+        summary: "Testevent",
+        start: new Date("2026-04-01T18:00:00.000Z"),
+        end: new Date("2026-04-01T20:00:00.000Z"),
+        url,
+      },
+    });
+
+    const result = service.parse(
+      "BEGIN:VCALENDAR\r\nEND:VCALENDAR",
+      new Date("2026-03-23T00:00:00.000Z"),
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].externalUrl).toBeUndefined();
+  });
 });

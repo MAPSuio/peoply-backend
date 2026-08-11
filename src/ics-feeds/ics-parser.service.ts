@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import * as ical from "node-ical";
 import { VEvent } from "node-ical";
+import { isHttpUrl } from "../util/url";
 
 const MAX_EVENTS_PER_SYNC = 500;
 const DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000;
@@ -205,7 +206,11 @@ export class IcsParserService {
       externalUpdatedAt: event.lastmodified
         ? new Date(event.lastmodified)
         : undefined,
-      externalUrl: event.url?.trim() || undefined,
+      /* Written by whoever owns the remote calendar, and the frontend hands
+         it to window.open - so a javascript: URL here would be stored XSS
+         sourced from outside Peoply entirely. Dropped rather than rejected:
+         one bad URL must not fail the whole feed sync. */
+      externalUrl: isHttpUrl(event.url) ? event.url.trim() : undefined,
     };
   }
 }
