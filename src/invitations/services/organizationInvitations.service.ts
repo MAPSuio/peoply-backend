@@ -202,6 +202,10 @@ export class OrganizationInvitationsService {
         throw new OrganizationInvitationDoesNotExistException(invitationId);
       }
 
+      if (pending.organizationRole === OrganizationRole.OWNER) {
+        throw new ForbiddenException("Cannot accept an invitation as owner");
+      }
+
       /* An invitation is a snapshot of authority taken at invite time. Nothing
          re-checked it, and nothing expired it, so an admin could invite an
          account they control, be removed from the organization entirely, and
