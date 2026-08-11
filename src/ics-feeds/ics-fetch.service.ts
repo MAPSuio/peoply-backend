@@ -11,6 +11,13 @@ import { isIP } from "node:net";
 const MAX_REDIRECTS = 3;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 15_000;
+/**
+ * REQUEST_TIMEOUT_MS is a socket-idle timeout: a server that dribbles one byte
+ * just under every 15s holds the connection open forever, and each redirect
+ * starts a fresh one. The feed URL is chosen by the caller, so this needs a
+ * ceiling on the whole operation, not on each hop.
+ */
+export const TOTAL_DEADLINE_MS = 45_000;
 
 // Node >= 20 (autoSelectFamily) calls lookup with { all: true } and expects an
 // array of { address, family }; older callers expect (err, address, family).
@@ -150,26 +157,59 @@ interface CalendarResponse {
 @Injectable()
 export class IcsFetchService {
   async fetchCalendar(url: string): Promise<CalendarResponse> {
-    return this.fetchWithRedirects(url, 0);
+    const deadline = Date.now() + TOTAL_DEADLINE_MS;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    const deadlineExceeded = new Promise<never>((_, reject) => {
+      deadlineTimer = setTimeout(
+        () => reject(new RequestTimeoutException("ICS request took too long")),
+        TOTAL_DEADLINE_MS,
+      );
+    });
+
+    try {
+      return await Promise.race([
+        this.fetchWithRedirects(url, 0, deadline),
+        deadlineExceeded,
+      ]);
+    } finally {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+    }
   }
 
   private async fetchWithRedirects(
     rawUrl: string,
     redirectCount: number,
+    deadline: number,
   ): Promise<CalendarResponse> {
     if (redirectCount > MAX_REDIRECTS) {
       throw new BadRequestException("ICS URL redirects too many times");
     }
 
+    if (Date.now() >= deadline) {
+      throw new RequestTimeoutException("ICS request took too long");
+    }
+
     const url = new URL(rawUrl);
     const validatedAddresses = await this.assertSafeUrl(url);
 
-    const response = await this.makeRequest(url, validatedAddresses[0]);
+    if (Date.now() >= deadline) {
+      throw new RequestTimeoutException("ICS request took too long");
+    }
+
+    const response = await this.makeRequest(
+      url,
+      validatedAddresses[0],
+      deadline,
+    );
     const statusCode = response.statusCode ?? 0;
 
     if (statusCode >= 300 && statusCode < 400 && response.location) {
       const nextUrl = new URL(response.location, url);
-      return this.fetchWithRedirects(nextUrl.toString(), redirectCount + 1);
+      return this.fetchWithRedirects(
+        nextUrl.toString(),
+        redirectCount + 1,
+        deadline,
+      );
     }
 
     if (statusCode !== 200) {
@@ -220,7 +260,15 @@ export class IcsFetchService {
     return addresses;
   }
 
-  private async resolveAddresses(hostname: string) {
+  private async resolveAddresses(rawHostname: string) {
+    /* URL keeps the brackets on an IPv6 literal, and isIP rejects them - so
+       https://[::1]/ used to miss the address check entirely and get stopped
+       only by the DNS lookup failing, which is not a guarantee. */
+    const hostname =
+      rawHostname.startsWith("[") && rawHostname.endsWith("]")
+        ? rawHostname.slice(1, -1)
+        : rawHostname;
+
     if (isIP(hostname)) {
       return [hostname];
     }
@@ -233,7 +281,7 @@ export class IcsFetchService {
     }
   }
 
-  private makeRequest(url: URL, resolvedAddress: string) {
+  private makeRequest(url: URL, resolvedAddress: string, deadline: number) {
     const transport = url.protocol === "https:" ? https : http;
 
     return new Promise<{
@@ -242,11 +290,35 @@ export class IcsFetchService {
       contentType?: string | string[];
       body: Buffer;
     }>((resolve, reject) => {
+      /* The socket timeout below only fires on idleness, so a drip-feeding
+         server never trips it. This one is wall-clock and shared across every
+         redirect in the chain. */
+      const deadlineTimer = setTimeout(
+        () => {
+          request.destroy();
+          reject(new RequestTimeoutException("ICS request took too long"));
+        },
+        Math.max(0, deadline - Date.now()),
+      );
+
+      const settle = <T>(fn: (value: T) => void) => {
+        return (value: T) => {
+          clearTimeout(deadlineTimer);
+          fn(value);
+        };
+      };
+      const resolveOnce = settle(resolve);
+      const rejectOnce = settle(reject);
+
       const request = transport.request(
         url.toString(),
         {
           method: "GET",
-          timeout: REQUEST_TIMEOUT_MS,
+          /* Never 0 - node reads a 0 timeout as "no timeout at all". */
+          timeout: Math.max(
+            1,
+            Math.min(REQUEST_TIMEOUT_MS, deadline - Date.now()),
+          ),
           lookup: createPinnedLookup(resolvedAddress),
           headers: {
             Accept: "text/calendar, text/plain;q=0.9, */*;q=0.1",
@@ -260,7 +332,7 @@ export class IcsFetchService {
 
           if (contentLength > MAX_SIZE_BYTES) {
             response.destroy();
-            reject(new BadRequestException("ICS file exceeds 5 MB"));
+            rejectOnce(new BadRequestException("ICS file exceeds 5 MB"));
             return;
           }
 
@@ -268,7 +340,7 @@ export class IcsFetchService {
             totalLength += chunk.length;
             if (totalLength > MAX_SIZE_BYTES) {
               response.destroy();
-              reject(new BadRequestException("ICS file exceeds 5 MB"));
+              rejectOnce(new BadRequestException("ICS file exceeds 5 MB"));
               return;
             }
 
@@ -276,7 +348,7 @@ export class IcsFetchService {
           });
 
           response.on("end", () => {
-            resolve({
+            resolveOnce({
               statusCode: response.statusCode,
               location: response.headers.location,
               contentType: response.headers["content-type"],
@@ -288,9 +360,11 @@ export class IcsFetchService {
 
       request.on("timeout", () => {
         request.destroy();
-        reject(new RequestTimeoutException("Timed out while fetching ICS URL"));
+        rejectOnce(
+          new RequestTimeoutException("Timed out while fetching ICS URL"),
+        );
       });
-      request.on("error", reject);
+      request.on("error", rejectOnce);
       request.end();
     });
   }
