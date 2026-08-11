@@ -25,10 +25,10 @@ const USER = "tlstest";
 const PASSWORD = "tlstest";
 const DATABASE = "tlstest";
 
-// The certificate is issued for these names, and Node checks the hostname it
-// dialled against them. Connecting by anything else is a failed handshake, not
-// a passing test, so the tests must use `localhost`.
-const HOSTNAME = "localhost";
+// Use the same IPv4 address Docker publishes below. It is present in the
+// certificate SAN, so hostname verification remains active without relying on
+// each runner's localhost IPv4/IPv6 resolution order.
+const HOSTNAME = "127.0.0.1";
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, { encoding: "utf8", ...options });
@@ -147,6 +147,33 @@ async function waitUntilAccepting(container, timeoutMs = 60_000) {
   throw new Error(`Postgres did not accept connections in time.\n${logs}`);
 }
 
+async function waitUntilPublished(port, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const connected = await new Promise((resolve) => {
+      const socket = net.createConnection({ host: HOSTNAME, port });
+      socket.once("connect", () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once("error", () => {
+        socket.destroy();
+        resolve(false);
+      });
+      socket.setTimeout(1_000, () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
+
+    if (connected) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error(`Docker did not publish Postgres port ${port} in time`);
+}
+
 async function start() {
   requireDocker();
 
@@ -169,6 +196,10 @@ async function start() {
 
   try {
     await waitUntilAccepting(container);
+    // Docker can report the container ready before its host-port forwarding is
+    // installed. Without this second wait, fast CI runners race the proxy and
+    // every adapter query fails with ConnectionClosed.
+    await waitUntilPublished(port);
   } catch (error) {
     stop({ container, dir });
     throw error;
