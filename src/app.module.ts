@@ -91,6 +91,10 @@ import { LocationSearchModule } from "./location-search/location-search.module";
         CLOUDFLARE_ORIGIN_SECRET: Joi.string().min(16).optional(),
         THREAT_DETECTION_ENABLED: Joi.boolean().default(true),
         THREAT_ALERT_COOLDOWN_MS: Joi.number().default(300000),
+        // Comma-separated emails allowed through ModeratorGuard. Unset means
+        // every /moderation endpoint answers 403 — the /stats page in the
+        // frontend is dead until this is configured.
+        MODERATOR_EMAILS: Joi.string().optional(),
       }),
     }),
     AuthModule,
