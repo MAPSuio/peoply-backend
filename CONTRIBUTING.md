@@ -138,7 +138,7 @@ Run these before pushing. A red check blocks both merge and deploy.
 npx prisma migrate deploy   # schema must be current
 npm test                    # Jest
 npm run lint                # Biome
-npm run build               # nest build
+npm run build               # tsc -p tsconfig.build.json
 npm run test:smoke          # boots the built app and checks it responds
 npm run test:database-tls   # connects over TLS; needs Docker
 ```
