@@ -69,6 +69,12 @@ export class UserRegistrationService extends CommonRegistrationService {
       }
 
       if (event) {
+        /* Invitation creates the INVITED registration up front. Invitees must
+         * update that row; allowing create here would also grant event access. */
+        if (event.visibility === EventVisibility.PRIVATE) {
+          throw new EventNotFoundException(event.id);
+        }
+
         if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
           throw new BadRequestException(
             "Registration for this event does not happen in Peoply",
