@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Favorite } from "../generated/prisma/client";
+import { EventVisibility, Favorite } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { viewableEventIds } from "../registrations/registration-visibility";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
 
 @Injectable()
@@ -36,7 +37,7 @@ export class FavoritesService {
       throw new BadRequestException(`${orderBy} is not a key of Registration`);
     }
 
-    return await this.prismaService.favorite.findMany({
+    const favorites = await this.prismaService.favorite.findMany({
       skip,
       take,
       where: {
@@ -70,6 +71,38 @@ export class FavoritesService {
         [orderBy]: orderDirection,
       },
     });
+
+    /* A favourite carries no status of its own, so it never expires the way a
+       registration does - which made it the longer-lived of the two handles
+       into an event the user can no longer see. Favouriting while INVITED and
+       then being banned left this returning the full private event row.
+
+       The favourite row stays; only the event payload goes. */
+    const nonPublic = favorites.filter(
+      (favorite) =>
+        favorite.event &&
+        (favorite.event as { visibility: EventVisibility }).visibility !==
+          EventVisibility.PUBLIC,
+    );
+
+    if (nonPublic.length === 0) {
+      return favorites;
+    }
+
+    const viewable = await viewableEventIds(
+      this.prismaService,
+      userId,
+      nonPublic.map(({ eventId }) => eventId),
+    );
+
+    for (const favorite of nonPublic) {
+      if (!viewable.has(favorite.eventId)) {
+        // @ts-expect-error the include is conditional, so the type is a union
+        favorite.event = undefined;
+      }
+    }
+
+    return favorites;
   }
 
   async findOne(userId: string, eventId: string) {

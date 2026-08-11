@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -20,11 +21,37 @@ import { AzureCommunicationService } from "../azure/azure-communication.service"
 import { IcsFetchService } from "./ics-fetch.service";
 import { IcsParserService, ParsedIcsEvent } from "./ics-parser.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
+import { escapeHtml } from "../util/html";
 import { createUuid } from "../util/uuid";
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
 const LOCK_TTL_MS = 30 * 60 * 1000;
 const DISABLE_AFTER_FAILURE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const GENERIC_SYNC_ERROR = "Kunne ikke hente kalenderen";
+
+/**
+ * `lastSyncError` is persisted and handed back by GET /organizations/:orgId/ics-feed,
+ * so whatever goes in it is readable by the caller who chose the URL.
+ *
+ * Raw Node network errors turn that into a probe of our own network: an
+ * organiser could point a feed at an internal address and read back
+ * "connect ECONNREFUSED 10.0.0.5:8443" versus a TLS error naming the internal
+ * hostnames in the certificate's SAN list - open/closed port discrimination
+ * and internal DNS disclosure, from a field meant to say the calendar was
+ * unreachable.
+ *
+ * Our own HttpExceptions are curated strings written for organisers, so those
+ * pass through. Everything else collapses to one message; the detail is still
+ * logged server-side.
+ */
+export function toPublicSyncError(error: unknown): string {
+  if (error instanceof HttpException) {
+    return error.message;
+  }
+
+  return GENERIC_SYNC_ERROR;
+}
 
 @Injectable()
 export class IcsFeedsService {
@@ -92,8 +119,28 @@ export class IcsFeedsService {
       throw new NotFoundException("Organization ICS feed was not found");
     }
 
-    return this.prisma.organizationIcsFeed.delete({
-      where: { organizationId: orgId },
+    return this.prisma.$transaction(async (trx) => {
+      /* Event.organizationIcsFeed cascades on delete, so removing the feed row
+         would take every imported event with it - and each of those cascades
+         further into registrations, favourites, invitations and updates. An
+         event that leaves the feed is archived rather than deleted (see
+         upsertImportedEvents), and disconnecting a feed is a smaller act than
+         that, so it must not be more destructive. Archive first, then detach:
+         once organizationIcsFeedId is null the rows are outside the cascade,
+         but they are also no longer findable by feed id. */
+      await trx.event.updateMany({
+        where: { organizationIcsFeedId: feed.id, archivedAt: null },
+        data: { archivedAt: new Date() },
+      });
+
+      await trx.event.updateMany({
+        where: { organizationIcsFeedId: feed.id },
+        data: { organizationIcsFeedId: null },
+      });
+
+      return trx.organizationIcsFeed.delete({
+        where: { organizationId: orgId },
+      });
     });
   }
 
@@ -169,8 +216,7 @@ export class IcsFeedsService {
         data: {
           lastSyncedAt: new Date(),
           lastSyncStatus: IcsFeedSyncStatus.FAILED,
-          lastSyncError:
-            error instanceof Error ? error.message : "Unknown ICS sync failure",
+          lastSyncError: toPublicSyncError(error),
           consecutiveFailures: {
             increment: 1,
           },
@@ -417,15 +463,17 @@ export class IcsFeedsService {
 
   private buildFailureEmail(organizationName: string, error?: string | null) {
     return (
-      `<h1>ICS-synkronisering feiler for ${organizationName}</h1>` +
+      `<h1>ICS-synkronisering feiler for ${escapeHtml(organizationName)}</h1>` +
       `<p>Peoply har feilet tre ganger på rad ved import av organisasjonens ICS-kalender.</p>` +
-      `<p>Siste feil: ${error ?? "Ukjent feil"}</p>`
+      /* The error text is whatever the remote server or the parser produced,
+         so it is as untrusted as the feed itself. */
+      `<p>Siste feil: ${escapeHtml(error ?? "Ukjent feil")}</p>`
     );
   }
 
   private buildDisabledEmail(organizationName: string) {
     return (
-      `<h1>ICS-integrasjonen for ${organizationName} er deaktivert</h1>` +
+      `<h1>ICS-integrasjonen for ${escapeHtml(organizationName)} er deaktivert</h1>` +
       `<p>Peoply har ikke klart å synkronisere kalenderen på syv dager, og integrasjonen er derfor deaktivert.</p>` +
       `<p>Oppdater URL-en eller trigge en ny synkronisering fra organisasjonens innstillinger for å aktivere den igjen.</p>`
     );

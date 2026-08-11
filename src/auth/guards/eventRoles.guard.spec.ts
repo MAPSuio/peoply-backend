@@ -6,6 +6,7 @@ import { ExecutionContext, NotFoundException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { EventRolesGuard } from "./eventRoles.guard";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
+import { EventArrangerRole } from "../../generated/prisma/client";
 
 describe("EventRolesGuard", () => {
   const reflector = { get: jest.fn() } as unknown as Reflector;
@@ -24,7 +25,13 @@ describe("EventRolesGuard", () => {
   let guard: EventRolesGuard;
 
   /** An event the user arranges directly, so the org lookup is skipped. */
-  const direct = { eventArrangers: [{ arrangerId: "arranger-user-1" }] };
+  /* `role` is non-null in the schema and the guard fails closed without it,
+     so every fixture has to carry one. */
+  const direct = {
+    eventArrangers: [
+      { arrangerId: "arranger-user-1", role: EventArrangerRole.ADMIN },
+    ],
+  };
 
   const run = (params: any = { id: "event-1" }) => {
     const context = {
@@ -113,8 +120,8 @@ describe("EventRolesGuard", () => {
     it("skips arrangers that are individuals and keeps checking orgs", async () => {
       eventsService.findOneWithArrangers.mockResolvedValueOnce({
         eventArrangers: [
-          { arrangerId: "arranger-individual" },
-          { arrangerId: "arranger-org" },
+          { arrangerId: "arranger-individual", role: EventArrangerRole.ADMIN },
+          { arrangerId: "arranger-org", role: EventArrangerRole.ADMIN },
         ],
       });
       organizationsService.findByArrangerId
@@ -132,7 +139,9 @@ describe("EventRolesGuard", () => {
 
     it("returns false when the user holds no role in any arranging org", async () => {
       eventsService.findOneWithArrangers.mockResolvedValueOnce({
-        eventArrangers: [{ arrangerId: "arranger-org" }],
+        eventArrangers: [
+          { arrangerId: "arranger-org", role: EventArrangerRole.ADMIN },
+        ],
       });
       organizationsService.findByArrangerId.mockResolvedValueOnce({
         id: "org-1",

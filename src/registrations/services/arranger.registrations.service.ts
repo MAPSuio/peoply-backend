@@ -12,6 +12,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { Registration } from "../../generated/prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
+import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { UserDoesNotExistException } from "../../users/exceptions";
@@ -106,9 +107,13 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     });
 
     // remove foodPreference if not going
+    //
+    // `user` is only included when includeUsers is set, so without it there is
+    // nothing to redact - and dereferencing it threw a TypeError, i.e. a 500 on
+    // the default shape of this request for any event that serves food.
     return eventHasFood
       ? registrations.map((registration) => {
-          if (registration.regStatus !== RegStatus.GOING) {
+          if (registration.user && registration.regStatus !== RegStatus.GOING) {
             registration.user.foodPreference = null;
             // @ts-expect-error
             registration.user.userAllergens = [];
@@ -176,7 +181,14 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       regStatus.regStatus,
     );
 
-    if (user.allowEmailFromArranger) {
+    /* `updated` is undefined when no status branch matched - the transaction
+       wrote nothing and threw nothing. Mailing on that turned this endpoint
+       into a targeted email sender: an arranger who invites someone (which
+       force-creates their registration) can then PATCH them to a status they
+       already hold, over and over, and every call sends real mail from
+       no-reply@peoply.app to that person. Only announce a change that
+       happened. */
+    if (updated && user.allowEmailFromArranger) {
       switch (regStatus.regStatus) {
         case RegStatus.NOT_GOING:
           await this.azureCommunicationService.send({
@@ -208,12 +220,15 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   }
 
   private buildEventUnregisterHtmlEmail(event: Partial<Event>) {
+    const title = escapeHtml(event.title);
+    const urlId = escapeHtml(event.urlId);
+
     return (
-      `<h1>Du har blitt avmeldt fra ${event.title}</h1>\n` +
+      `<h1>Du har blitt avmeldt fra ${title}</h1>\n` +
       `<p>Arrangøren har meldt deg av arrangementet, og du må melde deg på nytt hvis de skal være påmeldt. Da kan det være du havner på venteliste.</p>\n` +
       `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
       "<p>" +
-      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
       "</p>" +
       "<p>" +
       `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
@@ -222,12 +237,15 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   }
 
   private buildEventBannedHtmlEmail(event: Partial<Event>) {
+    const title = escapeHtml(event.title);
+    const urlId = escapeHtml(event.urlId);
+
     return (
-      `<h1>Du har blitt utestengt fra ${event.title}</h1>\n` +
+      `<h1>Du har blitt utestengt fra ${title}</h1>\n` +
       `<p>Arrangøren har utestengt deg fra arrangementet, og du kan ikke melde deg på på nytt.</p>\n` +
       `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
       "<p>" +
-      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
       "</p>" +
       "<p>" +
       `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +

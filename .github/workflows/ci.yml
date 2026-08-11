@@ -13,6 +13,20 @@ on:
     branches:
       - master
 
+# The repository default for GITHUB_TOKEN is read/write, and it is inherited by
+# every job that does not say otherwise. These jobs run `npm ci` — which runs
+# lifecycle scripts from the whole dependency tree — plus Biome, Jest, Prisma
+# and the build, so a compromised package would execute beside a token that can
+# push to master. None of the checks writes anything back to the repository, and
+# `deploy` authenticates to DigitalOcean with its own secret rather than with
+# this token.
+#
+# Declared here rather than in each reusable workflow: the calling job's
+# permissions are the ceiling for the workflow it calls, so one line covers all
+# five. deploy-production.yml sets `contents: read` on its own job as well.
+permissions:
+  contents: read
+
 # A second push to the same branch makes the first one irrelevant. Cancel it
 # rather than paying for both — except on master, where a cancelled run would
 # leave the deploy in an undefined state.

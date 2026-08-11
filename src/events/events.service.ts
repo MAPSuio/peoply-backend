@@ -18,6 +18,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from "../generated/prisma/client";
+import { escapeHtml } from "../util/html";
 import { calculateEditDistance } from "../util/string";
 import { buildDescriptionSearchQuery } from "../util/search";
 import {
@@ -29,6 +30,13 @@ import { EmailRecipients } from "@azure/communication-email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { createUuid } from "../util/uuid";
+/**
+ * How many email-bearing updates one event may send in a rolling 24 hours.
+ * Attendees cannot opt out per event, only from all arranger mail, so this is
+ * the only thing bounding how often an arranger can reach them.
+ */
+const MAX_EMAIL_UPDATES_PER_DAY = 5;
+
 @Injectable()
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
@@ -453,17 +461,29 @@ export class EventsService {
             category: true,
           },
         },
+        /* Unbounded, and this is reached from the unauthenticated
+           `GET /events/:id`, so a large event returns one array element per
+           registration to any caller. Every consumer only ever computes
+           `filter(GOING).length` from it, which `goingCount` below now answers
+           directly. Kept for now so deployed clients keep working; see the note
+           in the pull request about removing it. */
         registrations: {
           select: { regStatus: true },
+        },
+        _count: {
+          select: {
+            registrations: { where: { regStatus: RegStatus.GOING } },
+          },
         },
       },
     });
 
     if (!event || event.archivedAt) {
       throw new EventNotFoundException(urlId);
-    } else {
-      return event;
     }
+
+    const { _count, ...rest } = event;
+    return { ...rest, goingCount: _count.registrations };
   }
 
   async findOneVisibleToUser(
@@ -733,26 +753,47 @@ export class EventsService {
     let azureMessageId: string | null = null;
 
     if (updateDto.sendEmail) {
-      // get all exisitng updates within the last 24 hours
-      const existingUpdates = await this.prisma.eventUpdate.findMany({
-        where: {
-          eventId,
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      /* Counting here and writing the row that increments the count after the
+         send left the whole window open: concurrent requests all read the same
+         count, all passed, and all sent. Each send is a BCC to every attendee,
+         so the cap was the only thing standing between one arranger and an
+         unbounded blast. Reserve the slot instead - count and insert together,
+         behind a row lock on the event so two requests cannot interleave.
+
+         A send that fails afterwards therefore burns a slot. That is the right
+         way round for a rate limit: the alternative is what this replaces. */
+      const reserved = await this.prisma.$transaction(async (trx) => {
+        // Tagged template: `eventId` is bound as a parameter, never interpolated.
+        await trx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+
+        const sentInLastDay = await trx.eventUpdate.count({
+          where: {
+            eventId,
+            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            sendEmail: true,
           },
-          sendEmail: true,
-        },
-        orderBy: { createdAt: "desc" },
+        });
+
+        if (sentInLastDay >= MAX_EMAIL_UPDATES_PER_DAY) {
+          throw new HttpException(
+            "Too many updates sent",
+            HttpStatus.TOO_MANY_REQUESTS,
+          );
+        }
+
+        return trx.eventUpdate.create({
+          data: {
+            eventId,
+            body: updateDto.body,
+            subject: updateDto.subject,
+            replyTo: updateDto.replyTo,
+            azureMessageId: null,
+            sendEmail: updateDto.sendEmail,
+            visibility: updateDto.visibility,
+            createdByUserId,
+          },
+        });
       });
-
-      const allowedToSendEmail = existingUpdates.length < 5;
-
-      if (!allowedToSendEmail) {
-        throw new HttpException(
-          "Too many updates sent",
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      }
 
       const registrations = (
         await this.prisma.registration.findMany({
@@ -770,7 +811,11 @@ export class EventsService {
         })),
       };
 
-      if (toEmails.to.length > 0) {
+      /* `to` is the hardcoded single-element array two lines up, so this read
+         `1 > 0` and was always true. The recipients are the BCC list, and it
+         is empty when nobody attending has opted in - in which case there was
+         nothing to send, yet a slot was spent and an empty mail went out. */
+      if (toEmails.bCC && toEmails.bCC.length > 0) {
         const sendResult = await this.azureCommunicationService.send({
           sender: "no-reply@peoply.app",
           recipients: toEmails,
@@ -784,6 +829,15 @@ export class EventsService {
         });
         azureMessageId = sendResult?.messageId ?? null;
       }
+
+      if (azureMessageId) {
+        await this.prisma.eventUpdate.update({
+          where: { id: reserved.id },
+          data: { azureMessageId },
+        });
+      }
+
+      return;
     }
 
     await this.prisma.eventUpdate.create({
@@ -959,11 +1013,19 @@ export class EventsService {
   }
 
   private buildEventUpdateHtmlEmail(updateDto: SendUpdateDto, event: Event) {
+    /* The arranger types these into plain text inputs, so no markup is meant
+       to survive, and the event title can come straight from a third-party
+       ICS feed. */
+    const subject = escapeHtml(updateDto.subject);
+    const replyTo = escapeHtml(updateDto.replyTo);
+    const title = escapeHtml(event.title);
+    const urlId = escapeHtml(event.urlId);
+
     return (
-      `<h1>${updateDto.subject}</h1>\n` +
+      `<h1>${subject}</h1>\n` +
       `${updateDto.body
         .split("\n")
-        .map((p) => `<p>${p}</p>`)
+        .map((p) => `<p>${escapeHtml(p)}</p>`)
         .join("")}\n` +
       `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
       `<p>
@@ -971,12 +1033,12 @@ export class EventsService {
         updateDto.replyTo
           ? "Svar på denne mailen eller send mail til e-posten under for å sende svar til arrangøren.\n" +
             "<br>" +
-            `<a href="mailto:${updateDto.replyTo}?subject=SV: ${updateDto.subject}">${updateDto.replyTo}</a>`
+            `<a href="mailto:${replyTo}?subject=SV: ${subject}">${replyTo}</a>`
           : ""
       }
     </p>` +
       "<p>" +
-      `Du mottar denne e-posten fordi du har meldt deg på <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      `Du mottar denne e-posten fordi du har meldt deg på <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
       "</p>" +
       "<p>" +
       `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +

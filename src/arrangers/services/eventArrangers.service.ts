@@ -6,6 +6,12 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
+
+type PublicEventsOptions = {
+  fromDate?: Date;
+  take?: number;
+};
 
 /**
  * Every query here returns *all* arrangers of each matched event, not only the
@@ -47,7 +53,18 @@ export class EventArrangersService {
     });
   }
 
-  async findAllPublicWithEvents(arrangerId: string) {
+  /**
+   * Backs two unauthenticated endpoints - the organization page and its ICS
+   * calendar - so the row count is set by how many events an organization has
+   * ever run, and grows forever. Bounded here rather than at the call sites so
+   * neither can forget.
+   *
+   * @param fromDate keep only events starting at or after this instant.
+   */
+  async findAllPublicWithEvents(
+    arrangerId: string,
+    { fromDate, take = MAX_PAGE_SIZE }: PublicEventsOptions = {},
+  ) {
     return await this.prismaService.eventArranger.findMany({
       where: {
         arrangerId,
@@ -55,6 +72,7 @@ export class EventArrangersService {
           is: {
             archivedAt: null,
             visibility: EventVisibility.PUBLIC,
+            ...(fromDate ? { startDate: { gte: fromDate } } : {}),
             eventArrangers: {
               none: {
                 arranger: {
@@ -82,6 +100,12 @@ export class EventArrangersService {
           },
         },
       },
+      /* The cap only makes sense with a deterministic order, or which events
+         survive it is up to the query planner. A caller that set a floor is
+         looking forward from it, so keep the nearest ones; one that did not is
+         showing a history, so keep the most recent. */
+      orderBy: { event: { startDate: fromDate ? "asc" : "desc" } },
+      take,
     });
   }
 

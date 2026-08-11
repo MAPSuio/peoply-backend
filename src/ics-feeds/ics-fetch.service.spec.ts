@@ -1,6 +1,10 @@
 import * as http from "node:http";
 import type { AddressInfo } from "node:net";
-import { createPinnedLookup, IcsFetchService } from "./ics-fetch.service";
+import {
+  createPinnedLookup,
+  IcsFetchService,
+  TOTAL_DEADLINE_MS,
+} from "./ics-fetch.service";
 
 describe("createPinnedLookup", () => {
   it("returns an address array when called with { all: true } (Node >= 20 autoSelectFamily)", () => {
@@ -58,6 +62,27 @@ describe("IcsFetchService IPv6 literal hosts", () => {
 });
 
 describe("IcsFetchService total request deadline", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it("includes DNS resolution in the total deadline", async () => {
+    jest.useFakeTimers();
+    const service = new IcsFetchService();
+    jest
+      .spyOn(service as any, "resolveAddresses")
+      .mockReturnValue(new Promise(() => undefined));
+
+    const fetch = service.fetchCalendar("https://example.com/cal.ics");
+    const rejection = expect(fetch).rejects.toThrow(
+      "ICS request took too long",
+    );
+    await jest.advanceTimersByTimeAsync(TOTAL_DEADLINE_MS);
+
+    await rejection;
+  });
+
   /* Drips a byte every 20ms and never ends the response, so the 15s socket
      timeout never fires. Bound to 127.0.0.1 and driven through makeRequest
      directly - the address filter sits in assertSafeUrl, one layer up, and

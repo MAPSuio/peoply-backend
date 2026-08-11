@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -18,6 +19,10 @@ import { ToArray } from "../../../decorators/transformers/string.to.array";
 import { IsUrlId } from "../../../decorators/validators/isUrlId.validator";
 import { PrismaOrderDirections } from "../../prisma/prisma.constants";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { Prisma } from "../../generated/prisma/client";
+
+/** The Event table's own columns — the only things Prisma may be told to sort by. */
+const EVENT_SCALAR_FIELDS = Object.keys(Prisma.EventScalarFieldEnum);
 
 export class SearchEventDto {
   @IsOptional()
@@ -99,9 +104,22 @@ export class SearchEventDto {
   @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
   take?: number;
 
+  /* Reached `findAll` as `orderBy: { [orderBy]: orderDirection }` with nothing
+     but @IsString() in the way, so any non-column name - a relation such as
+     `eventArrangers`, or anything at all - made Prisma raise a validation error
+     that PrismaExceptionFilter does not catch. `GET /events` needs no cookie,
+     so that was an unauthenticated 500 and log noise on demand.
+
+     Checked against Prisma's own list of scalar columns rather than a
+     hand-written one, so it cannot drift from the schema. The registration
+     services do the same job with a dummy object; this is the same idea
+     without a literal to keep in sync. */
   @IsOptional()
   @IsString()
-  @ApiProperty({ required: false })
+  @IsIn(EVENT_SCALAR_FIELDS, {
+    message: `orderBy must be one of the event's own columns`,
+  })
+  @ApiProperty({ required: false, enum: EVENT_SCALAR_FIELDS })
   orderBy?: string;
 
   @IsOptional()
