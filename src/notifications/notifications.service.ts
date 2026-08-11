@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
 import {
@@ -11,35 +12,36 @@ export class NotificationsService {
   constructor(
     private readonly eventInvitationsService: EventInvitationsService,
     private readonly organizationInvitationsService: OrganizationInvitationsService,
+    private readonly coOrganizerInvitationsService: EventCoOrganizerInvitationsService,
   ) {}
 
   async findAllPendingByUserId(userId: string): Promise<PeoplyNotification[]> {
-    const eventInvitations =
-      this.eventInvitationsService.findAllPendingInvitationsToUser(userId);
+    const [eventInvitations, organizationInvitations, coOrganizerInvitations] =
+      await Promise.all([
+        this.eventInvitationsService.findAllPendingInvitationsToUser(userId),
+        this.organizationInvitationsService.findAllPendingInvitationsToUser(
+          userId,
+        ),
+        // Addressed to the organizations this user administers rather than to
+        // the user, so every admin of an invited organization sees it until
+        // one of them answers.
+        this.coOrganizerInvitationsService.findAllPendingForUser(userId),
+      ]);
 
-    const organizationInvitations =
-      this.organizationInvitationsService.findAllPendingInvitationsToUser(
-        userId,
-      );
-
-    const eventNotifications: PeoplyNotification[] = (
-      await eventInvitations
-    ).map((invitation) => {
-      return {
+    const notifications: PeoplyNotification[] = [
+      ...eventInvitations.map((invitation) => ({
         type: NotificationType.INVITATION_EVENT,
         ...invitation,
-      };
-    });
-    const organizationNotifications: PeoplyNotification[] = (
-      await organizationInvitations
-    ).map((invitation) => {
-      return {
+      })),
+      ...organizationInvitations.map((invitation) => ({
         type: NotificationType.INVITATION_ORGANIZATION,
         ...invitation,
-      };
-    });
-
-    const notifications = [...eventNotifications, ...organizationNotifications];
+      })),
+      ...coOrganizerInvitations.map((invitation) => ({
+        type: NotificationType.INVITATION_EVENT_COORGANIZER,
+        ...invitation,
+      })),
+    ];
 
     /* sort notifications by createdAt */
     return notifications.sort((a, b) => {

@@ -2,12 +2,15 @@ import {
   EventArrangerRole,
   EventUpdateVisibility,
   EventVisibility,
+  InvitationStatus,
+  OrganizationRole,
   RegStatus,
 } from "../generated/prisma/client";
 import {
   EventNotFoundException,
   EventUpdateNotFoundException,
 } from "./exceptions";
+import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventsService } from "./events.service";
 
 describe("EventsService", () => {
@@ -23,9 +26,17 @@ describe("EventsService", () => {
       findMany: jest.fn(),
     },
     eventArranger: {
+      create: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+    },
+    eventCoOrganizerInvitation: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      updateMany: jest.fn(),
     },
     eventCategory: {
       createMany: jest.fn(),
@@ -46,17 +57,26 @@ describe("EventsService", () => {
   const azureStorageService = {} as any;
   const azureCommunicationService = {} as any;
   let service: EventsService;
+  // A real instance rather than a mock: the point of these tests is that the
+  // co-organizer path invites instead of attaching, which is that service's
+  // behaviour.
+  let coOrganizerInvitationsService: EventCoOrganizerInvitationsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof prisma) => unknown) => callback(prisma),
     );
+    prisma.eventCoOrganizerInvitation.findMany.mockResolvedValue([]);
+    coOrganizerInvitationsService = new EventCoOrganizerInvitationsService(
+      prisma,
+    );
     service = new EventsService(
       prisma,
       arrangersService,
       azureStorageService,
       azureCommunicationService,
+      coOrganizerInvitationsService,
     );
   });
 
@@ -244,7 +264,11 @@ describe("EventsService", () => {
     ).rejects.toBeInstanceOf(EventUpdateNotFoundException);
   });
 
-  it("creates collaborator arrangers for valid co-organizer organizations", async () => {
+  it("invites co-organizer organizations instead of attaching them", async () => {
+    // The whole point of the invitation flow: naming an organization on your
+    // own event must not put that organization's name and logo on it. Before
+    // this, POST /events with coOrganizerOrganizationIds created a
+    // COLLABORATOR EventArranger row for any organization id you liked.
     arrangersService.findOne = jest
       .fn()
       .mockResolvedValue({ id: "arranger-1" });
@@ -268,32 +292,107 @@ describe("EventsService", () => {
         coOrganizerOrganizationIds: ["org-1", "org-2"],
       } as any,
       "arranger-1",
+      "user-1",
     );
 
-    expect(prisma.eventArranger.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        {
-          eventId: expect.any(String),
-          arrangerId: "arranger-1",
-          role: EventArrangerRole.ADMIN,
-        },
-        {
-          eventId: expect.any(String),
-          arrangerId: "org-arranger-1",
-          role: EventArrangerRole.COLLABORATOR,
-        },
-        {
-          eventId: expect.any(String),
-          arrangerId: "org-arranger-2",
-          role: EventArrangerRole.COLLABORATOR,
-        },
-      ]),
+    expect(prisma.eventArranger.create).toHaveBeenCalledWith({
+      data: {
+        eventId: expect.any(String),
+        arrangerId: "arranger-1",
+        role: EventArrangerRole.ADMIN,
+      },
     });
+
+    const attachedRoles = prisma.eventArranger.create.mock.calls
+      .map(([arg]: [any]) => arg.data.role)
+      .concat(
+        prisma.eventArranger.createMany.mock.calls.flatMap(([arg]: [any]) =>
+          arg.data.map((row: any) => row.role),
+        ),
+      );
+    expect(attachedRoles).not.toContain(EventArrangerRole.COLLABORATOR);
+
+    for (const organizationId of ["org-1", "org-2"]) {
+      expect(prisma.eventCoOrganizerInvitation.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            organizationId,
+            fromUserId: "user-1",
+            invitationStatus: InvitationStatus.PENDING,
+          }),
+        }),
+      );
+    }
   });
 
-  it("updates collaborator arrangers when co-organizers are provided", async () => {
+  it("does not invite the event's own organization as a co-organizer", async () => {
+    arrangersService.findOne = jest
+      .fn()
+      .mockResolvedValue({ id: "org-arranger-1" });
+    prisma.organization.findMany.mockResolvedValueOnce([
+      { id: "org-1", arrangerId: "org-arranger-1" },
+    ]);
+    prisma.event.create.mockResolvedValueOnce({
+      id: "event-1",
+      urlId: "event-url",
+    });
+
+    await service.create(
+      {
+        title: "Test event",
+        description: "Description",
+        startDate: new Date("2026-05-01T10:00:00.000Z"),
+        visibility: EventVisibility.PUBLIC,
+        hasFood: false,
+        categoryIds: [1],
+        coOrganizerOrganizationIds: ["org-1"],
+      } as any,
+      "org-arranger-1",
+      "user-1",
+    );
+
+    expect(prisma.eventCoOrganizerInvitation.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown co-organizer organization id", async () => {
+    arrangersService.findOne = jest
+      .fn()
+      .mockResolvedValue({ id: "arranger-1" });
+    prisma.organization.findMany.mockResolvedValueOnce([]);
+    prisma.event.create.mockResolvedValueOnce({ id: "event-1" });
+
+    await expect(
+      service.create(
+        {
+          title: "Test event",
+          description: "Description",
+          startDate: new Date("2026-05-01T10:00:00.000Z"),
+          visibility: EventVisibility.PUBLIC,
+          hasFood: false,
+          categoryIds: [1],
+          coOrganizerOrganizationIds: ["does-not-exist"],
+        } as any,
+        "arranger-1",
+        "user-1",
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("withdraws a co-organizer that the event admin removed", async () => {
+    // resolveOrganizations sees the requested ids...
     prisma.organization.findMany.mockResolvedValueOnce([
       { id: "org-2", arrangerId: "org-arranger-2" },
+    ]);
+    // ...and detachArrangers then looks up the withdrawn one.
+    prisma.organization.findMany.mockResolvedValueOnce([
+      { arrangerId: "org-arranger-1" },
+    ]);
+    prisma.eventCoOrganizerInvitation.findMany.mockResolvedValueOnce([
+      {
+        id: "invitation-1",
+        organizationId: "org-1",
+        invitationStatus: InvitationStatus.ACCEPTED,
+      },
     ]);
     prisma.event.findUnique.mockResolvedValueOnce({
       id: "event-1",
@@ -325,22 +424,180 @@ describe("EventsService", () => {
         coOrganizerOrganizationIds: ["org-2"],
       } as any,
       "event-1",
+      "user-1",
     );
 
+    expect(prisma.eventCoOrganizerInvitation.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["invitation-1"] } },
+      data: {
+        invitationStatus: InvitationStatus.CANCELLED,
+        respondedByUserId: "user-1",
+      },
+    });
+
+    // Scoped to the withdrawn organization's arranger, not a blanket delete of
+    // every collaborator on the event.
     expect(prisma.eventArranger.deleteMany).toHaveBeenCalledWith({
       where: {
         eventId: "event-1",
         role: EventArrangerRole.COLLABORATOR,
+        arrangerId: { in: ["org-arranger-1"] },
       },
     });
-    expect(prisma.eventArranger.createMany).toHaveBeenCalledWith({
-      data: [
+
+    // The newly named organization is invited, not attached.
+    expect(prisma.eventCoOrganizerInvitation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          organizationId: "org-2",
+          invitationStatus: InvitationStatus.PENDING,
+        }),
+      }),
+    );
+    expect(prisma.eventArranger.createMany).not.toHaveBeenCalled();
+  });
+
+  it("leaves an already accepted co-organizer alone on a later edit", async () => {
+    // Re-submitting the same list must not bounce an accepted organization
+    // back to PENDING, which would drop it off the event.
+    prisma.organization.findMany.mockResolvedValueOnce([
+      { id: "org-1", arrangerId: "org-arranger-1" },
+    ]);
+    prisma.eventCoOrganizerInvitation.findMany.mockResolvedValueOnce([
+      {
+        id: "invitation-1",
+        organizationId: "org-1",
+        invitationStatus: InvitationStatus.ACCEPTED,
+      },
+    ]);
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      image: null,
+      readOnly: false,
+      registrationMode: "PEOPLY",
+      externalUrl: null,
+      eventArrangers: [
         {
           eventId: "event-1",
-          arrangerId: "org-arranger-2",
-          role: EventArrangerRole.COLLABORATOR,
+          arrangerId: "arranger-1",
+          role: EventArrangerRole.ADMIN,
         },
       ],
+    });
+    prisma.event.update.mockResolvedValueOnce({ id: "event-1" });
+
+    await service.update(
+      {
+        title: "Updated title",
+        description: "Updated description",
+        startDate: new Date("2026-05-01T10:00:00.000Z"),
+        visibility: EventVisibility.PUBLIC,
+        coOrganizerOrganizationIds: ["org-1"],
+      } as any,
+      "event-1",
+      "user-1",
+    );
+
+    expect(prisma.eventCoOrganizerInvitation.upsert).not.toHaveBeenCalled();
+    expect(prisma.eventCoOrganizerInvitation.updateMany).not.toHaveBeenCalled();
+    expect(prisma.eventArranger.deleteMany).not.toHaveBeenCalled();
+  });
+
+  describe("isEventAdmin", () => {
+    // The gate for cancelling a co-organizer invitation. Deliberately narrower
+    // than EventRolesGuard, which accepts any arranger row whatever its role.
+    beforeEach(() => {
+      prisma.user = { findUnique: jest.fn() };
+      prisma.userOrganizationRole = { findFirst: jest.fn() };
+    });
+
+    it("accepts the personal arranger who runs the event", async () => {
+      prisma.user.findUnique.mockResolvedValueOnce({
+        arrangerId: "arranger-1",
+      });
+      prisma.eventArranger.findMany.mockResolvedValueOnce([
+        { arrangerId: "arranger-1" },
+      ]);
+
+      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
+        true,
+      );
+    });
+
+    it("accepts an admin of the organization that runs the event", async () => {
+      prisma.user.findUnique.mockResolvedValueOnce({
+        arrangerId: "arranger-9",
+      });
+      prisma.eventArranger.findMany.mockResolvedValueOnce([
+        { arrangerId: "org-arranger-1" },
+      ]);
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce({
+        organizationId: "org-1",
+      });
+
+      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
+        true,
+      );
+      expect(prisma.userOrganizationRole.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            role: {
+              in: [OrganizationRole.ADMIN, OrganizationRole.OWNER],
+            },
+          }),
+        }),
+      );
+    });
+
+    it("refuses a collaborator, who is an arranger but not the host", async () => {
+      // findMany is scoped to role ADMIN, so a COLLABORATOR row never shows up
+      // here — which is the point: a co-organizer must not be able to cancel
+      // the invitations the host sent to other organizations.
+      prisma.user.findUnique.mockResolvedValueOnce({
+        arrangerId: "org-arranger-2",
+      });
+      prisma.eventArranger.findMany.mockResolvedValueOnce([
+        { arrangerId: "org-arranger-1" },
+      ]);
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
+        false,
+      );
+      expect(prisma.eventArranger.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            eventId: "event-1",
+            role: EventArrangerRole.ADMIN,
+          },
+        }),
+      );
+    });
+
+    it("refuses a stranger", async () => {
+      prisma.user.findUnique.mockResolvedValueOnce({
+        arrangerId: "arranger-9",
+      });
+      prisma.eventArranger.findMany.mockResolvedValueOnce([
+        { arrangerId: "arranger-1" },
+      ]);
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
+        false,
+      );
+    });
+
+    it("refuses when the event has no admin arranger at all", async () => {
+      prisma.user.findUnique.mockResolvedValueOnce({
+        arrangerId: "arranger-1",
+      });
+      prisma.eventArranger.findMany.mockResolvedValueOnce([]);
+
+      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
+        false,
+      );
+      expect(prisma.userOrganizationRole.findFirst).not.toHaveBeenCalled();
     });
   });
 

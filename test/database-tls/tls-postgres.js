@@ -19,16 +19,17 @@ const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
+const { Client } = require("pg");
 
 const IMAGE = "postgres:16";
 const USER = "tlstest";
 const PASSWORD = "tlstest";
 const DATABASE = "tlstest";
 
-// The certificate is issued for these names, and Node checks the hostname it
-// dialled against them. Connecting by anything else is a failed handshake, not
-// a passing test, so the tests must use `localhost`.
-const HOSTNAME = "localhost";
+// Use the same IPv4 address Docker publishes below. It is present in the
+// certificate SAN, so hostname verification remains active without relying on
+// each runner's localhost IPv4/IPv6 resolution order.
+const HOSTNAME = "127.0.0.1";
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, { encoding: "utf8", ...options });
@@ -147,6 +148,43 @@ async function waitUntilAccepting(container, timeoutMs = 60_000) {
   throw new Error(`Postgres did not accept connections in time.\n${logs}`);
 }
 
+async function waitUntilTlsReady(container, port, caCert, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs;
+  const connectionString = `postgresql://${USER}:${PASSWORD}@${HOSTNAME}:${port}/${DATABASE}`;
+  let lastError;
+
+  while (Date.now() < deadline) {
+    const client = new Client({
+      connectionString,
+      ssl: { ca: caCert, rejectUnauthorized: true },
+    });
+
+    try {
+      await client.connect();
+      await client.query("SELECT 1");
+      await client.end();
+      return;
+    } catch (error) {
+      lastError = error;
+      await client.end().catch(() => undefined);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  let logs = "";
+  try {
+    logs = run("docker", ["logs", "--tail", "40", container], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch {
+    /* preserve the TLS readiness failure when the container is unavailable */
+  }
+  throw new Error(
+    `Postgres TLS endpoint did not become ready: ${lastError}\n${logs}`,
+  );
+}
+
 async function start() {
   requireDocker();
 
@@ -169,6 +207,10 @@ async function start() {
 
   try {
     await waitUntilAccepting(container);
+    // Docker can report the database ready before its published TLS endpoint
+    // accepts complete PostgreSQL sessions. Exercise that exact path before
+    // Jest starts, rather than racing it with the first assertion.
+    await waitUntilTlsReady(container, port, caCert);
   } catch (error) {
     stop({ container, dir });
     throw error;

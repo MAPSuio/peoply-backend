@@ -6,7 +6,11 @@ import {
   Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { EventArrangerRole, EventVisibility } from "../generated/prisma/client";
+import {
+  EventArrangerRole,
+  EventVisibility,
+  OrganizationRole,
+} from "../generated/prisma/client";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
@@ -30,13 +34,14 @@ import { EmailRecipients } from "@azure/communication-email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { createUuid } from "../util/uuid";
+import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
+
 /**
  * How many email-bearing updates one event may send in a rolling 24 hours.
  * Attendees cannot opt out per event, only from all arranger mail, so this is
  * the only thing bounding how often an arranger can reach them.
  */
 const MAX_EMAIL_UPDATES_PER_DAY = 5;
-
 @Injectable()
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
@@ -46,6 +51,7 @@ export class EventsService {
     private readonly arrangersService: ArrangersService,
     private readonly azureStorageService: AzureStorageService,
     private readonly azureCommunicationService: AzureCommunicationService,
+    private readonly coOrganizerInvitationsService: EventCoOrganizerInvitationsService,
   ) {}
 
   private normalizeCreateRegistrationData(createEventDto: CreateEventDto) {
@@ -110,87 +116,10 @@ export class EventsService {
     return normalizedEventData;
   }
 
-  private async resolveCoOrganizerArrangerIds(
-    organizationIds: string[] | undefined,
-    primaryArrangerId?: string,
-    prismaClient: Pick<PrismaService, "organization"> = this.prisma,
-  ) {
-    const uniqueOrganizationIds = [...new Set(organizationIds ?? [])];
-
-    if (uniqueOrganizationIds.length === 0) {
-      return [];
-    }
-
-    const organizations = await prismaClient.organization.findMany({
-      where: {
-        id: {
-          in: uniqueOrganizationIds,
-        },
-      },
-      select: {
-        id: true,
-        arrangerId: true,
-      },
-    });
-
-    if (organizations.length !== uniqueOrganizationIds.length) {
-      throw new BadRequestException("Invalid co-organizer organization id");
-    }
-
-    const organizationArrangerIds = new Map(
-      organizations.map((organization) => [
-        organization.id,
-        organization.arrangerId,
-      ]),
-    );
-
-    const missingArrangerOrganizationIds = uniqueOrganizationIds.filter(
-      (organizationId) => !organizationArrangerIds.get(organizationId),
-    );
-
-    if (missingArrangerOrganizationIds.length > 0) {
-      throw new BadRequestException(
-        `Organization missing arrangerId: ${missingArrangerOrganizationIds.join(
-          ", ",
-        )}`,
-      );
-    }
-
-    return uniqueOrganizationIds
-      .map((organizationId) => organizationArrangerIds.get(organizationId))
-      .filter(
-        (arrangerId): arrangerId is string => arrangerId !== primaryArrangerId,
-      );
-  }
-
-  private async syncCoOrganizers(
-    eventId: string,
-    collaboratorArrangerIds: string[],
-    trx: Pick<PrismaService, "eventArranger">,
-  ) {
-    await trx.eventArranger.deleteMany({
-      where: {
-        eventId,
-        role: EventArrangerRole.COLLABORATOR,
-      },
-    });
-
-    if (collaboratorArrangerIds.length === 0) {
-      return;
-    }
-
-    await trx.eventArranger.createMany({
-      data: collaboratorArrangerIds.map((arrangerId) => ({
-        eventId,
-        arrangerId,
-        role: EventArrangerRole.COLLABORATOR,
-      })),
-    });
-  }
-
   async create(
     createEventDto: CreateEventDto,
     arrangerId: string,
+    createdByUserId: string,
     eventImage?: Express.Multer.File,
   ) {
     const normalizedCreateEventDto =
@@ -199,11 +128,6 @@ export class EventsService {
     if (!arranger) {
       throw new ArrangerNotFoundException(arrangerId);
     }
-
-    const collaboratorArrangerIds = await this.resolveCoOrganizerArrangerIds(
-      normalizedCreateEventDto.coOrganizerOrganizationIds,
-      arrangerId,
-    );
 
     const eventId = createUuid();
     const eventImageFileName = `${eventId}.${
@@ -271,19 +195,12 @@ export class EventsService {
             streetNumber: normalizedCreateEventDto.streetNumber,
           },
         });
-        await trx.eventArranger.createMany({
-          data: [
-            {
-              role: EventArrangerRole.ADMIN,
-              arrangerId,
-              eventId,
-            },
-            ...collaboratorArrangerIds.map((collaboratorArrangerId) => ({
-              role: EventArrangerRole.COLLABORATOR,
-              arrangerId: collaboratorArrangerId,
-              eventId,
-            })),
-          ],
+        await trx.eventArranger.create({
+          data: {
+            role: EventArrangerRole.ADMIN,
+            arrangerId,
+            eventId,
+          },
         });
         await trx.eventCategory.createMany({
           data: normalizedCreateEventDto.categoryIds.map((categoryId) => ({
@@ -291,6 +208,16 @@ export class EventsService {
             eventId,
           })),
         });
+
+        // Co-organizers are invited, never attached: the organization does not
+        // appear on the event until one of its admins accepts.
+        await this.coOrganizerInvitationsService.syncInvitations(
+          eventId,
+          normalizedCreateEventDto.coOrganizerOrganizationIds ?? [],
+          createdByUserId,
+          arrangerId,
+          trx,
+        );
 
         return event;
       });
@@ -534,6 +461,48 @@ export class EventsService {
     }
   }
 
+  /**
+   * Whether the user runs this event — either as the arranger themselves, or
+   * as an ADMIN/OWNER of an organization that is an ADMIN arranger of it.
+   *
+   * Deliberately narrower than EventRolesGuard, which accepts any arranger row
+   * regardless of role: a COLLABORATOR must not be able to cancel the
+   * invitations that the host sent to other organizations.
+   */
+  async isEventAdmin(eventId: string, userId: string) {
+    const [user, adminArrangers] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { arrangerId: true },
+      }),
+      this.prisma.eventArranger.findMany({
+        where: { eventId, role: EventArrangerRole.ADMIN },
+        select: { arrangerId: true },
+      }),
+    ]);
+
+    if (!user || adminArrangers.length === 0) {
+      return false;
+    }
+
+    const adminArrangerIds = adminArrangers.map(({ arrangerId }) => arrangerId);
+
+    if (adminArrangerIds.includes(user.arrangerId)) {
+      return true;
+    }
+
+    const organizationRole = await this.prisma.userOrganizationRole.findFirst({
+      where: {
+        userId,
+        role: { in: [OrganizationRole.ADMIN, OrganizationRole.OWNER] },
+        organization: { arrangerId: { in: adminArrangerIds } },
+      },
+      select: { organizationId: true },
+    });
+
+    return organizationRole !== null;
+  }
+
   async findOneWithArrangersByUrlId(urlId: string) {
     const event = await this.prisma.event.findUnique({
       where: { urlId: urlId },
@@ -552,6 +521,7 @@ export class EventsService {
   async update(
     updateEventDto: UpdateEventDto,
     id: string,
+    updatedByUserId: string,
     newImage?: Express.Multer.File,
   ) {
     const { categoryIds, coOrganizerOrganizationIds, ...rest } = updateEventDto;
@@ -612,13 +582,12 @@ export class EventsService {
         rest,
       );
 
-      const primaryArrangerId =
-        oldEvent.eventArrangers.find(
-          (eventArranger) => eventArranger.role === EventArrangerRole.ADMIN,
-        )?.arrangerId ?? oldEvent.eventArrangers[0]?.arrangerId;
+      const primaryArrangerId = oldEvent.eventArrangers.find(
+        (eventArranger) => eventArranger.role === EventArrangerRole.ADMIN,
+      )?.arrangerId;
 
       if (!primaryArrangerId) {
-        throw new BadRequestException("Event must have at least one arranger");
+        throw new BadRequestException("Event must have an admin arranger");
       }
 
       return await this.prisma.$transaction(async (trx) => {
@@ -666,14 +635,13 @@ export class EventsService {
         }
 
         if (coOrganizerOrganizationIds !== undefined) {
-          const collaboratorArrangerIds =
-            await this.resolveCoOrganizerArrangerIds(
-              coOrganizerOrganizationIds,
-              primaryArrangerId,
-              trx,
-            );
-
-          await this.syncCoOrganizers(event.id, collaboratorArrangerIds, trx);
+          await this.coOrganizerInvitationsService.syncInvitations(
+            event.id,
+            coOrganizerOrganizationIds,
+            updatedByUserId,
+            primaryArrangerId,
+            trx,
+          );
         }
 
         //delete existing image if it exists
