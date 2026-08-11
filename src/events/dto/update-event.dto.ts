@@ -1,4 +1,4 @@
-import { PartialType } from "@nestjs/mapped-types";
+import { OmitType, PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import { EventVisibility } from "../../generated/prisma/client";
 import {
@@ -9,6 +9,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   IsUUID,
   MinLength,
@@ -24,7 +25,16 @@ import {
 import { CreateEventDto } from "./create-event.dto";
 import { StringToNumberOrNull } from "../../../decorators/transformers/string.to.number.or.null";
 
-export class UpdateEventDto extends PartialType(CreateEventDto) {
+/* `arrangerId` is inherited from CreateEventDto, so whitelist:true kept it -
+   but `Event` has no such column (the relation lives in EventArranger), and
+   `update` spreads whatever is left straight into `trx.event.update`. Any
+   PATCH carrying it raised a PrismaClientValidationError, which
+   PrismaExceptionFilter does not catch, i.e. a 500. Omitted rather than
+   validated: there is no code path that moves an existing event to another
+   arranger, so accepting the field at all was the mistake. */
+export class UpdateEventDto extends PartialType(
+  OmitType(CreateEventDto, ["arrangerId"] as const),
+) {
   @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" })
@@ -36,8 +46,15 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiProperty()
   description: string;
 
+  /* Overrides CreateEventDto's `@IsPositive()`, which is why it needs its
+     own. The guard that stops capacity being lowered below the current GOING
+     count reads `capacity > 0` (events.service.ts), so `capacity: 0` and
+     negatives went straight past it - leaving an event whose seat check can
+     never pass and whose attendees are stuck. `null` still means unlimited:
+     @IsOptional() skips it. */
   @IsOptional()
   @IsNumber()
+  @IsPositive()
   @StringToNumberOrNull()
   @ApiProperty()
   capacity?: number;

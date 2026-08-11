@@ -5,15 +5,20 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import * as crypto from "node:crypto";
 
-import * as passport from "passport";
-import * as expressSession from "express-session";
-import * as cookieParser from "cookie-parser";
+import passport = require("passport");
+import expressSession = require("express-session");
+import cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { setupApiDocs } from "./api-docs/api-docs.setup";
-import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
+import {
+  extractRequestOrigin,
+  isUntrustedOrigin,
+  parseTrustedOrigins,
+} from "./auth/auth-origin";
 import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
 import { isOriginSecretConfigured, resolveClientIp } from "./util/client-ip";
+import { oauthSessionOptions } from "./auth/oauth-session";
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
@@ -67,11 +72,12 @@ async function bootstrap() {
   app.use(helmet());
 
   app.use(
-    expressSession({
-      secret: process.env.SESSION_SECRET!, // to sign session id
-      resave: false,
-      saveUninitialized: false,
-    }),
+    expressSession(
+      oauthSessionOptions(
+        process.env.SESSION_SECRET!, // to sign session id
+        process.env.NODE_ENV === "production",
+      ),
+    ),
   );
 
   // { whitelist : true } this strips any atributes in a dto that has no decorator.
@@ -83,16 +89,16 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
     const trustedOrigins = parseTrustedOrigins(process.env.CORS_ORIGIN);
-    const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     const usesCookieAuth = Boolean(req.cookies?.access || req.cookies?.refresh);
-    const requestOrigin = extractRequestOrigin(req.headers);
 
     if (
-      isStateChanging &&
-      usesCookieAuth &&
-      requestOrigin &&
-      trustedOrigins?.length &&
-      !trustedOrigins.includes(requestOrigin)
+      isUntrustedOrigin(
+        req.method,
+        req.path,
+        usesCookieAuth,
+        extractRequestOrigin(req.headers),
+        trustedOrigins,
+      )
     ) {
       return res.status(403).send("Untrusted origin");
     }

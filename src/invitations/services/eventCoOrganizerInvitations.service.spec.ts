@@ -11,7 +11,6 @@ describe("EventCoOrganizerInvitationsService", () => {
     eventCoOrganizerInvitation: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
-      update: jest.fn(),
       updateMany: jest.fn(),
       upsert: jest.fn(),
     },
@@ -36,6 +35,9 @@ describe("EventCoOrganizerInvitationsService", () => {
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof prisma) => unknown) => callback(prisma),
     );
+    prisma.eventCoOrganizerInvitation.updateMany.mockResolvedValue({
+      count: 1,
+    });
     service = new EventCoOrganizerInvitationsService(prisma);
   });
 
@@ -122,7 +124,7 @@ describe("EventCoOrganizerInvitationsService", () => {
     };
 
     it("attaches the organization as a collaborator only on accept", async () => {
-      prisma.eventCoOrganizerInvitation.update.mockResolvedValueOnce(
+      prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce(
         invitation,
       );
       prisma.organization.findUnique.mockResolvedValueOnce({
@@ -149,62 +151,125 @@ describe("EventCoOrganizerInvitationsService", () => {
       );
     });
 
-    it.each([InvitationStatus.IGNORED, InvitationStatus.CANCELLED])(
-      "attaches nobody on %s",
-      async (status) => {
-        prisma.eventCoOrganizerInvitation.update.mockResolvedValueOnce(
-          invitation,
-        );
-
-        await service.respond("invitation-1", status, "user-1");
-
-        expect(prisma.eventArranger.upsert).not.toHaveBeenCalled();
-        expect(prisma.eventArranger.deleteMany).not.toHaveBeenCalled();
-      },
-    );
-
-    it("detaches the organization on decline", async () => {
-      // This is how an organization gets itself off an event it was attached
-      // to before invitations existed.
-      prisma.eventCoOrganizerInvitation.update.mockResolvedValueOnce({
-        ...invitation,
-        invitationStatus: InvitationStatus.DECLINED,
-      });
-      prisma.organization.findMany.mockResolvedValueOnce([
-        { arrangerId: "org-arranger-1" },
-      ]);
-
-      await service.respond(
-        "invitation-1",
-        InvitationStatus.DECLINED,
-        "user-1",
-      );
-
-      expect(prisma.eventArranger.deleteMany).toHaveBeenCalledWith({
-        where: {
-          eventId: "event-1",
-          role: EventArrangerRole.COLLABORATOR,
-          arrangerId: { in: ["org-arranger-1"] },
-        },
-      });
-    });
-
-    it("records who answered", async () => {
-      prisma.eventCoOrganizerInvitation.update.mockResolvedValueOnce(
+    it("attaches nobody when the invitation is ignored", async () => {
+      prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce(
         invitation,
       );
 
       await service.respond("invitation-1", InvitationStatus.IGNORED, "user-1");
 
-      expect(prisma.eventCoOrganizerInvitation.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: "invitation-1" },
+      expect(prisma.eventArranger.upsert).not.toHaveBeenCalled();
+      expect(prisma.eventArranger.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it.each([InvitationStatus.DECLINED, InvitationStatus.CANCELLED])(
+      "detaches the organization on %s",
+      async (status) => {
+        prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce({
+          ...invitation,
+          invitationStatus: status,
+        });
+        prisma.organization.findMany.mockResolvedValueOnce([
+          { arrangerId: "org-arranger-1" },
+        ]);
+
+        await service.respond("invitation-1", status, "user-1");
+
+        expect(prisma.eventArranger.deleteMany).toHaveBeenCalledWith({
+          where: {
+            eventId: "event-1",
+            role: EventArrangerRole.COLLABORATOR,
+            arrangerId: { in: ["org-arranger-1"] },
+          },
+        });
+      },
+    );
+
+    it("records who answered", async () => {
+      prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce(
+        invitation,
+      );
+
+      await service.respond("invitation-1", InvitationStatus.IGNORED, "user-1");
+
+      expect(prisma.eventCoOrganizerInvitation.updateMany).toHaveBeenCalledWith(
+        {
+          where: {
+            id: "invitation-1",
+            invitationStatus: { in: [InvitationStatus.PENDING] },
+          },
           data: {
             invitationStatus: InvitationStatus.IGNORED,
             respondedByUserId: "user-1",
           },
+        },
+      );
+    });
+
+    it("allows cancellation from PENDING or ACCEPTED", async () => {
+      prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce({
+        ...invitation,
+        invitationStatus: InvitationStatus.CANCELLED,
+      });
+      prisma.organization.findMany.mockResolvedValueOnce([]);
+
+      await service.respond(
+        "invitation-1",
+        InvitationStatus.CANCELLED,
+        "event-admin",
+      );
+
+      expect(prisma.eventCoOrganizerInvitation.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: "invitation-1",
+            invitationStatus: {
+              in: [InvitationStatus.PENDING, InvitationStatus.ACCEPTED],
+            },
+          },
         }),
       );
+    });
+
+    it("performs no side effects when another response won the race", async () => {
+      prisma.eventCoOrganizerInvitation.updateMany.mockResolvedValueOnce({
+        count: 0,
+      });
+
+      await expect(
+        service.respond("invitation-1", InvitationStatus.ACCEPTED, "user-1"),
+      ).rejects.toThrow("Invitation status is not valid for this transition");
+
+      expect(
+        prisma.eventCoOrganizerInvitation.findUnique,
+      ).not.toHaveBeenCalled();
+      expect(prisma.eventArranger.upsert).not.toHaveBeenCalled();
+      expect(prisma.eventArranger.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("lets only one of two concurrent organization responses transition PENDING", async () => {
+      prisma.eventCoOrganizerInvitation.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 });
+      prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce({
+        ...invitation,
+        invitationStatus: InvitationStatus.ACCEPTED,
+      });
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        arrangerId: "org-arranger-1",
+      });
+
+      const results = await Promise.allSettled([
+        service.respond("invitation-1", InvitationStatus.ACCEPTED, "admin-1"),
+        service.respond("invitation-1", InvitationStatus.DECLINED, "admin-2"),
+      ]);
+
+      expect(results.map(({ status }) => status).sort()).toEqual([
+        "fulfilled",
+        "rejected",
+      ]);
+      expect(prisma.eventArranger.upsert).toHaveBeenCalledTimes(1);
+      expect(prisma.eventArranger.deleteMany).not.toHaveBeenCalled();
     });
   });
 

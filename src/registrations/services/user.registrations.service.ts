@@ -8,10 +8,16 @@ import {
 } from "../dto";
 import {
   EventRegistrationMode,
+  EventVisibility,
   RegStatus,
   Registration,
 } from "../../generated/prisma/client";
+import {
+  registrationGrantsEventAccess,
+  viewableEventIds,
+} from "../registration-visibility";
 import { EventNotFoundException } from "../../events/exceptions";
+import { lockEventForSeatChange } from "../event-seat-lock";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 
 @Injectable()
@@ -27,6 +33,10 @@ export class UserRegistrationService extends CommonRegistrationService {
     // P2002 (already registered) -> 409 and P2003 (no such event or user)
     // -> 400, both handled by PrismaExceptionFilter.
     return this.prismaService.$transaction(async (trx) => {
+      /* Before the seat count is read, so two concurrent registrations for the
+         same event cannot both see the last free seat. */
+      await lockEventForSeatChange(trx, createRegistrationDto.eventId);
+
       const event = await trx.event.findUnique({
         where: { id: createRegistrationDto.eventId },
         include: {
@@ -59,6 +69,12 @@ export class UserRegistrationService extends CommonRegistrationService {
       }
 
       if (event) {
+        /* Invitation creates the INVITED registration up front. Invitees must
+         * update that row; allowing create here would also grant event access. */
+        if (event.visibility === EventVisibility.PRIVATE) {
+          throw new EventNotFoundException(event.id);
+        }
+
         if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
           throw new BadRequestException(
             "Registration for this event does not happen in Peoply",
@@ -120,7 +136,7 @@ export class UserRegistrationService extends CommonRegistrationService {
       throw new BadRequestException(`${orderBy} is not a key of Registration`);
     }
 
-    return await this.prismaService.registration.findMany({
+    const registrations = await this.prismaService.registration.findMany({
       skip,
       take,
       where: {
@@ -155,6 +171,51 @@ export class UserRegistrationService extends CommonRegistrationService {
         [orderBy]: orderDirection,
       },
     });
+
+    return this.redactUnviewableEvents(registrations, userId);
+  }
+
+  /**
+   * `GET /events/:id` refuses a non-public event to anyone whose registration
+   * is `NOT_GOING` or `BANNED`. This endpoint returned the whole event row
+   * regardless, so the caller's own registration list was a way back into an
+   * event they had been thrown out of - address, capacity, form question and
+   * all, updated live rather than frozen at the time of the ban.
+   *
+   * The rows themselves stay: a user is entitled to see that they declined or
+   * were banned. It is the event payload that goes.
+   */
+  private async redactUnviewableEvents<
+    T extends { eventId: string; regStatus: RegStatus; event?: unknown },
+  >(registrations: T[], userId: string) {
+    const unviewable = registrations.filter(
+      (registration) =>
+        registration.event &&
+        !registrationGrantsEventAccess(
+          (registration.event as { visibility: EventVisibility }).visibility,
+          registration.regStatus,
+        ),
+    );
+
+    if (unviewable.length === 0) {
+      return registrations;
+    }
+
+    /* Arranging an event is its own grant, independent of the registration -
+       so before redacting, check whether the caller arranges any of these. */
+    const viewable = await viewableEventIds(
+      this.prismaService,
+      userId,
+      unviewable.map(({ eventId }) => eventId),
+    );
+
+    for (const registration of unviewable) {
+      if (!viewable.has(registration.eventId)) {
+        registration.event = undefined;
+      }
+    }
+
+    return registrations;
   }
 
   /**

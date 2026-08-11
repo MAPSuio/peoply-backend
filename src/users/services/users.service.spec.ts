@@ -284,6 +284,13 @@ describe("UsersService", () => {
         // interactive transaction: hand the callback a client that records order
         $transaction: jest.fn(async (cb: any) =>
           cb({
+            // The user owns nothing, so reassignOwnedOrganizations is a no-op —
+            // but it runs first and needs the client to answer.
+            userOrganizationRole: {
+              findMany: jest.fn().mockResolvedValue([]),
+              update: jest.fn(),
+            },
+            organization: { delete: jest.fn() },
             event: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
             arranger: { delete: arrangerDelete },
           }),

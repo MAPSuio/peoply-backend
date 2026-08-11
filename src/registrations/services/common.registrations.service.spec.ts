@@ -41,6 +41,12 @@ describe("CommonRegistrationService.updateRegistration", () => {
   const setup = (event: any) => {
     calls = [];
     const trx = {
+      // The seat count is a read-modify-write, so both paths take a row lock on
+      // the event first. Recorded in `calls` so the ordering can be asserted.
+      $queryRaw: jest.fn(() => {
+        calls.push("lock");
+        return Promise.resolve([]);
+      }),
       event: { findUnique: jest.fn().mockResolvedValue(event) },
       user: {
         findUnique: jest.fn().mockResolvedValue({
@@ -108,7 +114,10 @@ describe("CommonRegistrationService.updateRegistration", () => {
 
     // The leaving user's row was updated without await, so it settled after
     // the promotion instead of before it.
+    // "lock" first: the event row is held before the seat count is read, so a
+    // concurrent removal cannot promote the same waitlisted user twice.
     expect(calls).toEqual([
+      "lock",
       `update:user-1:${RegStatus.NOT_GOING}`,
       `update:user-2:${RegStatus.GOING}`,
     ]);
@@ -152,6 +161,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
 
       // Account deletion must free the spot even though registration closed.
       expect(calls).toEqual([
+        "lock",
         `update:user-1:${RegStatus.NOT_GOING}`,
         `update:user-2:${RegStatus.GOING}`,
       ]);

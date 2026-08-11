@@ -1,4 +1,5 @@
 import {
+  EventArrangerRole,
   OrganizationRole,
   InvitationStatus,
   User,
@@ -8,12 +9,14 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
   NotImplementedException,
   Param,
+  ParseArrayPipe,
   Patch,
   Post,
   Query,
@@ -24,7 +27,9 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
+import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
@@ -32,6 +37,7 @@ import { IsArrangerInterceptor } from "../auth/interceptors/isArranger.intercept
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
+import { MAX_INVITATIONS_PER_REQUEST } from "../invitations/invitations.constants";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerUpdateRegistrationDto } from "../registrations/dto";
 import { ArrangerRegistrationService } from "../registrations/services";
@@ -47,9 +53,6 @@ import { SendUpdateDto } from "./dto/send-update.dto";
 import { EventsService } from "./events.service";
 import { EventNotFoundException } from "./exceptions";
 
-// file size limit 50 MB
-const MAX_FILE_SIZE_MB: number = 50 * 1024 * 1024;
-
 @Controller("events")
 export class EventsController {
   constructor(
@@ -62,23 +65,7 @@ export class EventsController {
 
   @UseGuards(AuthenticatedGuard)
   @Post()
-  @UseInterceptors(
-    FileInterceptor("eventImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        fileSize: MAX_FILE_SIZE_MB,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("eventImage", IMAGE_UPLOAD_OPTIONS))
   async create(
     @Req() req: any,
     @Body() createEventDto: CreateEventDto,
@@ -164,30 +151,26 @@ export class EventsController {
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Patch(":id")
-  @UseInterceptors(
-    FileInterceptor("eventImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        // filesize limit 50 MB
-        fileSize: MAX_FILE_SIZE_MB,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("eventImage", IMAGE_UPLOAD_OPTIONS))
   async update(
     @Req() req: any,
     @Param("id") id: string,
     @Body() updateEventDto: UpdateEventDto,
     @UploadedFile() eventImage?: Express.Multer.File,
   ) {
+    /* `syncCoOrganizers` deleteMany's the co-organizers this does not list, so
+       passing an empty array is how a co-organizer would remove every other
+       one - including the arranger that invited them. Editing the event itself
+       is fine; editing who owns it is not. */
+    if (
+      updateEventDto.coOrganizerOrganizationIds !== undefined &&
+      req.eventArrangerRole === EventArrangerRole.COLLABORATOR
+    ) {
+      throw new ForbiddenException(
+        "Co-organizers cannot change the list of co-organizers",
+      );
+    }
+
     //the user has to be the arranger or the admin of the organization
     return this.eventsService.update(
       updateEventDto,
@@ -198,6 +181,9 @@ export class EventsController {
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  /* Deleting cascades to every registration on the event. A co-organizer was
+     invited to help run it, not to be able to destroy someone else's. */
+  @EventArrangerRoles(EventArrangerRole.ADMIN)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Delete(":id")
   async remove(@Req() @Param("id") id: string) {
@@ -241,9 +227,30 @@ export class EventsController {
   async sendInvitations(
     @Req() req: any,
     @Param("id") id: string,
-    @Body() userIds: string[],
+    // A bare string[] body carries no validation metadata, so the global
+    // ValidationPipe skipped it entirely: a non-array body reached
+    // createInvitations and became a 500 on .map(), and an arbitrarily long
+    // array became an unbounded createMany inside one transaction.
+    @Body(
+      new ParseArrayPipe({
+        items: String,
+        separator: undefined,
+      }),
+    )
+    userIds: string[],
   ) {
     const user: User = req.user;
+
+    if (userIds.length > MAX_INVITATIONS_PER_REQUEST) {
+      throw new BadRequestException(
+        `Cannot send more than ${MAX_INVITATIONS_PER_REQUEST} invitations in one request`,
+      );
+    }
+
+    if (!userIds.every((userId) => isUUID(userId))) {
+      throw new BadRequestException("userIds must all be UUIDs");
+    }
+
     return this.eventInvitationsService.createInvitations(id, user.id, userIds);
   }
 
@@ -367,6 +374,7 @@ export class EventsController {
 
   /** Every co-organizer invitation on this event, for the event's own admins. */
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @EventArrangerRoles(EventArrangerRole.ADMIN)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Get(":id/coorganizer-invitations")
   async getCoOrganizerInvitations(@Param("id") id: string) {
@@ -379,8 +387,7 @@ export class EventsController {
    * Two different parties can act here, so the guard is only
    * AuthenticatedGuard and the authority check lives below:
    *   - an ADMIN/OWNER of the invited organization accepts, declines or
-   *     ignores it, and may decline one it had previously accepted in order to
-   *     take the organization back off the event;
+   *     ignores a pending invitation;
    *   - an admin of the event cancels one it sent.
    */
   @UseGuards(AuthenticatedGuard)
@@ -442,16 +449,7 @@ export class EventsController {
       );
     }
 
-    // DECLINED stays open on an accepted invitation — that is how an
-    // organization withdraws from an event it is already on.
-    const isWithdrawal =
-      status === InvitationStatus.DECLINED &&
-      invitation.invitationStatus === InvitationStatus.ACCEPTED;
-
-    if (
-      invitation.invitationStatus !== InvitationStatus.PENDING &&
-      !isWithdrawal
-    ) {
+    if (invitation.invitationStatus !== InvitationStatus.PENDING) {
       throw new BadRequestException(
         "Invitation status is not PENDING, cannot update",
       );

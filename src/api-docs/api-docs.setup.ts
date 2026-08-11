@@ -64,8 +64,19 @@ export function setupApiDocs(
     }),
   );
 
+  /* `res.json(document)` re-serialized 85 routes and 35 DTO schemas on every
+     hit. The document is built once at startup and never changes, and this
+     route is mounted with `app.use`, i.e. raw Express middleware that answers
+     before the Nest router - so `CfThrottlerGuard`, registered as an APP_GUARD,
+     never sees it. It is the only unthrottled path in the application.
+
+     Serializing once turns it into sending a fixed string, and `res.send` on a
+     string sets an ETag, so a repeat caller revalidates into a 304 instead of
+     pulling 30 KB again. */
+  const serializedDocument = JSON.stringify(document);
+
   app.use(SPEC_PATH, (_req: Request, res: Response) => {
-    res.json(document);
+    res.type("application/json").send(serializedDocument);
   });
 
   app.use(DOCS_PATH, (req: Request, res: Response, next: NextFunction) => {

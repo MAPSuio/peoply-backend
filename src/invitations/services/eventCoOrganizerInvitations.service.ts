@@ -206,9 +206,8 @@ export class EventCoOrganizerInvitationsService {
    * Records the invited organization's answer, and attaches it as a
    * COLLABORATOR when that answer is yes.
    *
-   * DECLINED is allowed on an invitation that was previously accepted: that is
-   * how an organization withdraws from an event it no longer wants its name
-   * on, including the ones it was attached to before invitations existed.
+   * Organization responses atomically require PENDING. Cancellation also
+   * accepts ACCEPTED so the event admin can revoke an active collaboration.
    */
   async respond(
     invitationId: string,
@@ -216,11 +215,32 @@ export class EventCoOrganizerInvitationsService {
     respondedByUserId: string,
   ) {
     return this.prisma.$transaction(async (trx) => {
-      const invitation = await trx.eventCoOrganizerInvitation.update({
-        where: { id: invitationId },
+      const allowedCurrentStatuses =
+        status === InvitationStatus.CANCELLED
+          ? [InvitationStatus.PENDING, InvitationStatus.ACCEPTED]
+          : [InvitationStatus.PENDING];
+      const transition = await trx.eventCoOrganizerInvitation.updateMany({
+        where: {
+          id: invitationId,
+          invitationStatus: { in: allowedCurrentStatuses },
+        },
         data: { invitationStatus: status, respondedByUserId },
+      });
+
+      if (transition.count !== 1) {
+        throw new BadRequestException(
+          "Invitation status is not valid for this transition",
+        );
+      }
+
+      const invitation = await trx.eventCoOrganizerInvitation.findUnique({
+        where: { id: invitationId },
         include: INVITATION_INCLUDE,
       });
+
+      if (!invitation) {
+        throw new BadRequestException("Invitation no longer exists");
+      }
 
       if (status === InvitationStatus.ACCEPTED) {
         const organization = await trx.organization.findUnique({
@@ -248,7 +268,10 @@ export class EventCoOrganizerInvitationsService {
         }
       }
 
-      if (status === InvitationStatus.DECLINED) {
+      if (
+        status === InvitationStatus.DECLINED ||
+        status === InvitationStatus.CANCELLED
+      ) {
         await this.detachArrangers(
           invitation.eventId,
           [invitation.organizationId],

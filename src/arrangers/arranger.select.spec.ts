@@ -96,7 +96,13 @@ describe("public endpoints still ask Prisma for the same arranger", () => {
               calls.push(args);
               // A row has to come back: the method throws on a miss, and we
               // are here for the query it sent, not the row it returns.
-              return Promise.resolve({ id: "event-1", archivedAt: null });
+              // `_count` is part of that row because the include always asks
+              // for it — findOneByUrlId reads it to build goingCount.
+              return Promise.resolve({
+                id: "event-1",
+                archivedAt: null,
+                _count: { registrations: 0 },
+              });
             }),
           },
         };
