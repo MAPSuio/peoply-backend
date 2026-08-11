@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
 import {
   InvitationStatus,
   OrganizationRole,
@@ -6,6 +10,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrganizationInvitationDto } from "../dto/create-organizationInvitation.dto";
 import { createUuid } from "../../util/uuid";
+import { MAX_INVITATIONS_PER_REQUEST } from "../invitations.constants";
 import { OrganizationInvitationDoesNotExistException } from "../exceptions/organizationInvitationDoesNotExistException.exception";
 
 /**
@@ -55,6 +60,10 @@ export class OrganizationInvitationsService {
     toUserId: string,
     role: OrganizationRole,
   ) {
+    if (role === OrganizationRole.OWNER) {
+      throw new ForbiddenException("Cannot invite a user as owner");
+    }
+
     return this.prisma.organizationInvitation.create({
       data: {
         organizationId,
@@ -92,6 +101,24 @@ export class OrganizationInvitationsService {
      *  this is because createMany doesnt return the created elements
      * ref: https://github.com/prisma/prisma/issues/8131
      */
+
+    if (createOrgInvitesDtos.length > MAX_INVITATIONS_PER_REQUEST) {
+      throw new BadRequestException(
+        `Cannot send more than ${MAX_INVITATIONS_PER_REQUEST} invitations in one request`,
+      );
+    }
+
+    /* Ownership is singular and transfers only through PATCH /:orgId/owner,
+     * which moves the existing owner down in the same transaction. Nothing
+     * here stopped an invitation carrying role OWNER, so an admin could invite
+     * a second account they control as OWNER, accept it, and hand ownership
+     * back to themselves - going around "Cannot change to owner", "Cannot
+     * change role of owner" and "You can't delete the owner" in one move. */
+    if (
+      createOrgInvitesDtos.some((dto) => dto.role === OrganizationRole.OWNER)
+    ) {
+      throw new ForbiddenException("Cannot invite a user as owner");
+    }
 
     // if organizationId is a urlId, get the uuid id instead
     if (!this.isUuid(organizationId)) {
@@ -173,6 +200,10 @@ export class OrganizationInvitationsService {
 
       if (!pending) {
         throw new OrganizationInvitationDoesNotExistException(invitationId);
+      }
+
+      if (pending.organizationRole === OrganizationRole.OWNER) {
+        throw new ForbiddenException("Cannot accept an invitation as owner");
       }
 
       /* An invitation is a snapshot of authority taken at invite time. Nothing

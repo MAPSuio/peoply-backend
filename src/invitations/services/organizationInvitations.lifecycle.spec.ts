@@ -97,6 +97,19 @@ describe("OrganizationInvitationsService.acceptInvitation", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
+  it("refuses a pending legacy owner invitation", async () => {
+    const { service, upsert, update } = serviceWith(
+      invitation({ organizationRole: OrganizationRole.OWNER }),
+      { [INVITER]: OrganizationRole.OWNER },
+    );
+
+    await expect(service.acceptInvitation("inv-1")).rejects.toThrow(
+      "Cannot accept an invitation as owner",
+    );
+    expect(update).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("refuses once the inviter has been demoted to member", async () => {
     const { service, upsert } = serviceWith(invitation(), {
       [INVITER]: OrganizationRole.MEMBER,

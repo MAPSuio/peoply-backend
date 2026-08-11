@@ -15,6 +15,7 @@ import {
   HttpStatus,
   NotImplementedException,
   Param,
+  ParseArrayPipe,
   Patch,
   Post,
   Query,
@@ -34,6 +35,7 @@ import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.int
 import { IsArrangerInterceptor } from "../auth/interceptors/isArranger.interceptor";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
+import { MAX_INVITATIONS_PER_REQUEST } from "../invitations/invitations.constants";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { ArrangerUpdateRegistrationDto } from "../registrations/dto";
 import { ArrangerRegistrationService } from "../registrations/services";
@@ -212,9 +214,30 @@ export class EventsController {
   async sendInvitations(
     @Req() req: any,
     @Param("id") id: string,
-    @Body() userIds: string[],
+    // A bare string[] body carries no validation metadata, so the global
+    // ValidationPipe skipped it entirely: a non-array body reached
+    // createInvitations and became a 500 on .map(), and an arbitrarily long
+    // array became an unbounded createMany inside one transaction.
+    @Body(
+      new ParseArrayPipe({
+        items: String,
+        separator: undefined,
+      }),
+    )
+    userIds: string[],
   ) {
     const user: User = req.user;
+
+    if (userIds.length > MAX_INVITATIONS_PER_REQUEST) {
+      throw new BadRequestException(
+        `Cannot send more than ${MAX_INVITATIONS_PER_REQUEST} invitations in one request`,
+      );
+    }
+
+    if (!userIds.every((userId) => isUUID(userId))) {
+      throw new BadRequestException("userIds must all be UUIDs");
+    }
+
     return this.eventInvitationsService.createInvitations(id, user.id, userIds);
   }
 
