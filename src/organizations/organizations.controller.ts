@@ -102,7 +102,7 @@ export class OrganizationsController {
     @Param("orgId") orgId: string,
     @Body() updateOrganizationApprovalDto: UpdateOrganizationApprovalDto,
   ) {
-    await this.organizationsService.ensureMapsMember(req.user.id);
+    await this.organizationsService.ensureMapsAdmin(req.user.id);
     return this.organizationsService.updateApproval(
       orgId,
       updateOrganizationApprovalDto.approved,
