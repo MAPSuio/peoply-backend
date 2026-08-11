@@ -12,6 +12,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CommonRegistrationService } from "./common.registrations.service";
 import { Registration } from "../../generated/prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
+import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { UserDoesNotExistException } from "../../users/exceptions";
@@ -219,12 +220,15 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   }
 
   private buildEventUnregisterHtmlEmail(event: Partial<Event>) {
+    const title = escapeHtml(event.title);
+    const urlId = escapeHtml(event.urlId);
+
     return (
-      `<h1>Du har blitt avmeldt fra ${event.title}</h1>\n` +
+      `<h1>Du har blitt avmeldt fra ${title}</h1>\n` +
       `<p>Arrangøren har meldt deg av arrangementet, og du må melde deg på nytt hvis de skal være påmeldt. Da kan det være du havner på venteliste.</p>\n` +
       `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
       "<p>" +
-      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
       "</p>" +
       "<p>" +
       `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
@@ -233,12 +237,15 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   }
 
   private buildEventBannedHtmlEmail(event: Partial<Event>) {
+    const title = escapeHtml(event.title);
+    const urlId = escapeHtml(event.urlId);
+
     return (
-      `<h1>Du har blitt utestengt fra ${event.title}</h1>\n` +
+      `<h1>Du har blitt utestengt fra ${title}</h1>\n` +
       `<p>Arrangøren har utestengt deg fra arrangementet, og du kan ikke melde deg på på nytt.</p>\n` +
       `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
       "<p>" +
-      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${event.urlId}" target="_blank">"${event.title}"</a> på Peoply.\n` +
+      `Du mottar denne e-posten fordi du var påmeldt <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
       "</p>" +
       "<p>" +
       `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
