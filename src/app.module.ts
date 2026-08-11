@@ -11,6 +11,7 @@ import { RegistrationsModule } from "./registrations/registrations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
+import { jwtSecretSchema } from "./auth/jwt-secret.schema";
 import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 import { AzureModule } from "./azure/azure.module";
@@ -49,8 +50,7 @@ import { LocationSearchModule } from "./location-search/location-search.module";
       validationSchema: Joi.object({
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),
         JWT_REFRESH_TOKEN_EXP_TIME: Joi.number().required(),
-        JWT_ACCESS_TOKEN_SECRET: Joi.string().required(),
-        JWT_REFRESH_TOKEN_SECRET: Joi.string().required(),
+        ...jwtSecretSchema,
         DATABASE_URL: Joi.string().required(),
         // Optional: only managed databases with a private CA need it. Unset
         // locally and in CI, where Postgres runs without TLS.
@@ -84,8 +84,17 @@ import { LocationSearchModule } from "./location-search/location-search.module";
           otherwise: Joi.string().optional(),
         }),
         DISCORD_ALERT_WEBHOOK_URL: Joi.string().uri().optional(),
+        // Shared with a Cloudflare transform rule so the origin can tell
+        // traffic that came through Cloudflare from traffic sent straight to
+        // its *.ondigitalocean.app hostname. Without it CF-Connecting-IP has
+        // to be taken on trust. See docs/threat-detection.md.
+        CLOUDFLARE_ORIGIN_SECRET: Joi.string().min(16).optional(),
         THREAT_DETECTION_ENABLED: Joi.boolean().default(true),
         THREAT_ALERT_COOLDOWN_MS: Joi.number().default(300000),
+        // Comma-separated emails allowed through ModeratorGuard. Unset means
+        // every /moderation endpoint answers 403 — the /stats page in the
+        // frontend is dead until this is configured.
+        MODERATOR_EMAILS: Joi.string().optional(),
       }),
     }),
     AuthModule,

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,6 +6,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseEnumPipe,
   Patch,
   Post,
   Query,
@@ -32,6 +32,7 @@ import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
 import { User, UserSeenUpdateType } from "../generated/prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -59,24 +60,7 @@ export class UsersController {
   }
 
   @UseGuards(AuthenticatedGuard)
-  @UseInterceptors(
-    FileInterceptor("profileImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        // filesize limit 50 MB
-        fileSize: 50 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("profileImage", IMAGE_UPLOAD_OPTIONS))
   @Patch("me")
   async updateUser(
     @Req() req: any,
@@ -84,7 +68,12 @@ export class UsersController {
     @UploadedFile() profileImage?: Express.Multer.File,
   ) {
     const user: User = req.user;
-    return this.userService.update(user, data, profileImage);
+    // The row Prisma hands back from `update` is the full record, so the same
+    // subtraction GET /users/me applies has to happen here too — otherwise
+    // saving the settings page is enough to read the session handle back out.
+    return withoutRefreshTokenId(
+      await this.userService.update(user, data, profileImage),
+    );
   }
 
   @UseGuards(AuthenticatedGuard)
@@ -289,7 +278,10 @@ export class UsersController {
   @Get("me/seenUpdate/:update")
   async seenUpdate(
     @Req() req: any,
-    @Param("update") update: UserSeenUpdateType,
+    /* An unknown value used to reach Prisma's enum and come back as a
+       500; ParseEnumPipe turns it into the 400 it always was. */
+    @Param("update", new ParseEnumPipe(UserSeenUpdateType))
+    update: UserSeenUpdateType,
   ) {
     const user: User = req.user;
     return this.userService.userSeenUpdate(user.id, update);
@@ -305,7 +297,10 @@ export class UsersController {
   @Post("me/seenUpdate/:update")
   async markUserSeenUpdate(
     @Req() req: any,
-    @Param("update") update: UserSeenUpdateType,
+    /* An unknown value used to reach Prisma's enum and come back as a
+       500; ParseEnumPipe turns it into the 400 it always was. */
+    @Param("update", new ParseEnumPipe(UserSeenUpdateType))
+    update: UserSeenUpdateType,
   ) {
     const user: User = req.user;
     return this.userService.markUserSeenUpdate(user.id, update);

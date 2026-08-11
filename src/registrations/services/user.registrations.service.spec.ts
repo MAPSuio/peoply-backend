@@ -112,9 +112,9 @@ describe("UserRegistrationService.updateAllRegistrationsOfUserToNotGoing", () =>
 describe("UserRegistrationService.create", () => {
   const prismaService = {
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
     event: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
-    eventInvitation: { findFirst: jest.fn() },
     registration: { create: jest.fn() },
   } as any;
 
@@ -140,6 +140,7 @@ describe("UserRegistrationService.create", () => {
         callback(prismaService),
     );
     prismaService.user.findUnique.mockResolvedValue({ id: "user-1" });
+    prismaService.$queryRaw.mockResolvedValue([]);
     prismaService.registration.create.mockResolvedValue({ id: "reg-1" });
     service = new UserRegistrationService(prismaService, {} as any);
   });
@@ -147,37 +148,20 @@ describe("UserRegistrationService.create", () => {
   // canViewEvent treats a GOING registration as permission to read the event,
   // its updates and its attendee list - so creating one on an event you were
   // never invited to was how you got in.
-  it("refuses to register for a private event without an invitation", async () => {
-    prismaService.event.findUnique.mockResolvedValueOnce(
-      anEvent(EventVisibility.PRIVATE),
-    );
-    prismaService.eventInvitation.findFirst.mockResolvedValueOnce(null);
+  it.each([RegStatus.GOING, RegStatus.NOT_GOING])(
+    "refuses a new %s registration for a private event",
+    async (regStatus) => {
+      prismaService.event.findUnique.mockResolvedValueOnce(
+        anEvent(EventVisibility.PRIVATE),
+      );
 
-    await expect(
-      service.create("user-1", {
-        eventId: "event-1",
-        regStatus: RegStatus.GOING,
-      }),
-    ).rejects.toBeInstanceOf(EventNotFoundException);
+      await expect(
+        service.create("user-1", { eventId: "event-1", regStatus }),
+      ).rejects.toBeInstanceOf(EventNotFoundException);
 
-    expect(prismaService.registration.create).not.toHaveBeenCalled();
-  });
-
-  it("registers for a private event when an invitation exists", async () => {
-    prismaService.event.findUnique.mockResolvedValueOnce(
-      anEvent(EventVisibility.PRIVATE),
-    );
-    prismaService.eventInvitation.findFirst.mockResolvedValueOnce({
-      id: "invite-1",
-    });
-
-    await service.create("user-1", {
-      eventId: "event-1",
-      regStatus: RegStatus.GOING,
-    });
-
-    expect(prismaService.registration.create).toHaveBeenCalled();
-  });
+      expect(prismaService.registration.create).not.toHaveBeenCalled();
+    },
+  );
 
   // Unlisted is link-shareable by design ("alle med lenken kan se
   // arrangementet"), so it must keep working without an invitation.
@@ -192,7 +176,6 @@ describe("UserRegistrationService.create", () => {
       });
 
       expect(prismaService.registration.create).toHaveBeenCalled();
-      expect(prismaService.eventInvitation.findFirst).not.toHaveBeenCalled();
     },
   );
 });

@@ -6,8 +6,10 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
 } from "class-validator";
 import { UserAllowedRegStatus } from "../../users/user.constants";
+import { MAX_FORM_ANSWER_LENGTH } from "../registration.constants";
 
 export class CreateRegistrationDto {
   @IsNotEmpty()
@@ -22,6 +24,7 @@ export class CreateRegistrationDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(MAX_FORM_ANSWER_LENGTH)
   @ApiProperty()
   formAnswer?: string;
 }
