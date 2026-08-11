@@ -5,9 +5,9 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
 import * as crypto from "node:crypto";
 
-import * as passport from "passport";
-import * as expressSession from "express-session";
-import * as cookieParser from "cookie-parser";
+import passport = require("passport");
+import expressSession = require("express-session");
+import cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { setupApiDocs } from "./api-docs/api-docs.setup";
