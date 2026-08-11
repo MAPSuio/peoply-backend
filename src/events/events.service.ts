@@ -582,13 +582,12 @@ export class EventsService {
         rest,
       );
 
-      const primaryArrangerId =
-        oldEvent.eventArrangers.find(
-          (eventArranger) => eventArranger.role === EventArrangerRole.ADMIN,
-        )?.arrangerId ?? oldEvent.eventArrangers[0]?.arrangerId;
+      const primaryArrangerId = oldEvent.eventArrangers.find(
+        (eventArranger) => eventArranger.role === EventArrangerRole.ADMIN,
+      )?.arrangerId;
 
       if (!primaryArrangerId) {
-        throw new BadRequestException("Event must have at least one arranger");
+        throw new BadRequestException("Event must have an admin arranger");
       }
 
       return await this.prisma.$transaction(async (trx) => {

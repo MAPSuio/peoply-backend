@@ -248,24 +248,28 @@ export class EventCoOrganizerInvitationsService {
           select: { arrangerId: true },
         });
 
-        if (organization) {
-          await trx.eventArranger.upsert({
-            where: {
-              eventId_arrangerId: {
-                eventId: invitation.eventId,
-                arrangerId: organization.arrangerId,
-              },
-            },
-            create: {
+        if (!organization) {
+          throw new BadRequestException(
+            "The invited organization no longer exists",
+          );
+        }
+
+        await trx.eventArranger.upsert({
+          where: {
+            eventId_arrangerId: {
               eventId: invitation.eventId,
               arrangerId: organization.arrangerId,
-              role: EventArrangerRole.COLLABORATOR,
             },
-            // An organization that is already the event's ADMIN keeps that
-            // role — accepting must never demote it.
-            update: {},
-          });
-        }
+          },
+          create: {
+            eventId: invitation.eventId,
+            arrangerId: organization.arrangerId,
+            role: EventArrangerRole.COLLABORATOR,
+          },
+          // An organization that is already the event's ADMIN keeps that
+          // role — accepting must never demote it.
+          update: {},
+        });
       }
 
       if (

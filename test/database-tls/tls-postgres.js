@@ -172,9 +172,14 @@ async function waitUntilTlsReady(container, port, caCert, timeoutMs = 15_000) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  const logs = run("docker", ["logs", "--tail", "40", container], {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  let logs = "";
+  try {
+    logs = run("docker", ["logs", "--tail", "40", container], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch {
+    /* preserve the TLS readiness failure when the container is unavailable */
+  }
   throw new Error(
     `Postgres TLS endpoint did not become ready: ${lastError}\n${logs}`,
   );

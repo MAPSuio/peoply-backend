@@ -151,6 +151,19 @@ describe("EventCoOrganizerInvitationsService", () => {
       );
     });
 
+    it("does not accept when the invited organization no longer exists", async () => {
+      prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce(
+        invitation,
+      );
+      prisma.organization.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.respond("invitation-1", InvitationStatus.ACCEPTED, "user-1"),
+      ).rejects.toThrow("The invited organization no longer exists");
+
+      expect(prisma.eventArranger.upsert).not.toHaveBeenCalled();
+    });
+
     it("attaches nobody when the invitation is ignored", async () => {
       prisma.eventCoOrganizerInvitation.findUnique.mockResolvedValueOnce(
         invitation,
