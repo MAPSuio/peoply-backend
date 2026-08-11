@@ -19,6 +19,7 @@ const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
+const { Client } = require("pg");
 
 const IMAGE = "postgres:16";
 const USER = "tlstest";
@@ -147,31 +148,36 @@ async function waitUntilAccepting(container, timeoutMs = 60_000) {
   throw new Error(`Postgres did not accept connections in time.\n${logs}`);
 }
 
-async function waitUntilPublished(port, timeoutMs = 10_000) {
+async function waitUntilTlsReady(container, port, caCert, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
+  const connectionString = `postgresql://${USER}:${PASSWORD}@${HOSTNAME}:${port}/${DATABASE}`;
+  let lastError;
 
   while (Date.now() < deadline) {
-    const connected = await new Promise((resolve) => {
-      const socket = net.createConnection({ host: HOSTNAME, port });
-      socket.once("connect", () => {
-        socket.destroy();
-        resolve(true);
-      });
-      socket.once("error", () => {
-        socket.destroy();
-        resolve(false);
-      });
-      socket.setTimeout(1_000, () => {
-        socket.destroy();
-        resolve(false);
-      });
+    const client = new Client({
+      connectionString,
+      ssl: { ca: caCert, rejectUnauthorized: true },
     });
 
-    if (connected) return;
+    try {
+      await client.connect();
+      await client.query("SELECT 1");
+      await client.end();
+      return;
+    } catch (error) {
+      lastError = error;
+      await client.end().catch(() => undefined);
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error(`Docker did not publish Postgres port ${port} in time`);
+  const logs = run("docker", ["logs", "--tail", "40", container], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  throw new Error(
+    `Postgres TLS endpoint did not become ready: ${lastError}\n${logs}`,
+  );
 }
 
 async function start() {
@@ -196,10 +202,10 @@ async function start() {
 
   try {
     await waitUntilAccepting(container);
-    // Docker can report the container ready before its host-port forwarding is
-    // installed. Without this second wait, fast CI runners race the proxy and
-    // every adapter query fails with ConnectionClosed.
-    await waitUntilPublished(port);
+    // Docker can report the database ready before its published TLS endpoint
+    // accepts complete PostgreSQL sessions. Exercise that exact path before
+    // Jest starts, rather than racing it with the first assertion.
+    await waitUntilTlsReady(container, port, caCert);
   } catch (error) {
     stop({ container, dir });
     throw error;
