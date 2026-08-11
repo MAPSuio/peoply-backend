@@ -97,3 +97,43 @@ Alerts sendes som Discord embeds med:
 - **Felter**: Path, Method, Status, IP (inline)
 - **Farge**: Rød (path probes, 404 burst) / Oransje (auth brute-force)
 - **Timestamp**: Når alerten ble trigget
+
+## Klient-IP: hvorfor `CLOUDFLARE_ORIGIN_SECRET` finnes
+
+Alt som er per-IP her — burst-404, brute-force-vinduene, og rate limiten i
+`CfThrottlerGuard` — nøkles på IP-en `resolveClientIp()` (`src/util/client-ip.ts`)
+kommer frem til.
+
+`CF-Connecting-IP` settes av Cloudflare og overskrives på hver request som går
+gjennom edgen, så *bak* Cloudflare er den til å stole på. Den er samtidig bare
+en header. Origin er direkte nåbar på `*.ondigitalocean.app` — deploy-workflowen
+poller den URL-en selv — så en angriper som går utenom Cloudflare og sender en
+ny `CF-Connecting-IP` per request havner i en ny bøtte hver gang. Da gjelder
+ingen av grensene over lenger.
+
+To ting hindrer det:
+
+1. Verdien må parse som en IP-adresse. Ellers er den en vilkårlig
+   angriperkontrollert streng brukt som Map-nøkkel og limt inn i loggen og i
+   Discord-alerts.
+2. Requesten må vise at den kom gjennom Cloudflare, ved å sende hemmeligheten i
+   `CLOUDFLARE_ORIGIN_SECRET` som `X-CF-Origin-Secret`. Requests som ikke kan
+   det faller tilbake på `req.ip`, som Express utleder fra proxy-kjeden.
+
+### Oppsett
+
+1. Generer en hemmelighet (minst 16 tegn):
+   ```bash
+   openssl rand -hex 32
+   ```
+2. Sett `CLOUDFLARE_ORIGIN_SECRET` i app-spec-en på DigitalOcean.
+3. I Cloudflare: **Rules → Transform Rules → Modify Request Header** → legg til
+   en regel som setter `X-CF-Origin-Secret` til samme verdi på all trafikk mot
+   origin.
+
+Uten variabelen kjører appen som før, men logger en advarsel ved oppstart:
+bypassen er da fortsatt åpen.
+
+> Merk at dette gjør klient-IP-en riktig — det stenger ikke origin for direkte
+> trafikk. Vil man også tvinge all trafikk gjennom Cloudflares WAF, må origin
+> begrenses på nettverksnivå (App Platform trusted sources) i tillegg.

@@ -4,8 +4,8 @@ jest.mock("node-ical", () => ({
   },
 }));
 
-import { NotFoundException } from "@nestjs/common";
-import { IcsFeedsService } from "./ics-feeds.service";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { IcsFeedsService, toPublicSyncError } from "./ics-feeds.service";
 
 describe("IcsFeedsService", () => {
   const prisma = {
@@ -87,5 +87,37 @@ describe("IcsFeedsService", () => {
     await expect(service.syncOrganizationFeed("org-1")).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe("toPublicSyncError", () => {
+  // lastSyncError is persisted and returned by GET .../ics-feed, so raw Node
+  // network errors would let whoever chose the URL read our network back:
+  // refused vs. responding, and internal hostnames out of TLS SAN lists.
+  it.each([
+    ["connect ECONNREFUSED 10.0.0.5:8443", "a refused connection"],
+    [
+      "Hostname/IP does not match certificate's altnames: Host: 127.0.0.2. is not in the cert's altnames: DNS:vault.internal.peoply",
+      "a certificate mismatch naming internal hosts",
+    ],
+    ["getaddrinfo ENOTFOUND internal.peoply", "a DNS failure"],
+  ])("collapses %p (%s)", (message) => {
+    expect(toPublicSyncError(new Error(message))).toBe(
+      "Kunne ikke hente kalenderen",
+    );
+  });
+
+  it("collapses values that are not errors at all", () => {
+    expect(toPublicSyncError("boom")).toBe("Kunne ikke hente kalenderen");
+    expect(toPublicSyncError(undefined)).toBe("Kunne ikke hente kalenderen");
+  });
+
+  // Our own exceptions are strings written for organisers to act on.
+  it.each([
+    "Only HTTPS ICS URLs are supported",
+    "ICS URL points to a blocked address",
+    "ICS file exceeds 5 MB",
+  ])("keeps our own message %p", (message) => {
+    expect(toPublicSyncError(new BadRequestException(message))).toBe(message);
   });
 });

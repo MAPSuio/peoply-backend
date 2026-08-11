@@ -18,6 +18,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
 import {
   InvitationStatus,
   OrganizationRole,
@@ -102,7 +103,7 @@ export class OrganizationsController {
     @Param("orgId") orgId: string,
     @Body() updateOrganizationApprovalDto: UpdateOrganizationApprovalDto,
   ) {
-    await this.organizationsService.ensureMapsMember(req.user.id);
+    await this.organizationsService.ensureMapsAdmin(req.user.id);
     return this.organizationsService.updateApproval(
       orgId,
       updateOrganizationApprovalDto.approved,
@@ -126,24 +127,7 @@ export class OrganizationsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
-  @UseInterceptors(
-    FileInterceptor("orgImage", {
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== "image/jpeg" && file.mimetype !== "image/png") {
-          callback(
-            new BadRequestException("Only .jpeg and .png files are allowed!"),
-            false,
-          );
-        } else {
-          callback(null, true);
-        }
-      },
-      limits: {
-        // filesize limit 50 MB
-        fileSize: 50 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor("orgImage", IMAGE_UPLOAD_OPTIONS))
   @Patch("/:orgId")
   async update(
     @Req() req: any,
@@ -262,18 +246,26 @@ export class OrganizationsController {
       return res.status(200).send(emptyCalendar);
     }
 
+    /* The date floor belongs in the query: fetching every event this
+       organization has ever run only to drop the past ones in JS is what made
+       this endpoint grow without bound. */
     const eventRelations =
-      await this.eventArrangersService.findAllPublicWithEvents(arrangerId);
+      await this.eventArrangersService.findAllPublicWithEvents(arrangerId, {
+        fromDate: new Date(),
+      });
+    const seen = new Set<string>();
     const events = eventRelations
       .map(({ event }: { event: any }) => event)
-      .filter((event: any) => new Date(event.startDate) >= new Date())
-      .sort((a: any, b: any) => +new Date(a.startDate) - +new Date(b.startDate))
-      .filter(
-        (event: any, index: number, collection: any[]) =>
-          collection.findIndex(
-            (candidate: any) => candidate.id === event.id,
-          ) === index,
-      );
+      .filter((event: any) => {
+        /* An event co-arranged by two of this organization's arrangers comes
+           back once per arranger. The old dedup scanned the whole array per
+           element, so a busy calendar cost O(n²). */
+        if (seen.has(event.id)) {
+          return false;
+        }
+        seen.add(event.id);
+        return true;
+      });
 
     const calendar = createOrganizationCalendarIcs(
       organization,
@@ -410,7 +402,15 @@ export class OrganizationsController {
     }
     const invitation =
       await this.organizationInvitationsService.findOne(inviteId);
-    if (!invitation) {
+    /* The handler loaded the organization from `:id` only to 404 on it, then
+       looked the invitation up by `inviteId` alone - so an invitation for one
+       organization could be driven through another organization's path. No
+       privilege was gained (accept applies the invitation's own organizationId),
+       but the differing responses made this an existence-and-status oracle for
+       arbitrary invitation ids, and any per-organization auditing or rate
+       limiting on the route was meaningless. Same 404 either way, so a
+       mismatched pair does not confirm the invitation exists. */
+    if (!invitation || invitation.organizationId !== organization.id) {
       throw new OrganizationInvitationDoesNotExistException(inviteId);
     }
 

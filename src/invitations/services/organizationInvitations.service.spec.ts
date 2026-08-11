@@ -8,6 +8,7 @@ describe("OrganizationInvitationsService", () => {
     $transaction: jest.fn(),
     organization: { findUnique: jest.fn() },
     organizationInvitation: {
+      create: jest.fn(),
       createMany: jest.fn(),
       findMany: jest.fn(),
     },
@@ -26,6 +27,7 @@ describe("OrganizationInvitationsService", () => {
       (callback: (client: typeof prisma) => unknown) => callback(prisma),
     );
     prisma.userOrganizationRole.findMany.mockResolvedValue([]);
+    prisma.organizationInvitation.create.mockResolvedValue({});
     prisma.organizationInvitation.createMany.mockResolvedValue({ count: 1 });
     prisma.organizationInvitation.findMany.mockResolvedValue([]);
     service = new OrganizationInvitationsService(prisma);
@@ -43,6 +45,14 @@ describe("OrganizationInvitationsService", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(prisma.organizationInvitation.createMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses owner through the singular invitation path", async () => {
+    await expect(
+      service.createInvitation(ORG, SENDER, TARGET, OrganizationRole.OWNER),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.organizationInvitation.create).not.toHaveBeenCalled();
   });
 
   it("refuses the whole batch when any entry asks for owner", async () => {

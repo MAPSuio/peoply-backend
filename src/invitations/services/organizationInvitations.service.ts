@@ -11,6 +11,24 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrganizationInvitationDto } from "../dto/create-organizationInvitation.dto";
 import { createUuid } from "../../util/uuid";
 import { MAX_INVITATIONS_PER_REQUEST } from "../invitations.constants";
+import { OrganizationInvitationDoesNotExistException } from "../exceptions/organizationInvitationDoesNotExistException.exception";
+
+/**
+ * How long a pending organization invitation stays acceptable.
+ *
+ * `createdAt` has been on the row since the table was created and nothing ever
+ * read it, so an invitation was valid forever. Thirty days is long enough that
+ * nobody loses a legitimate invitation to a holiday, and short enough that a
+ * planted one is not still live a semester later.
+ */
+const INVITATION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Higher wins. Used to make sure accepting an invitation never demotes. */
+const ROLE_RANK: Record<OrganizationRole, number> = {
+  [OrganizationRole.MEMBER]: 0,
+  [OrganizationRole.ADMIN]: 1,
+  [OrganizationRole.OWNER]: 2,
+};
 
 @Injectable()
 export class OrganizationInvitationsService {
@@ -42,6 +60,10 @@ export class OrganizationInvitationsService {
     toUserId: string,
     role: OrganizationRole,
   ) {
+    if (role === OrganizationRole.OWNER) {
+      throw new ForbiddenException("Cannot invite a user as owner");
+    }
+
     return this.prisma.organizationInvitation.create({
       data: {
         organizationId,
@@ -172,14 +194,69 @@ export class OrganizationInvitationsService {
 
   async acceptInvitation(invitationId: string) {
     return this.prisma.$transaction(async (trx) => {
-      const invitation = await trx.organizationInvitation.update({
-        where: {
-          id: invitationId,
-        },
-        data: {
-          invitationStatus: InvitationStatus.ACCEPTED,
-        },
+      const pending = await trx.organizationInvitation.findUnique({
+        where: { id: invitationId },
       });
+
+      if (!pending) {
+        throw new OrganizationInvitationDoesNotExistException(invitationId);
+      }
+
+      /* An invitation is a snapshot of authority taken at invite time. Nothing
+         re-checked it, and nothing expired it, so an admin could invite an
+         account they control, be removed from the organization entirely, and
+         have the invitation accepted months later. Removing a compromised
+         admin has to also remove what they authorized. */
+      if (Date.now() - pending.createdAt.getTime() > INVITATION_MAX_AGE_MS) {
+        throw new ForbiddenException("Invitation has expired");
+      }
+
+      const inviterRole = await trx.userOrganizationRole.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: pending.organizationId,
+            userId: pending.fromUserId,
+          },
+        },
+        select: { role: true },
+      });
+
+      if (
+        inviterRole?.role !== OrganizationRole.ADMIN &&
+        inviterRole?.role !== OrganizationRole.OWNER
+      ) {
+        throw new ForbiddenException(
+          "The user who sent this invitation is no longer an administrator of the organization",
+        );
+      }
+
+      const invitation = await trx.organizationInvitation.update({
+        where: { id: invitationId },
+        data: { invitationStatus: InvitationStatus.ACCEPTED },
+      });
+
+      const currentRole = await trx.userOrganizationRole.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: invitation.organizationId,
+            userId: invitation.toUserId,
+          },
+        },
+        select: { role: true },
+      });
+
+      /* The upsert used to write `invitation.organizationRole` unconditionally,
+         including downwards. Two invitations to the same user are distinct rows
+         (the unique key includes the role), and stale ones stay visible in the
+         notification list forever - so accepting an old MEMBER invitation after
+         being made OWNER demoted the owner and left the organization with none.
+         `PATCH /:orgId/roles` refuses exactly that; this path did not. */
+      if (
+        currentRole &&
+        ROLE_RANK[currentRole.role] >= ROLE_RANK[invitation.organizationRole]
+      ) {
+        return invitation;
+      }
 
       await trx.userOrganizationRole.upsert({
         where: {

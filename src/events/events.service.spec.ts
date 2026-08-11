@@ -4,7 +4,10 @@ import {
   EventVisibility,
   RegStatus,
 } from "../generated/prisma/client";
-import { EventNotFoundException } from "./exceptions";
+import {
+  EventNotFoundException,
+  EventUpdateNotFoundException,
+} from "./exceptions";
 import { EventsService } from "./events.service";
 
 describe("EventsService", () => {
@@ -35,6 +38,7 @@ describe("EventsService", () => {
     },
     eventUpdate: {
       findMany: jest.fn(),
+      updateMany: jest.fn(),
     },
   } as any;
 
@@ -132,6 +136,11 @@ describe("EventsService", () => {
   });
 
   it("sanitizes public event updates", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      visibility: EventVisibility.PUBLIC,
+    });
+    prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
     prisma.eventUpdate.findMany.mockResolvedValueOnce([
       {
         id: "update-1",
@@ -166,6 +175,73 @@ describe("EventsService", () => {
       },
       orderBy: { createdAt: "desc" },
     });
+  });
+
+  // The route is interceptor-only because updates on a public event are
+  // public. That made this the one place an event's visibility is enforced,
+  // and it was not being enforced: any caller could read the announcements of
+  // an event GET /events/:id would 404 for them.
+  it("refuses updates for an unlisted event the caller cannot view", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      visibility: EventVisibility.UNLISTED,
+    });
+    prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
+
+    await expect(service.getUpdatesForEvent("event-1")).rejects.toBeInstanceOf(
+      EventNotFoundException,
+    );
+
+    expect(prisma.eventUpdate.findMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses updates for an event that does not exist", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce(null);
+
+    await expect(service.getUpdatesForEvent("nope")).rejects.toBeInstanceOf(
+      EventNotFoundException,
+    );
+
+    expect(prisma.eventUpdate.findMany).not.toHaveBeenCalled();
+  });
+
+  it("serves updates for an unlisted event to an invited user", async () => {
+    prisma.event.findUnique.mockResolvedValueOnce({
+      id: "event-1",
+      visibility: EventVisibility.UNLISTED,
+    });
+    prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
+    // canViewEvent, then the GOING check inside getUpdatesForEvent
+    prisma.registration.findUnique
+      .mockResolvedValueOnce({ regStatus: RegStatus.INVITED })
+      .mockResolvedValueOnce({ regStatus: RegStatus.INVITED });
+    prisma.eventUpdate.findMany.mockResolvedValueOnce([]);
+
+    await expect(
+      service.getUpdatesForEvent("event-1", "user-1", false),
+    ).resolves.toEqual([]);
+  });
+
+  // EventRolesGuard authorises the caller against the event in the URL, so the
+  // delete has to be constrained to it. Filtering on the update id alone let an
+  // arranger of any event delete an announcement belonging to any other event.
+  it("scopes an update delete to the event that was authorised", async () => {
+    prisma.eventUpdate.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await service.deleteUpdateForEvent("event-1", "update-1");
+
+    expect(prisma.eventUpdate.updateMany).toHaveBeenCalledWith({
+      where: { id: "update-1", eventId: "event-1" },
+      data: { visibility: EventUpdateVisibility.DELETED },
+    });
+  });
+
+  it("refuses to delete an update belonging to another event", async () => {
+    prisma.eventUpdate.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      service.deleteUpdateForEvent("event-i-arrange", "someone-elses-update"),
+    ).rejects.toBeInstanceOf(EventUpdateNotFoundException);
   });
 
   it("creates collaborator arrangers for valid co-organizer organizations", async () => {

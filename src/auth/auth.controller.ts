@@ -22,6 +22,7 @@ import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFi
 import { GoogleGuard } from "./guards/google.guard";
 import { UsersService } from "../users/services";
 import { extractRequestOrigin } from "./auth-origin";
+import { isLoopbackAddress } from "./local-auth";
 import { withoutRefreshTokenId } from "../users/user.response";
 
 @Controller("auth")
@@ -40,6 +41,13 @@ export class AuthController {
   }
 
   private isLocalRequest(req: Request) {
+    // The peer address is the one thing here the caller cannot choose: Host,
+    // X-Forwarded-Host and Origin are all just headers. Checked first so that
+    // no combination of headers can reach the rest of this.
+    if (!isLoopbackAddress(req.socket?.remoteAddress)) {
+      return false;
+    }
+
     const host = req.hostname || req.headers.host?.split(":")[0];
     const origin = extractRequestOrigin(req.headers);
     const isLocalHost =

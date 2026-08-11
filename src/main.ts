@@ -11,8 +11,14 @@ import * as cookieParser from "cookie-parser";
 const helmet = require("helmet");
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { setupApiDocs } from "./api-docs/api-docs.setup";
-import { extractRequestOrigin, parseTrustedOrigins } from "./auth/auth-origin";
+import {
+  extractRequestOrigin,
+  isUntrustedOrigin,
+  parseTrustedOrigins,
+} from "./auth/auth-origin";
 import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
+import { isOriginSecretConfigured, resolveClientIp } from "./util/client-ip";
+import { oauthSessionOptions } from "./auth/oauth-session";
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
@@ -36,17 +42,24 @@ async function bootstrap() {
   const httpLogger = new Logger("HTTP");
   const SKIP_PATHS = new Set(["/_health", "/readiness"]);
 
+  // Without the shared secret there is no way to tell a request that came
+  // through Cloudflare from one sent straight to the origin, so CF-Connecting-IP
+  // has to be taken at face value and every per-IP limit can be sidestepped by
+  // rotating it. Say so rather than letting it look protected.
+  if (!isOriginSecretConfigured()) {
+    new Logger("Bootstrap").warn(
+      "CLOUDFLARE_ORIGIN_SECRET is not set — CF-Connecting-IP is trusted " +
+        "unverified, so rate limiting and threat detection can be bypassed by " +
+        "reaching the origin directly. See docs/threat-detection.md.",
+    );
+  }
+
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SKIP_PATHS.has(req.path)) return next();
     const start = Date.now();
     res.on("finish", () => {
       const ms = Date.now() - start;
-      const cfIp = req.headers["cf-connecting-ip"];
-      const ip = cfIp
-        ? Array.isArray(cfIp)
-          ? cfIp[0]
-          : cfIp
-        : (req.ip ?? "unknown");
+      const ip = resolveClientIp(req);
       httpLogger.log(
         `${req.method} ${req.path} ${res.statusCode} ${ms}ms ${ip}`,
       );
@@ -59,11 +72,12 @@ async function bootstrap() {
   app.use(helmet());
 
   app.use(
-    expressSession({
-      secret: process.env.SESSION_SECRET!, // to sign session id
-      resave: false,
-      saveUninitialized: false,
-    }),
+    expressSession(
+      oauthSessionOptions(
+        process.env.SESSION_SECRET!, // to sign session id
+        process.env.NODE_ENV === "production",
+      ),
+    ),
   );
 
   // { whitelist : true } this strips any atributes in a dto that has no decorator.
@@ -75,16 +89,16 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
     const trustedOrigins = parseTrustedOrigins(process.env.CORS_ORIGIN);
-    const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     const usesCookieAuth = Boolean(req.cookies?.access || req.cookies?.refresh);
-    const requestOrigin = extractRequestOrigin(req.headers);
 
     if (
-      isStateChanging &&
-      usesCookieAuth &&
-      requestOrigin &&
-      trustedOrigins?.length &&
-      !trustedOrigins.includes(requestOrigin)
+      isUntrustedOrigin(
+        req.method,
+        req.path,
+        usesCookieAuth,
+        extractRequestOrigin(req.headers),
+        trustedOrigins,
+      )
     ) {
       return res.status(403).send("Untrusted origin");
     }
