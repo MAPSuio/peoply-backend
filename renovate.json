@@ -5,7 +5,6 @@
   "timezone": "Europe/Oslo",
   "schedule": ["before 6am on Monday"],
   "prConcurrentLimit": 10,
-  "prHourlyLimit": 4,
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
@@ -24,39 +23,10 @@
       "semanticCommitType": "ci"
     },
     {
-      "description": ["Keep Nest packages on the same major release"],
+      "description": ["Group npm major updates into one reviewable PR"],
       "matchManagers": ["npm"],
-      "matchPackageNames": ["@nestjs/*"],
       "matchUpdateTypes": ["major"],
-      "groupName": "nest major"
-    },
-    {
-      "description": ["Keep Prisma packages on the same major release"],
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["prisma", "@prisma/*"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "prisma major"
-    },
-    {
-      "description": ["Keep Babel runtime packages aligned on major updates"],
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["@babel/*"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "babel major"
-    },
-    {
-      "description": ["Keep Commitlint packages aligned on major updates"],
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["@commitlint/*"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "commitlint major"
-    },
-    {
-      "description": ["Keep Supertest and its types aligned on major updates"],
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["supertest", "@types/supertest"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "supertest major"
+      "groupName": "all major dependencies"
     },
     {
       "description": ["Keep Postgres test images on the same major release"],
