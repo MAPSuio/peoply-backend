@@ -10,7 +10,7 @@ runs:
     # Reads .nvmrc so the version lives in exactly one place. A workflow that
     # spelled the version out would drift from what developers run locally
     # without anything failing to point it out.
-    - uses: actions/setup-node@v5
+    - uses: actions/setup-node@v7
       with:
         node-version-file: .nvmrc
         cache: npm
