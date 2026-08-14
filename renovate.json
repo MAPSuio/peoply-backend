@@ -29,6 +29,12 @@
       "groupName": "all major dependencies"
     },
     {
+      "description": ["Update override ranges before regenerating the lockfile"],
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["overrides"],
+      "rangeStrategy": "bump"
+    },
+    {
       "description": ["Keep Postgres test images on the same major release"],
       "matchManagers": ["github-actions"],
       "matchDatasources": ["docker"],
