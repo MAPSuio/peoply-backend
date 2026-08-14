@@ -4,15 +4,70 @@
   "enabledManagers": ["npm", "github-actions"],
   "timezone": "Europe/Oslo",
   "schedule": ["before 6am on Monday"],
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 4,
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "packageRules": [
     {
-      "description": ["Check GitHub Actions monthly"],
+      "description": ["Group routine npm updates into one reviewable PR"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "all non-major dependencies"
+    },
+    {
+      "description": ["Group GitHub Actions updates and check them monthly"],
       "matchManagers": ["github-actions"],
       "schedule": ["before 6am on the first day of the month"],
+      "groupName": "github actions",
       "semanticCommitType": "ci"
+    },
+    {
+      "description": ["Keep Nest packages on the same major release"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@nestjs/*"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "nest major"
+    },
+    {
+      "description": ["Keep Prisma packages on the same major release"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["prisma", "@prisma/*"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "prisma major"
+    },
+    {
+      "description": ["Keep Babel runtime packages aligned on major updates"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@babel/*"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "babel major"
+    },
+    {
+      "description": ["Keep Commitlint packages aligned on major updates"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@commitlint/*"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "commitlint major"
+    },
+    {
+      "description": ["Keep Supertest and its types aligned on major updates"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["supertest", "@types/supertest"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "supertest major"
+    },
+    {
+      "description": ["Keep Postgres test images on the same major release"],
+      "matchManagers": ["github-actions"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "postgres",
+        "public.ecr.aws/docker/library/postgres"
+      ],
+      "matchUpdateTypes": ["major"],
+      "groupName": "postgres major"
     }
   ]
 }
