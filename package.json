@@ -136,7 +136,7 @@
     "axios": "^1.18.1",
     "brace-expansion": "^5.0.8",
     "braces": "^3.0.3",
-    "cookie": "^0.7.0",
+    "cookie": "^2.0.0",
     "cookiejar": "^2.1.4",
     "fast-uri": "^3.1.5",
     "find-my-way": "^9.7.0",
