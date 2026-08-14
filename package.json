@@ -65,7 +65,7 @@
     "express-session": "^1.19.0",
     "helmet": "^7.2.0",
     "joi": "^18.2.3",
-    "node-ical": "^0.20.1",
+    "node-ical": "^0.27.0",
     "openid-client": "^5.1.5",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
