@@ -36,6 +36,7 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
         env:
+          LOG_LEVEL: debug
           RENOVATE_BRANCH_PREFIX: renovate/
           RENOVATE_ONBOARDING: "false"
           RENOVATE_PLATFORM: github
