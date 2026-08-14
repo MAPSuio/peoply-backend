@@ -2,6 +2,8 @@ name: Renovate
 
 on:
   workflow_dispatch:
+  issues:
+    types: [edited]
   schedule:
     - cron: "0 3 * * 1"
 
@@ -14,6 +16,10 @@ permissions:
 
 jobs:
   renovate:
+    if: >-
+      github.event_name != 'issues' ||
+      (github.event.issue.title == 'Dependency Dashboard' &&
+      github.actor != 'maps-self-hosted-renovate[bot]')
     name: Dependency updates
     runs-on: ubuntu-latest
     timeout-minutes: 30
