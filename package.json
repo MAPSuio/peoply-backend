@@ -8,7 +8,7 @@
   "engineStrict": true,
   "engines": {
     "node": ">=24.0.0 < 25.0.0",
-    "npm": ">=11.0.0 < 12.0.0"
+    "npm": ">=11.0.0 < 13.0.0"
   },
   "scripts": {
     "prepare": "husky",
@@ -63,7 +63,7 @@
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "helmet": "^7.2.0",
+    "helmet": "^8.3.0",
     "joi": "^18.2.3",
     "node-ical": "^0.20.1",
     "openid-client": "^5.7.1",
@@ -78,7 +78,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
     "@commitlint/cli": "^21.2.2",
-    "@commitlint/config-conventional": "^20.5.3",
+    "@commitlint/config-conventional": "^21.2.2",
     "@jest/globals": "^30.4.1",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/schematics": "^11.1.0",
@@ -95,15 +95,15 @@
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^3.0.13",
     "@types/pg": "^8.21.0",
-    "@types/supertest": "^2.0.16",
+    "@types/supertest": "^7.2.1",
     "husky": "^9.1.7",
     "jest": "^30.4.2",
     "jest-util": "^30.4.1",
     "source-map-support": "^0.5.21",
-    "supertest": "^6.3.4",
+    "supertest": "^7.2.2",
     "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^3.15.0",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^7.0.2"
   },
   "jest": {
@@ -130,22 +130,22 @@
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "^3.15.1"
     },
-    "@babel/traverse": "^7.29.8",
-    "@babel/helpers": "^7.29.7",
+    "@babel/traverse": "^8.0.4",
+    "@babel/helpers": "^8.0.0",
     "@sideway/formula": "^3.0.1",
     "axios": "^1.19.0",
     "brace-expansion": "^5.0.9",
     "braces": "^3.0.3",
     "cookie": "^0.7.2",
     "cookiejar": "^2.1.4",
-    "fast-uri": "^3.1.5",
+    "fast-uri": "^4.1.2",
     "find-my-way": "^9.7.0",
     "form-data": "^4.0.6",
-    "formidable": "^2.1.2",
-    "jose": "^4.15.9",
+    "formidable": "^3.5.4",
+    "jose": "^6.2.8",
     "js-yaml": "^4.3.1",
     "json5": "^2.2.3",
-    "jws": "^3.2.3",
+    "jws": "^4.0.1",
     "lodash": "^4.18.1",
     "micromatch": "^4.0.8",
     "multer": "^2.2.0",
@@ -155,11 +155,11 @@
       "nanoid": "^3.3.18"
     },
     "qs": "^6.15.3",
-    "tough-cookie": "^4.1.4",
+    "tough-cookie": "^6.0.2",
     "uuid": "^11.1.1",
     "valibot": "^1.4.2",
     "word-wrap": "^1.2.5",
-    "ws": "^7.5.13",
+    "ws": "^8.21.3",
     "xml2js": "^0.6.2"
   }
 }
