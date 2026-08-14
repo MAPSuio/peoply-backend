@@ -1,0 +1,10 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":enableVulnerabilityAlerts"],
+  "enabledManagers": ["npm"],
+  "timezone": "Europe/Oslo",
+  "schedule": ["before 6am on Monday"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps"
+}
