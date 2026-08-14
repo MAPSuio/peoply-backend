@@ -14,6 +14,10 @@
       "description": ["Group routine npm updates into one reviewable PR"],
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchPackageNames": [
+        "!@azure/communication-email",
+        "!node-ical"
+      ],
       "groupName": "all non-major dependencies"
     },
     {
@@ -27,7 +31,33 @@
       "description": ["Group npm major updates into one reviewable PR"],
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "!@types/passport-jwt",
+        "!openid-client",
+        "!uuid"
+      ],
       "groupName": "all major dependencies"
+    },
+    {
+      "description": ["Queue non-major updates that require code migrations"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchPackageNames": ["@azure/communication-email", "node-ical"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": ["Queue major updates that require code migrations"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["major"],
+      "matchPackageNames": ["@types/passport-jwt", "openid-client", "uuid"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": ["Keep Istanbul's legacy js-yaml consumer on patched 3.x"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["js-yaml"],
+      "matchCurrentVersion": "/^3\\./",
+      "allowedVersions": "<4"
     },
     {
       "description": ["Keep Postgres test images on the same major release"],
