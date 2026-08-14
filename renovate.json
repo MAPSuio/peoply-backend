@@ -1,10 +1,18 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":enableVulnerabilityAlerts"],
-  "enabledManagers": ["npm"],
+  "enabledManagers": ["npm", "github-actions"],
   "timezone": "Europe/Oslo",
   "schedule": ["before 6am on Monday"],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
-  "semanticCommitScope": "deps"
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": ["Check GitHub Actions monthly"],
+      "matchManagers": ["github-actions"],
+      "schedule": ["before 6am on the first day of the month"],
+      "semanticCommitType": "ci"
+    }
+  ]
 }
