@@ -14,6 +14,7 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
+import { User } from "../generated/prisma/client";
 
 import { AuthService } from "./auth.service";
 import { ConfigService } from "@nestjs/config";
@@ -99,6 +100,63 @@ export class AuthController {
     return "http://localhost:3001";
   }
 
+  /**
+   * Mints an access and a refresh token for `user` and puts them on the
+   * response as the pair of cookies the frontend authenticates with.
+   *
+   * Every login path ends here — the two OIDC callbacks, the refresh endpoint
+   * and the local dev login — so the cookie names, their options and the two
+   * headers that tell the browser to keep them are stated once. They were
+   * written out four times, which is four places to miss when a cookie flag
+   * changes.
+   */
+  private issueSessionCookies(res: Response, user: User) {
+    res.cookie(
+      "refresh",
+      this.authService.getRefreshToken(user),
+      this.authService.getRefreshCookieOptions(),
+    );
+    res.cookie(
+      "access",
+      this.authService.getAccessToken(user),
+      this.authService.getAccessCookieOptions(),
+    );
+
+    /* headers telling the browser to save the cookies */
+    res.set("Access-Control-Allow-Credentials", "true");
+    res.set("Credentials", "true");
+  }
+
+  /**
+   * Clearing a cookie only works when the options match the ones it was
+   * written with, so this has to stay the mirror image of
+   * {@link issueSessionCookies}.
+   */
+  private clearSessionCookies(res: Response) {
+    res.clearCookie("refresh", this.authService.getRefreshCookieOptions());
+    res.clearCookie("access", this.authService.getAccessCookieOptions());
+  }
+
+  /**
+   * The tail every OIDC provider's callback shares: the session cookies, and a
+   * redirect back to whichever frontend URL that provider is configured with.
+   */
+  private async completeOidcLogin(
+    req: any,
+    res: Response,
+    redirectUriConfigKey: string,
+  ) {
+    res.clearCookie("connect.sid"); // no need to send this
+
+    const user = await this.usersService.ensureRefreshTokenId(req.user.id);
+
+    this.issueSessionCookies(res, user);
+
+    const redirectURI = this.configService.get<string>(redirectUriConfigKey);
+
+    return res.redirect(redirectURI ? redirectURI : "");
+  }
+
   private async createLocalAuthSession(
     email: string | undefined,
     userId: string | undefined,
@@ -117,15 +175,8 @@ export class AuthController {
     }
 
     const sessionUser = await this.usersService.ensureRefreshTokenId(user.id);
-    const accessToken = this.authService.getAccessToken(sessionUser);
-    const refreshToken = this.authService.getRefreshToken(sessionUser);
-    const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
 
-    res.cookie("refresh", refreshToken, refreshCookieOptions);
-    res.cookie("access", accessToken, accessCookieOptions);
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Credentials", "true");
+    this.issueSessionCookies(res, sessionUser);
 
     return sessionUser;
   }
@@ -148,16 +199,7 @@ export class AuthController {
       allowMissingOrigin: true,
     });
 
-    const newAccessToken = this.authService.getAccessToken(req.user);
-    const newRefreshToken = this.authService.getRefreshToken(req.user);
-    const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
-
-    res.cookie("access", newAccessToken, accessCookieOptions);
-    res.cookie("refresh", newRefreshToken, refreshCookieOptions);
-
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Credentials", "true");
+    this.issueSessionCookies(res, req.user);
 
     return res.sendStatus(200);
   }
@@ -212,11 +254,7 @@ export class AuthController {
   async localAuthLogout(@Req() req: Request, @Res() res: Response) {
     this.assertLocalAuthRequest(req);
 
-    const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
-
-    res.clearCookie("refresh", refreshCookieOptions);
-    res.clearCookie("access", accessCookieOptions);
+    this.clearSessionCookies(res);
 
     return res.sendStatus(200);
   }
@@ -225,58 +263,22 @@ export class AuthController {
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/callback")
   async loginCallback(@Req() req: any, @Res() res: Response) {
-    res.clearCookie("connect.sid"); // no need to send this
-
-    const user = await this.usersService.ensureRefreshTokenId(req.user.id);
-
-    /* create access and refresh tokens + cookie options */
-    const accessToken = this.authService.getAccessToken(user);
-    const refreshToken = this.authService.getRefreshToken(user);
-    const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
-
-    /* set headers related to token and cookie */
-    res.cookie("refresh", refreshToken, refreshCookieOptions);
-    res.cookie("access", accessToken, accessCookieOptions);
-
-    /* headers telling the browser to save the cookies */
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Credentials", "true");
-
-    const redirectURI = this.configService.get<string>(
+    return await this.completeOidcLogin(
+      req,
+      res,
       "VIPPS_OIDC_POST_LOGIN_REDIRECT_URI",
     );
-
-    return res.redirect(redirectURI ? redirectURI : "");
   }
 
   @UseGuards(GoogleGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/callback/google")
   async loginGoogleCallback(@Req() req: any, @Res() res: Response) {
-    res.clearCookie("connect.sid"); // no need to send this
-
-    const user = await this.usersService.ensureRefreshTokenId(req.user.id);
-
-    /* create access and refresh tokens + cookie options */
-    const accessToken = this.authService.getAccessToken(user);
-    const refreshToken = this.authService.getRefreshToken(user);
-    const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
-
-    /* set headers related to token and cookie */
-    res.cookie("refresh", refreshToken, refreshCookieOptions);
-    res.cookie("access", accessToken, accessCookieOptions);
-
-    /* headers telling the browser to save the cookies */
-    res.set("Access-Control-Allow-Credentials", "true");
-    res.set("Credentials", "true");
-
-    const redirectURI = this.configService.get<string>(
+    return await this.completeOidcLogin(
+      req,
+      res,
       "GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI",
     );
-
-    return res.redirect(redirectURI ? redirectURI : "");
   }
 
   @UseGuards(AuthenticatedGuard)
@@ -287,12 +289,8 @@ export class AuthController {
     });
     await this.usersService.rotateRefreshTokenId(req.user.id);
 
-    /* cookie options should also be sent to make sure that cookie is cleared */
-    const accessCookieOptions = this.authService.getAccessCookieOptions();
-    const refreshCookieOptions = this.authService.getRefreshCookieOptions();
+    this.clearSessionCookies(res);
 
-    res.clearCookie("refresh", refreshCookieOptions);
-    res.clearCookie("access", accessCookieOptions);
     return res.sendStatus(200);
   }
 }
