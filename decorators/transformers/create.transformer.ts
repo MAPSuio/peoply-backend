@@ -15,12 +15,17 @@ import { Transform } from "class-transformer";
  * meant to become an array of ints would arrive here as `NaN` rather than as
  * the string that was actually sent.
  */
-export const createTransformer = <T>(convert: (value: any) => T) => {
+export const createTransformer = <T>(
+  convert: (value: any) => T,
+): PropertyDecorator => {
   const toPlain = Transform(({ value }) => value, { toPlainOnly: true });
 
-  return (target: any, key: string) => {
+  /* Typed as PropertyDecorator rather than `(target, key: string)`: the
+     narrower signature cannot be handed to `applyDecorators`, which is what
+     composes these with the validators. */
+  return (target, key) => {
     toPlain(target, key);
-    Transform(({ obj }) => convert(obj[key]), { toClassOnly: true })(
+    Transform(({ obj }) => convert(obj[key as string]), { toClassOnly: true })(
       target,
       key,
     );
