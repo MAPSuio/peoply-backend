@@ -109,20 +109,24 @@ export class CommonRegistrationService {
    * wrong time. Skipped for system-initiated changes — see
    * {@link UpdateRegistrationOptions.systemInitiated}.
    */
-  private assertRegistrationIsOpen(event: EventWithRegistrations | null) {
-    if (event?.endDate && new Date() > event.endDate) {
+  private assertRegistrationIsOpen(event: EventWithRegistrations) {
+    /* One instant for all four comparisons rather than a fresh clock reading
+       per guard. */
+    const now = new Date();
+
+    if (event.endDate && now > event.endDate) {
       throw new BadRequestException("Event has ended");
     }
 
-    if (event?.regStart && new Date() < event.regStart) {
+    if (event.regStart && now < event.regStart) {
       throw new BadRequestException("Registration has not opened yet");
     }
 
-    if (event?.regEnd && new Date() > event.regEnd) {
+    if (event.regEnd && now > event.regEnd) {
       throw new BadRequestException("Registration has closed");
     }
 
-    if (event && event.registrationMode !== EventRegistrationMode.PEOPLY) {
+    if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
       throw new BadRequestException(
         "Registration for this event does not happen in Peoply",
       );
@@ -275,6 +279,42 @@ export class CommonRegistrationService {
     return registration;
   }
 
+  /**
+   * Picks the transition `from -> to` is, and runs it.
+   *
+   * Only three combinations do anything. Every other one is a no-op and has
+   * been all along: the caller gets undefined back and the registration is
+   * left as it was.
+   */
+  private async applyTransition(
+    trx: TransactionClient,
+    event: EventWithRegistrations,
+    userId: string,
+    from: RegStatus,
+    to: RegStatus,
+    formAnswer?: string,
+  ) {
+    const isJoining =
+      from === RegStatus.NOT_GOING || from === RegStatus.INVITED;
+
+    if (to === RegStatus.GOING && isJoining) {
+      return await this.takeSeat(trx, event, userId, formAnswer);
+    }
+
+    const isLeavingSeat = to === RegStatus.NOT_GOING || to === RegStatus.BANNED;
+
+    if (isLeavingSeat && from === RegStatus.GOING) {
+      return await this.releaseSeat(trx, event, userId, to);
+    }
+
+    if (to === RegStatus.NOT_GOING && from === RegStatus.WAITLISTED) {
+      /* Nobody was holding a seat, so nothing frees up for the waitlist. */
+      return await this.setRegistrationStatus(trx, event.id, userId, to, null);
+    }
+
+    return undefined;
+  }
+
   async updateRegistration(
     userId: string,
     eventId: string,
@@ -299,7 +339,11 @@ export class CommonRegistrationService {
         },
       });
 
-      if (!options.systemInitiated) {
+      /* The guards run before the registration is looked up, as they always
+         have: an event whose registration has closed answers with that rather
+         than with "no such registration". A missing event skips them, because
+         there is nothing to be open or closed. */
+      if (event && !options.systemInitiated) {
         this.assertRegistrationIsOpen(event);
       }
 
@@ -312,36 +356,14 @@ export class CommonRegistrationService {
         throw new ForeignKeyNotFoundException(eventId, userId);
       }
 
-      const from = existingReg.regStatus;
-
-      if (
-        regStatus === RegStatus.GOING &&
-        (from === RegStatus.NOT_GOING || from === RegStatus.INVITED)
-      ) {
-        return await this.takeSeat(trx, event, userId, formAnswer);
-      }
-
-      if (
-        (regStatus === RegStatus.NOT_GOING || regStatus === RegStatus.BANNED) &&
-        from === RegStatus.GOING
-      ) {
-        return await this.releaseSeat(trx, event, userId, regStatus);
-      }
-
-      if (regStatus === RegStatus.NOT_GOING && from === RegStatus.WAITLISTED) {
-        /* Nobody was holding a seat, so nothing frees up for the waitlist. */
-        return await this.setRegistrationStatus(
-          trx,
-          eventId,
-          userId,
-          regStatus,
-          null,
-        );
-      }
-
-      /* Every other combination is a no-op, and has been all along: the caller
-         gets undefined back and the registration is left as it was. */
-      return undefined;
+      return await this.applyTransition(
+        trx,
+        event,
+        userId,
+        existingReg.regStatus,
+        regStatus,
+        formAnswer,
+      );
     });
   }
 }
