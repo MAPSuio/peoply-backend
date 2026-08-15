@@ -10,6 +10,7 @@ import {
   EventNotFoundException,
   EventUpdateNotFoundException,
 } from "./exceptions";
+import { EventAccessService } from "../event-access/event-access.service";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventsService } from "./events.service";
 
@@ -77,6 +78,9 @@ describe("EventsService", () => {
       azureStorageService,
       azureCommunicationService,
       coOrganizerInvitationsService,
+      // Real instance on the same prisma mock: these tests assert the read
+      // gate through EventsService, and that gate now lives in EventAccess.
+      new EventAccessService(prisma),
     );
   });
 
@@ -231,7 +235,7 @@ describe("EventsService", () => {
       visibility: EventVisibility.UNLISTED,
     });
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
-    // canViewEvent, then the GOING check inside getUpdatesForEvent
+    // EventAccessService.canView, then the GOING check inside getUpdatesForEvent
     prisma.registration.findUnique
       .mockResolvedValueOnce({ regStatus: RegStatus.INVITED })
       .mockResolvedValueOnce({ regStatus: RegStatus.INVITED });

@@ -12,10 +12,7 @@ import {
   RegStatus,
   Registration,
 } from "../../generated/prisma/client";
-import {
-  registrationGrantsEventAccess,
-  viewableEventIds,
-} from "../registration-visibility";
+import { EventAccessService } from "../../event-access/event-access.service";
 import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
@@ -25,6 +22,7 @@ export class UserRegistrationService extends CommonRegistrationService {
   constructor(
     prismaService: PrismaService,
     azureCommunicationService: AzureCommunicationService,
+    private readonly eventAccess: EventAccessService,
   ) {
     super(prismaService, azureCommunicationService);
   }
@@ -191,7 +189,7 @@ export class UserRegistrationService extends CommonRegistrationService {
     const unviewable = registrations.filter(
       (registration) =>
         registration.event &&
-        !registrationGrantsEventAccess(
+        !this.eventAccess.registrationGrantsEventAccess(
           (registration.event as { visibility: EventVisibility }).visibility,
           registration.regStatus,
         ),
@@ -203,8 +201,7 @@ export class UserRegistrationService extends CommonRegistrationService {
 
     /* Arranging an event is its own grant, independent of the registration -
        so before redacting, check whether the caller arranges any of these. */
-    const viewable = await viewableEventIds(
-      this.prismaService,
+    const viewable = await this.eventAccess.viewableEventIds(
       userId,
       unviewable.map(({ eventId }) => eventId),
     );

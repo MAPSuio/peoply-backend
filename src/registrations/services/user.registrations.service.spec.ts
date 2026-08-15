@@ -20,7 +20,7 @@ describe("UserRegistrationService.updateAllRegistrationsOfUserToNotGoing", () =>
     prisma = {
       registration: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    service = new UserRegistrationService(prisma, {} as any);
+    service = new UserRegistrationService(prisma, {} as any, {} as any);
 
     updateRegistration = jest
       .spyOn(CommonRegistrationService.prototype, "updateRegistration")
@@ -142,10 +142,10 @@ describe("UserRegistrationService.create", () => {
     prismaService.user.findUnique.mockResolvedValue({ id: "user-1" });
     prismaService.$queryRaw.mockResolvedValue([]);
     prismaService.registration.create.mockResolvedValue({ id: "reg-1" });
-    service = new UserRegistrationService(prismaService, {} as any);
+    service = new UserRegistrationService(prismaService, {} as any, {} as any);
   });
 
-  // canViewEvent treats a GOING registration as permission to read the event,
+  // EventAccessService.canView treats a GOING registration as permission to read the event,
   // its updates and its attendee list - so creating one on an event you were
   // never invited to was how you got in.
   it.each([RegStatus.GOING, RegStatus.NOT_GOING])(
