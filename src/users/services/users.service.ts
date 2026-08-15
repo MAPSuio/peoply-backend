@@ -1,7 +1,7 @@
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
-import { HttpException, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
   OrganizationRole,
   Provider,
@@ -413,39 +413,16 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     profileImage?: Express.Multer.File,
   ) {
-    /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
-    const getImageFileName = async () => {
-      /* cannot remove and add an image at the same time... */
-      if (updateUserDto.removeImage && profileImage) {
-        throw new HttpException(
-          { message: "The profile image must either be removed or added" },
-          409,
-        );
-      }
-      /* existing image must be deleted if either removing or uploading a new one*/
-      if (user.image && (updateUserDto.removeImage || profileImage)) {
-        const imageName = user.image.slice(user.image.lastIndexOf("/") + 1); // remove url portion
-        await this.azureStorageService.delete(
-          imageName,
-          AzureStorageContainer.PROFILE_IMAGES,
-        );
-      }
-
-      /* upload image if one is provided */
-      if (profileImage) {
-        return await this.azureStorageService.upload(
-          this.azureStorageService.generateFileNameById(user.id, profileImage),
-          profileImage.buffer,
-          AzureStorageContainer.PROFILE_IMAGES,
-        );
-      } else if (updateUserDto.removeImage) {
-        return null;
-      }
-
-      return undefined;
-    };
-
-    const imageFileName = await getImageFileName();
+    /* new filename if an image is provided, null if removeImage, and undefined
+       if the column should be left alone */
+    const imageFileName = await this.azureStorageService.swapImage({
+      ownerId: user.id,
+      currentImageUrl: user.image,
+      newImage: profileImage,
+      removeImage: updateUserDto.removeImage,
+      container: AzureStorageContainer.PROFILE_IMAGES,
+      conflictMessage: "The profile image must either be removed or added",
+    });
 
     /* delete removeImage before inserting to db */
     delete updateUserDto.removeImage;

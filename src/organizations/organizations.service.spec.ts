@@ -29,7 +29,11 @@ describe("OrganizationsService", () => {
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation((cb: any) => cb(prisma));
-  const azureStorageService = {};
+  // undefined is "the request said nothing about the image", which is what
+  // these tests send.
+  const azureStorageService = {
+    swapImage: jest.fn().mockResolvedValue(undefined),
+  };
   const config = {
     get: jest.fn(),
   };
