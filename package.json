@@ -42,7 +42,7 @@
     "test:smoke": "node scripts/smoke-test.js"
   },
   "dependencies": {
-    "@azure/communication-email": "^1.0.0-beta.1",
+    "@azure/communication-email": "^1.1.0",
     "@azure/storage-blob": "^12.33.0",
     "@nestjs/common": "^11.2.1",
     "@nestjs/config": "^4.0.4",
