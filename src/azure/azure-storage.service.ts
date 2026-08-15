@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { HttpException, Injectable, OnModuleInit } from "@nestjs/common";
 import {
   BlobServiceClient,
   StorageSharedKeyCredential,
@@ -78,6 +78,62 @@ export class AzureStorageService
     await blockBlobClient.delete();
     await blockBlobClient.upload(file, file.length);
     return blockBlobClient.url;
+  }
+
+  /**
+   * Applies one profile-style image change and answers with what the owning
+   * row's `image` column should become: a URL when a new image was uploaded,
+   * `null` when the existing one was removed, and `undefined` when the request
+   * said nothing about the image and the column must be left alone.
+   *
+   * The three-way return is the reason this is one call rather than the caller
+   * branching: `null` and `undefined` mean different things to Prisma, and a
+   * caller that collapsed them would clear an image every time it saved
+   * something else.
+   *
+   * Removing and uploading in the same request is refused rather than resolved
+   * — a request that asks for both has no single obvious outcome.
+   */
+  async swapImage({
+    ownerId,
+    currentImageUrl,
+    newImage,
+    removeImage,
+    container,
+    conflictMessage,
+  }: {
+    ownerId: string;
+    currentImageUrl: string | null;
+    newImage?: Express.Multer.File;
+    removeImage?: boolean;
+    container: AzureStorageContainer;
+    conflictMessage: string;
+  }): Promise<string | null | undefined> {
+    if (removeImage && newImage) {
+      throw new HttpException({ message: conflictMessage }, 409);
+    }
+
+    /* The existing blob goes either way: it is being replaced or removed. */
+    if (currentImageUrl && (removeImage || newImage)) {
+      const blobName = currentImageUrl.slice(
+        currentImageUrl.lastIndexOf("/") + 1,
+      );
+      await this.delete(blobName, container);
+    }
+
+    if (newImage) {
+      return await this.upload(
+        this.generateFileNameById(ownerId, newImage),
+        newImage.buffer,
+        container,
+      );
+    }
+
+    if (removeImage) {
+      return null;
+    }
+
+    return undefined;
   }
 
   /**

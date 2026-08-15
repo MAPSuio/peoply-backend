@@ -215,39 +215,16 @@ export class OrganizationsService {
       }
     }
 
-    /* returns new filename if image is provided, null if removeImage, and undefined if no change should happen in db */
-    const getImageFileName = async () => {
-      /* cannot remove and add an image at the same time... */
-      if (updateOrganizationDto.removeImage && orgImage) {
-        throw new HttpException(
-          { message: "The organization image must either be removed or added" },
-          409,
-        );
-      }
-      /* existing image must be deleted if either removing or uploading a new one*/
-      if (org.image && (updateOrganizationDto.removeImage || orgImage)) {
-        const imageName = org.image.slice(org.image.lastIndexOf("/") + 1); // remove url portion
-        await this.azureStorageService.delete(
-          imageName,
-          AzureStorageContainer.ORGANIZATION_IMAGES,
-        );
-      }
-
-      /* upload image if one is provided */
-      if (orgImage) {
-        return await this.azureStorageService.upload(
-          this.azureStorageService.generateFileNameById(org.id, orgImage),
-          orgImage.buffer,
-          AzureStorageContainer.ORGANIZATION_IMAGES,
-        );
-      } else if (updateOrganizationDto.removeImage) {
-        return null;
-      }
-
-      return undefined;
-    };
-
-    const imageFileName = await getImageFileName();
+    /* new filename if an image is provided, null if removeImage, and undefined
+       if the column should be left alone */
+    const imageFileName = await this.azureStorageService.swapImage({
+      ownerId: org.id,
+      currentImageUrl: org.image,
+      newImage: orgImage,
+      removeImage: updateOrganizationDto.removeImage,
+      container: AzureStorageContainer.ORGANIZATION_IMAGES,
+      conflictMessage: "The organization image must either be removed or added",
+    });
 
     /* delete removeImage before inserting to db */
     delete normalizedUpdateOrganizationDto.removeImage;

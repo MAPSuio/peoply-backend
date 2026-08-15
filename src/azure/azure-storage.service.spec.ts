@@ -1,6 +1,7 @@
 import { ConfigService } from "@nestjs/config";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, HttpException } from "@nestjs/common";
 import { AzureStorageService } from "./azure-storage.service";
+import { AzureStorageContainer } from "./azure-storage.constants";
 
 const config = {
   AZURE_STORAGE_ACCOUNT: "peoplytest",
@@ -63,5 +64,93 @@ describe("AzureStorageService.generateFileNameById", () => {
     expect(service.generateFileNameById("event-123", fileWith(png))).toMatch(
       /^event-123-/,
     );
+  });
+});
+
+describe("AzureStorageService.swapImage", () => {
+  let service: AzureStorageService;
+  let deleted: string[];
+
+  const swap = (options: Record<string, unknown>) =>
+    service.swapImage({
+      ownerId: "owner-1",
+      currentImageUrl: null,
+      container: AzureStorageContainer.PROFILE_IMAGES,
+      conflictMessage: "either removed or added",
+      ...options,
+    } as any);
+
+  beforeEach(() => {
+    deleted = [];
+    service = new AzureStorageService(configService);
+    // The blob calls are the only thing that reaches Azure.
+    jest
+      .spyOn(service, "delete")
+      .mockImplementation(async (fileName: string) => {
+        deleted.push(fileName);
+      });
+    jest
+      .spyOn(service, "upload")
+      .mockImplementation(
+        async (fileName: string) => `https://blob/profile-images/${fileName}`,
+      );
+  });
+
+  it("uploads and answers with the new URL", async () => {
+    const result = await swap({ newImage: fileWith(png) });
+
+    expect(result).toMatch(/^https:\/\/blob\/profile-images\/owner-1-/);
+  });
+
+  it("answers null when the image is removed", async () => {
+    expect(await swap({ removeImage: true })).toBeNull();
+  });
+
+  /* null clears the column, undefined leaves it alone. Collapsing the two
+     would wipe the image every time something else was saved. */
+  it("answers undefined when the request says nothing about the image", async () => {
+    expect(await swap({})).toBeUndefined();
+  });
+
+  it("deletes the existing blob when it is replaced", async () => {
+    await swap({
+      currentImageUrl: "https://blob/profile-images/owner-1-old.png",
+      newImage: fileWith(png),
+    });
+
+    expect(deleted).toEqual(["owner-1-old.png"]);
+  });
+
+  it("deletes the existing blob when it is removed", async () => {
+    await swap({
+      currentImageUrl: "https://blob/profile-images/owner-1-old.png",
+      removeImage: true,
+    });
+
+    expect(deleted).toEqual(["owner-1-old.png"]);
+  });
+
+  it("leaves the existing blob alone when nothing about the image changed", async () => {
+    await swap({ currentImageUrl: "https://blob/profile-images/keep.png" });
+
+    expect(deleted).toEqual([]);
+  });
+
+  it("refuses to remove and upload in the same request", async () => {
+    await expect(
+      swap({ removeImage: true, newImage: fileWith(png) }),
+    ).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it("does not touch storage when it refuses", async () => {
+    await expect(
+      swap({
+        currentImageUrl: "https://blob/profile-images/owner-1-old.png",
+        removeImage: true,
+        newImage: fileWith(png),
+      }),
+    ).rejects.toThrow();
+
+    expect(deleted).toEqual([]);
   });
 });
