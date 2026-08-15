@@ -1,27 +1,26 @@
-// src/auth/oidc.strategy.ts
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { Provider } from "../../generated/prisma/client";
-import {
-  Strategy,
-  Client,
-  UserinfoResponse,
-  TokenSet,
-  Issuer,
-} from "openid-client";
+import { Strategy, Client, UserinfoResponse, TokenSet } from "openid-client";
 import { UsersService } from "../../users/services";
+import {
+  buildOidcClient,
+  findOrCreateProviderUser,
+  oidcStrategyOptions,
+  OidcProviderKeys,
+} from "./oidc";
 
-export const buildVippsClient = async (configService: ConfigService) => {
-  const TrustIssuer = await Issuer.discover(
-    `${process.env.VIPPS_OIDC_ISSUER}/.well-known/openid-configuration`,
-  );
-  const client = new TrustIssuer.Client({
-    client_id: configService.get<string>("VIPPS_OIDC_LOGIN_CLIENT_ID")!,
-    client_secret: configService.get<string>("VIPPS_OIDC_LOGIN_CLIENT_SECRET")!,
-  });
-  return client;
+const VIPPS_KEYS: OidcProviderKeys = {
+  issuerEnvKey: "VIPPS_OIDC_ISSUER",
+  clientIdKey: "VIPPS_OIDC_LOGIN_CLIENT_ID",
+  clientSecretKey: "VIPPS_OIDC_LOGIN_CLIENT_SECRET",
+  redirectUriKey: "VIPPS_OIDC_LOGIN_REDIRECT_URI",
+  scopeKey: "VIPPS_OIDC_LOGIN_SCOPE",
 };
+
+export const buildVippsClient = (configService: ConfigService) =>
+  buildOidcClient(configService, VIPPS_KEYS);
 
 export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
   client: Client;
@@ -31,21 +30,12 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
     private userService: UsersService,
     configService: ConfigService,
   ) {
-    super({
-      client: client,
-      params: {
-        redirect_uri: configService.get<string>(
-          "VIPPS_OIDC_LOGIN_REDIRECT_URI",
-        ),
-        scope: configService.get<string>("VIPPS_OIDC_LOGIN_SCOPE"),
-      },
-    });
+    super(oidcStrategyOptions(client, configService, VIPPS_KEYS));
 
     this.client = client;
   }
 
   async validate(tokenset: TokenSet): Promise<any> {
-    /* get user info from vipps */
     const userinfo: UserinfoResponse = await this.client.userinfo(tokenset);
 
     const {
@@ -56,36 +46,23 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
       birthdate: birthDate,
     } = userinfo;
 
+    /* Vipps is the identity-verified provider, so it is the one asked for
+       phone and birth date - both are required columns for a Vipps user. */
     if (!(email && phone && firstName && lastName && birthDate)) {
       throw new UnauthorizedException("Missing user info");
     }
 
-    /* check if user exists */
-    const user = await this.userService.findByProviderSub(
+    return await findOrCreateProviderUser(
+      this.userService,
       Provider.VIPPS,
       userinfo.sub,
+      {
+        email,
+        phone,
+        firstName,
+        lastName,
+        birthDate: new Date(birthDate).toISOString(),
+      },
     );
-
-    if (!user) {
-      /* this may fail, as phone or email could belong to existing user. */
-      /* We could connect these accounts if phone AND email are equal */
-      /* or some similar strategy */
-      /* Currently a Vipps user is separate from a potential Google user. */
-      const newUser = await this.userService.create(
-        {
-          email,
-          phone,
-          firstName,
-          lastName,
-          birthDate: new Date(birthDate).toISOString(),
-        },
-        Provider.VIPPS,
-        userinfo.sub,
-      );
-
-      return newUser;
-    }
-
-    return user;
   }
 }
