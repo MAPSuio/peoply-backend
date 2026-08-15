@@ -1,6 +1,9 @@
 import {
+  Event,
   EventRegistrationMode,
+  Prisma,
   RegStatus,
+  Registration,
 } from "../../generated/prisma/client";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { lockEventForSeatChange } from "../event-seat-lock";
@@ -8,6 +11,16 @@ import { AzureCommunicationService } from "../../azure/azure-communication.servi
 import { PrismaService } from "../../prisma/prisma.service";
 import { buildWaitlistedToGoingHtmlEmail } from "../../util/email";
 import { ForeignKeyNotFoundException } from "../exceptions";
+
+/**
+ * The client inside a `$transaction` callback. The helpers below take it
+ * rather than reaching for `this.prismaService`, so they cannot accidentally
+ * run outside the row lock their caller is holding.
+ */
+type TransactionClient = Prisma.TransactionClient;
+
+/** An event read with its registrations, which is what the seat maths needs. */
+type EventWithRegistrations = Event & { registrations: Registration[] };
 
 /**
  * Options for {@link CommonRegistrationService.updateRegistration}.
@@ -73,36 +86,193 @@ export class CommonRegistrationService {
         (reg) => reg.userId === userId && reg.eventId === eventId,
       );
 
-      if (event && existingReg) {
-        const reg = await trx.registration.delete({
-          where: { eventId_userId: { eventId, userId } },
-        });
-
-        if (existingReg.regStatus === RegStatus.GOING) {
-          const waitlisted = event.registrations.filter(
-            (reg) => reg.regStatus === RegStatus.WAITLISTED,
-          );
-
-          if (waitlisted.length !== 0) {
-            const nextGoing = waitlisted[0];
-
-            await trx.registration.update({
-              where: {
-                eventId_userId: {
-                  eventId: nextGoing.eventId,
-                  userId: nextGoing.userId,
-                },
-              },
-              data: { regStatus: RegStatus.GOING },
-            });
-          }
-        }
-
-        return reg;
-      } else {
+      if (!event || !existingReg) {
         throw new ForeignKeyNotFoundException(eventId, userId);
       }
+
+      const reg = await trx.registration.delete({
+        where: { eventId_userId: { eventId, userId } },
+      });
+
+      if (existingReg.regStatus === RegStatus.GOING) {
+        /* No email here, unlike the promotion in updateRegistration. That is
+           how it has always been, not a decision this split made. */
+        await this.promoteFirstWaitlisted(trx, eventId, event.registrations);
+      }
+
+      return reg;
     });
+  }
+
+  /**
+   * The guards that stop a *user* from changing their own registration at the
+   * wrong time. Skipped for system-initiated changes — see
+   * {@link UpdateRegistrationOptions.systemInitiated}.
+   */
+  private assertRegistrationIsOpen(event: EventWithRegistrations | null) {
+    if (event?.endDate && new Date() > event.endDate) {
+      throw new BadRequestException("Event has ended");
+    }
+
+    if (event?.regStart && new Date() < event.regStart) {
+      throw new BadRequestException("Registration has not opened yet");
+    }
+
+    if (event?.regEnd && new Date() > event.regEnd) {
+      throw new BadRequestException("Registration has closed");
+    }
+
+    if (event && event.registrationMode !== EventRegistrationMode.PEOPLY) {
+      throw new BadRequestException(
+        "Registration for this event does not happen in Peoply",
+      );
+    }
+  }
+
+  private setRegistrationStatus(
+    trx: TransactionClient,
+    eventId: string,
+    userId: string,
+    regStatus: RegStatus,
+    formAnswer: string | null | undefined,
+  ) {
+    return trx.registration.update({
+      where: { eventId_userId: { eventId, userId } },
+      data: { regStatus, formAnswer },
+    });
+  }
+
+  /**
+   * Moves the user who has waited longest into a seat that just came free, and
+   * answers with them so the caller can tell them about it.
+   *
+   * The registrations are ordered by `updatedAt` where they are read, so the
+   * head of the list is the head of the queue. Both callers hold the event row
+   * while they run — without it, two concurrent releases read the same head and
+   * both promote that one person, filling one of the two seats and losing the
+   * other with people still waiting.
+   */
+  private async promoteFirstWaitlisted(
+    trx: TransactionClient,
+    eventId: string,
+    registrations: Registration[],
+  ) {
+    const waitlisted = registrations.filter(
+      (registration) => registration.regStatus === RegStatus.WAITLISTED,
+    );
+
+    if (waitlisted.length === 0) {
+      return null;
+    }
+
+    const nextGoing = waitlisted[0];
+
+    await trx.registration.update({
+      where: { eventId_userId: { eventId, userId: nextGoing.userId } },
+      data: { regStatus: RegStatus.GOING },
+    });
+
+    return nextGoing;
+  }
+
+  /**
+   * Tells a promoted user they got in.
+   *
+   * The promotion itself must not be rolled back because the notification
+   * failed, so this stays caught — but it is awaited and logged: unawaited, the
+   * try/catch could never observe a rejected send, and the empty block
+   * discarded the reason.
+   */
+  private async notifyPromotedUser(
+    trx: TransactionClient,
+    event: EventWithRegistrations,
+    userId: string,
+  ) {
+    const nextGoingUser = await trx.user.findUnique({ where: { id: userId } });
+
+    try {
+      if (nextGoingUser?.allowEmailFromArranger) {
+        await this.azureCommunicationService.send({
+          sender: "no-reply@peoply.app",
+          recipients: {
+            to: [{ email: nextGoingUser.email }],
+          },
+          content: {
+            subject: `Peoply: Du har fått plass på "${event.title}"`,
+            html: buildWaitlistedToGoingHtmlEmail(event),
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Promoted user ${userId} from the waitlist on event ${
+          event.id
+        }, but the notification email failed: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+  }
+
+  /**
+   * NOT_GOING or INVITED -> GOING. Reads `going.length < capacity`, so it must
+   * run with the event row held.
+   */
+  private takeSeat(
+    trx: TransactionClient,
+    event: EventWithRegistrations,
+    userId: string,
+    formAnswer?: string,
+  ) {
+    if (event.formQuestion && !formAnswer) {
+      throw new BadRequestException("Form answer is required for this event");
+    }
+
+    const going = event.registrations.filter(
+      (registration) => registration.regStatus === RegStatus.GOING,
+    );
+    const hasRoom = event.capacity === null || going.length < event.capacity;
+
+    return this.setRegistrationStatus(
+      trx,
+      event.id,
+      userId,
+      hasRoom ? RegStatus.GOING : RegStatus.WAITLISTED,
+      formAnswer,
+    );
+  }
+
+  /**
+   * GOING -> NOT_GOING or BANNED. Frees a seat, so the head of the waitlist
+   * takes it.
+   */
+  private async releaseSeat(
+    trx: TransactionClient,
+    event: EventWithRegistrations,
+    userId: string,
+    regStatus: RegStatus,
+  ) {
+    /* Awaited before the promotion rather than returned: unawaited, the
+       leaver's row settled after the promotion instead of before it. */
+    const registration = await this.setRegistrationStatus(
+      trx,
+      event.id,
+      userId,
+      regStatus,
+      null,
+    );
+
+    const promoted = await this.promoteFirstWaitlisted(
+      trx,
+      event.id,
+      event.registrations,
+    );
+
+    if (promoted) {
+      await this.notifyPromotedUser(trx, event, promoted.userId);
+    }
+
+    return registration;
   }
 
   async updateRegistration(
@@ -130,23 +300,7 @@ export class CommonRegistrationService {
       });
 
       if (!options.systemInitiated) {
-        if (event?.endDate && new Date() > event.endDate) {
-          throw new BadRequestException("Event has ended");
-        }
-
-        if (event?.regStart && new Date() < event.regStart) {
-          throw new BadRequestException("Registration has not opened yet");
-        }
-
-        if (event?.regEnd && new Date() > event.regEnd) {
-          throw new BadRequestException("Registration has closed");
-        }
-
-        if (event && event.registrationMode !== EventRegistrationMode.PEOPLY) {
-          throw new BadRequestException(
-            "Registration for this event does not happen in Peoply",
-          );
-        }
+        this.assertRegistrationIsOpen(event);
       }
 
       const existingReg = event?.registrations.find(
@@ -154,150 +308,40 @@ export class CommonRegistrationService {
           registration.eventId === eventId && registration.userId === userId,
       );
 
-      if (event && existingReg) {
-        const going = event.registrations.filter(
-          (registration) => registration.regStatus === RegStatus.GOING,
-        );
-
-        /* If change from NOT_GOING to GOING */
-        if (
-          regStatus === RegStatus.GOING &&
-          (existingReg.regStatus === RegStatus.NOT_GOING ||
-            existingReg.regStatus === RegStatus.INVITED)
-        ) {
-          /* If event has no capacity or if there is free space
-           * Just update registration status
-           */
-          if (event.formQuestion && !formAnswer) {
-            throw new BadRequestException(
-              "Form answer is required for this event",
-            );
-          }
-
-          if (event.capacity === null || going.length < event.capacity) {
-            return trx.registration.update({
-              where: {
-                eventId_userId: {
-                  eventId: eventId,
-                  userId,
-                },
-              },
-              data: {
-                regStatus: regStatus,
-                formAnswer,
-              },
-            });
-
-            /* Else add to waitlist */
-          } else {
-            return trx.registration.update({
-              where: {
-                eventId_userId: {
-                  eventId: eventId,
-                  userId,
-                },
-              },
-              data: {
-                regStatus: RegStatus.WAITLISTED,
-                formAnswer,
-              },
-            });
-          }
-
-          /* If change from GOING to NOT_GOING
-           * Check if there is anyone on waitlist
-           */
-        } else if (
-          (regStatus === RegStatus.NOT_GOING ||
-            regStatus === RegStatus.BANNED) &&
-          existingReg.regStatus === RegStatus.GOING
-        ) {
-          const waitlisted = event.registrations.filter(
-            (registration) => registration.regStatus === RegStatus.WAITLISTED,
-          );
-
-          /* Get current registration */
-          const registration = await trx.registration.update({
-            where: {
-              eventId_userId: {
-                eventId: eventId,
-                userId,
-              },
-            },
-            data: {
-              regStatus: regStatus,
-              formAnswer: null,
-            },
-          });
-
-          /* If there is someone in waitlist, give space to first on waitlist */
-          if (waitlisted.length !== 0) {
-            const nextGoing = waitlisted[0];
-
-            await trx.registration.update({
-              where: {
-                eventId_userId: {
-                  eventId: eventId,
-                  userId: nextGoing.userId,
-                },
-              },
-              data: {
-                regStatus: RegStatus.GOING,
-              },
-            });
-
-            const nextGoingUser = await trx.user.findUnique({
-              where: { id: nextGoing.userId },
-            });
-
-            // The promotion itself must not be rolled back because the
-            // notification failed, so this stays caught — but it is awaited
-            // and logged: unawaited, the try/catch could never observe a
-            // rejected send, and the empty block discarded the reason.
-            try {
-              if (nextGoingUser?.allowEmailFromArranger) {
-                await this.azureCommunicationService.send({
-                  sender: "no-reply@peoply.app",
-                  recipients: {
-                    to: [{ email: nextGoingUser.email }],
-                  },
-                  content: {
-                    subject: `Peoply: Du har fått plass på "${event.title}"`,
-                    html: buildWaitlistedToGoingHtmlEmail(event),
-                  },
-                });
-              }
-            } catch (error) {
-              this.logger.warn(
-                `Promoted user ${
-                  nextGoing.userId
-                } from the waitlist on event ${eventId}, but the notification email failed: ${
-                  error instanceof Error ? error.message : error
-                }`,
-              );
-            }
-          }
-          return registration;
-        } else if (
-          regStatus === RegStatus.NOT_GOING &&
-          existingReg.regStatus === RegStatus.WAITLISTED
-        ) {
-          return trx.registration.update({
-            where: {
-              eventId_userId: {
-                eventId: eventId,
-                userId,
-              },
-            },
-            data: {
-              regStatus: regStatus,
-              formAnswer: null,
-            },
-          });
-        }
-      } else {
+      if (!event || !existingReg) {
         throw new ForeignKeyNotFoundException(eventId, userId);
       }
+
+      const from = existingReg.regStatus;
+
+      if (
+        regStatus === RegStatus.GOING &&
+        (from === RegStatus.NOT_GOING || from === RegStatus.INVITED)
+      ) {
+        return await this.takeSeat(trx, event, userId, formAnswer);
+      }
+
+      if (
+        (regStatus === RegStatus.NOT_GOING || regStatus === RegStatus.BANNED) &&
+        from === RegStatus.GOING
+      ) {
+        return await this.releaseSeat(trx, event, userId, regStatus);
+      }
+
+      if (regStatus === RegStatus.NOT_GOING && from === RegStatus.WAITLISTED) {
+        /* Nobody was holding a seat, so nothing frees up for the waitlist. */
+        return await this.setRegistrationStatus(
+          trx,
+          eventId,
+          userId,
+          regStatus,
+          null,
+        );
+      }
+
+      /* Every other combination is a no-op, and has been all along: the caller
+         gets undefined back and the registration is left as it was. */
+      return undefined;
     });
   }
 }
