@@ -5,17 +5,18 @@ import {
   IsOptional,
   IsString,
   Max,
-  Min,
   MaxLength,
+  Min,
   MinLength,
 } from "class-validator";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { PaginationDto } from "../../util/pagination.dto";
 import { MaxSearchTokens } from "../../../decorators/validators/maxSearchTokens.validator";
 
 /** Ten pages of the largest allowed page size. */
 const MAX_SKIP = MAX_PAGE_SIZE * 10;
 
-export class SearchUserDto {
+export class SearchUserDto extends PaginationDto {
   /* Every whitespace-separated token becomes its own AND group, each holding
      up to eight `ILIKE` predicates (four spelling variants x firstName and
      lastName). With no upper bound a ~9 KB query built roughly 20 000
@@ -33,22 +34,19 @@ export class SearchUserDto {
   @MaxSearchTokens(10)
   name?: string;
 
-  @IsOptional()
   /* `take` was capped and `skip` was not, so paging straight through the whole
      user table was a matter of walking skip upwards. The cap is generous enough
-     to reach anyone through search but stops the endpoint being a bulk export. */
+     to reach anyone through search but stops the endpoint being a bulk export.
+
+     Every rule is restated rather than only adding @Max on top of the inherited
+     ones: overriding a property makes class-validator use the subclass's
+     metadata for it, so the inherited @Min(0) would quietly stop applying and a
+     negative skip would validate. pagination.spec.ts is what catches that. */
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(MAX_SKIP)
   @Type(() => Number)
   @ApiProperty({ required: false, maximum: MAX_SKIP })
-  skip?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(MAX_PAGE_SIZE)
-  @Type(() => Number)
-  @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
-  take?: number;
+  declare skip?: number;
 }

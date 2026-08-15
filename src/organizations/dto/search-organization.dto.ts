@@ -1,17 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import {
-  IsArray,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from "class-validator";
+import { IsArray, IsOptional, IsString } from "class-validator";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
-import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { PaginationDto } from "../../util/pagination.dto";
 
-export class SearchOrganizationDto {
+export class SearchOrganizationDto extends PaginationDto {
   @IsOptional()
   @IsString()
   @ApiProperty({ required: false })
@@ -27,19 +19,4 @@ export class SearchOrganizationDto {
   @IsString()
   @ApiProperty({ required: false })
   description?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  @ApiProperty({ required: false })
-  skip?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(MAX_PAGE_SIZE)
-  @Type(() => Number)
-  @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
-  take?: number;
 }
