@@ -1,0 +1,38 @@
+# Kodehelse på diffen: død kode, ubrukte eksporter og dependencies,
+# kompleksitet og duplisering. Kun funn PR-en selv innfører feiler jobben —
+# arvet gjeld rapporteres, men blokkerer ikke. Det er derfor den kan stå på i
+# et repo som ikke er ryddet ferdig.
+name: Code Health
+
+on:
+  workflow_call:
+
+jobs:
+  fallow:
+    name: Fallow
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # audit sammenligner mot merge-base, så den trenger full historikk. Det
+      # er også grunnen til at denne jobben ikke bruker standard-checkouten i
+      # de andre workflowene.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Installerer Node fra .nvmrc og hele avhengighetstreet fra lockfila.
+      # fallow må kunne resolve imports til faktiske pakker.
+      - uses: ./.github/actions/setup
+
+      # Basen går via env, ikke inline-interpolering, så et grennavn aldri kan
+      # tolkes som shell.
+      #
+      # --max-crap står her og ikke bare i .fallowrc.json fordi health.maxCrap
+      # ikke slår gjennom til audit i fallow 3.15.0 — bare flagget gjør det.
+      # Begrunnelsen for verdien ligger i .fallowrc.json.
+      #
+      # Versjonen er pinnet med vilje. Bump bevisst: nye versjoner finner nye
+      # ting og kan gjøre grønne PR-er røde.
+      - env:
+          BASE_REF: ${{ github.base_ref || 'master' }}
+        run: npx --yes fallow@3.15.0 audit --base "origin/$BASE_REF" --max-crap 500

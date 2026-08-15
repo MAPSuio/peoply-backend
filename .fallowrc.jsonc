@@ -1,0 +1,88 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+
+  // Filer som kjøres direkte og ikke importeres av noe: Nest-bootstrap,
+  // Prisma-seeds og dev-scriptene. Uten dette rapporteres de som ubrukte
+  // filer, og pakkene de bruker som devDependencies i produksjonskode.
+  "entry": ["src/main.ts", "prisma/*.ts", "scripts/*.js"],
+
+  // Prisma-klienten er generert, ikke skrevet. Migrasjonene er SQL-historikk.
+  "ignorePatterns": ["src/generated/**", "prisma/migrations/**"],
+
+  // Pakker som brukes uten et import-uttrykk fallow ser. Skriv én linje per
+  // pakke med hvorfor — ellers vokser lista uten at noen tør rydde.
+  "ignoreDependencies": [
+    // Brukes i src/main.ts, men via `import cookieParser = require(...)`.
+    // Fallow teller ikke den import-formen som bruk.
+    "cookie-parser",
+    // Lastes av Nest CLI gjennom "collection" i nest-cli.json.
+    "@nestjs/schematics"
+  ],
+
+  "rules": {
+    // Alt som handler om kode ingen bruker, skal stoppe PR-en. Standard er
+    // allerede error for de fleste; disse er hevet fra warn.
+    "unused-dev-dependencies": "error",
+    "unused-optional-dependencies": "error",
+    "type-only-dependencies": "error",
+    "test-only-dependencies": "error",
+    "dev-dependencies-in-production": "error",
+    "re-export-cycle": "error",
+
+    // API-et håndterer brukerdata, innlogging og betalte arrangementer. En ny
+    // usikker sink eller en type som lekker ut av modulgrensen skal ikke
+    // kunne gli forbi review.
+    "security-sink": "error",
+    "private-type-leaks": "error",
+
+    // Suppressions skal ha en begrunnelse, og de skal fjernes når de er
+    // utdaterte. Uten dette samler det seg opp ignore-kommentarer ingen
+    // husker hvorfor står der.
+    "require-suppression-reason": "error",
+    "stale-suppressions": "error"
+  },
+
+  "health": {
+    // Strengere enn fallows standard (20/15/60). En funksjon over disse
+    // grensene skal deles opp, ikke forklares bort. Trenger du unntak, bruk
+    // thresholdOverrides med en begrunnelse framfor å heve taket for alle.
+    "maxCyclomatic": 10,
+    "maxCognitive": 12,
+    "maxUnitSize": 50,
+
+    // CRAP er slått av som port. Formelen er cyclomatic² × (1 − dekning)³ +
+    // cyclomatic, og vi mater ikke inn dekningsdata, så fallow gjetter den.
+    // Gjetter den null, gir standardterskelen på 30 utslag på alt med
+    // cyclomatic ≥ 5 — det er en cyclomatic-teller med misvisende navn, og du
+    // kommer ikke forbi den ved å rydde. 500 ligger over det cyclomatic 20 gir
+    // ved null dekning, så cyclomatic, cognitive og unit size slår alltid ut
+    // først. Skru på ordentlig CRAP-måling den dagen CI produserer
+    // coverage-final.json — npm run test:cov lager den allerede.
+    //
+    // NB: nøkkelen slår ikke gjennom til `fallow audit` i 3.15.0 — workflowen
+    // sender --max-crap 500 på kommandolinja i tillegg.
+    "maxCrap": 500
+  },
+
+  "duplicates": {
+    // semantic blinder identifikatorer, så en kopiert service-metode med nye
+    // variabelnavn også fanges. `near` står av: gapped near-miss-deteksjon
+    // finner mye, men det meste av det er ikke kopier.
+    "mode": "semantic"
+  },
+
+  "typeAware": {
+    // Semantisk TypeScript-analyse. Uten den er «er dette symbolet brukt?»
+    // et tekstsøk; med den følger fallow faktiske typer på tvers av filer.
+    // best-effort: mangler den typeinfo et sted, rapporteres hullet framfor
+    // å felle hele jobben.
+    "enabled": true,
+    "projects": ["tsconfig.json"],
+    "require": "best-effort"
+  },
+
+  // Nest bruker dekoratører overalt. Et felt med @Column eller @Inject er
+  // brukt selv om ingen leser det i kildekoden, så fallow hopper over
+  // dekorerte medlemmer — det er standardoppførselen, og den beholder vi.
+  "usedClassMembers": []
+}

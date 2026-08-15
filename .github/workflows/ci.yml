@@ -51,6 +51,14 @@ jobs:
     name: Database TLS
     uses: ./.github/workflows/database-tls.yml
 
+  # Måler bare det PR-en endrer, mot merge-basen. På push til master finnes
+  # ingen base å sammenligne med, så jobben kjører ikke der — og den står
+  # derfor heller ikke i deploy sin needs-liste.
+  code-health:
+    name: Code Health
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/code-health.yml
+
   deploy:
     name: Deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
