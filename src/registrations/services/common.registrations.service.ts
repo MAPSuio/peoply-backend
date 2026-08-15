@@ -255,7 +255,7 @@ export class CommonRegistrationService {
                  Both must hold: the arranger flag is the blanket opt-out. */
               if (
                 nextGoingUser?.allowEmailFromArranger &&
-                nextGoingUser?.allowEmailOnWaitlist
+                nextGoingUser?.allowEmailOnWaitlist !== false
               ) {
                 await this.azureCommunicationService.send({
                   sender: "no-reply@peoply.app",
