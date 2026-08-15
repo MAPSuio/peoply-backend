@@ -93,7 +93,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^24.13.3",
     "@types/passport": "^1.0.17",
-    "@types/passport-jwt": "^3.0.13",
+    "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.21.0",
     "@types/supertest": "^7.2.1",
     "husky": "^9.1.7",
