@@ -31,7 +31,7 @@ export class PopupsService {
     this.ensureValidInterval(startsAt, endsAt);
 
     return this.prisma.$transaction(async (trx) => {
-      await trx.$queryRaw`SELECT pg_advisory_xact_lock(1886351477)`;
+      await trx.$executeRaw`SELECT pg_advisory_xact_lock(1886351477)`;
       await this.ensureAvailable(trx.popup, startsAt, endsAt);
 
       return trx.popup.create({
@@ -42,7 +42,7 @@ export class PopupsService {
 
   update(popupId: string, dto: UpdatePopupDto) {
     return this.prisma.$transaction(async (trx) => {
-      await trx.$queryRaw`SELECT pg_advisory_xact_lock(1886351477)`;
+      await trx.$executeRaw`SELECT pg_advisory_xact_lock(1886351477)`;
       const popup = await trx.popup.findUnique({ where: { id: popupId } });
 
       if (!popup) {
@@ -67,7 +67,7 @@ export class PopupsService {
 
   async remove(popupId: string) {
     await this.prisma.$transaction(async (trx) => {
-      await trx.$queryRaw`SELECT pg_advisory_xact_lock(1886351477)`;
+      await trx.$executeRaw`SELECT pg_advisory_xact_lock(1886351477)`;
       const popup = await trx.popup.findUnique({
         where: { id: popupId },
       });

@@ -10,7 +10,11 @@ describe("PopupsService", () => {
     update: jest.fn(),
     delete: jest.fn(),
   };
-  const trx = { popup, $queryRaw: jest.fn() };
+  /* $executeRaw, not $queryRaw: pg_advisory_xact_lock() returns void and
+     $queryRaw fails to deserialize a void column, which 500'd every popup
+     write. Mocking the method the service actually calls is what makes that
+     regression visible here. */
+  const trx = { popup, $executeRaw: jest.fn() };
   const prisma = {
     popup,
     $transaction: jest.fn((fn: any) => fn(trx)),
@@ -59,7 +63,7 @@ describe("PopupsService", () => {
       }),
     ).resolves.toEqual({ id: "popup-1" });
 
-    expect(trx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(trx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(popup.findFirst).toHaveBeenCalledWith({
       where: {
         id: undefined,
@@ -169,9 +173,9 @@ describe("PopupsService", () => {
 
     await service.remove("popup-1");
 
-    expect(trx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(trx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(popup.delete).toHaveBeenCalledWith({ where: { id: "popup-1" } });
-    expect(trx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(trx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
       popup.findUnique.mock.invocationCallOrder[0],
     );
   });
