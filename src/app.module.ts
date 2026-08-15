@@ -28,6 +28,7 @@ import { FeedbackModule } from "./feedback/feedback.module";
 import { HealthModule } from "./health/health.module";
 import { RecommendationsModule } from "./recommendations/recommendations.module";
 import { LocationSearchModule } from "./location-search/location-search.module";
+import { PopupsModule } from "./popups/popups.module";
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { LocationSearchModule } from "./location-search/location-search.module";
     AllergensModule,
     IcsFeedsModule,
     RecommendationsModule,
+    PopupsModule,
   ],
   controllers: [AppController],
   providers: [
