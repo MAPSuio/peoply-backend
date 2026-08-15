@@ -8,6 +8,7 @@ import { ArrangersModule } from "../arrangers/arrangers.module";
 import { AuthModule } from "../auth/auth.module";
 import { UsersModule } from "../users/users.module";
 import { AzureModule } from "../azure/azure.module";
+import { AdministrationModule } from "../administration/administration.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AzureModule } from "../azure/azure.module";
     AuthModule,
     forwardRef(() => UsersModule),
     AzureModule,
+    AdministrationModule,
   ],
   controllers: [OrganizationsController],
   providers: [OrganizationsService],

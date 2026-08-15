@@ -104,6 +104,19 @@ model UserSeenUpdate {
   @@map("user_seen_updates")
 }
 
+model Popup {
+  id        String   @id @default(uuid())
+  title     String   @db.VarChar(120)
+  body      String   @db.VarChar(4000)
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([startsAt, endsAt])
+  @@map("popups")
+}
+
 enum UserSeenUpdateType {
   HAS_SET_ALLERGENS
 }

@@ -51,6 +51,7 @@ import {
   createOrganizationCalendarIcs,
   getOrganizationCalendarFileName,
 } from "./organization-calendar";
+import { AdministrationService } from "../administration/administration.service";
 
 @Controller("organizations")
 export class OrganizationsController {
@@ -58,6 +59,7 @@ export class OrganizationsController {
     private readonly organizationsService: OrganizationsService,
     private readonly organizationInvitationsService: OrganizationInvitationsService,
     private readonly eventArrangersService: EventArrangersService,
+    private readonly administrationService: AdministrationService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -88,7 +90,7 @@ export class OrganizationsController {
   @Get("/admin/all")
   async findAllAdmin(@Req() req: any, @Query() query: SearchOrganizationDto) {
     const { skip, take } = query;
-    await this.organizationsService.ensureMapsMember(req.user.id);
+    await this.administrationService.ensureAccess(req.user.id);
     return this.organizationsService.findAllIncludingUnapproved(
       query,
       skip,
@@ -103,7 +105,7 @@ export class OrganizationsController {
     @Param("orgId") orgId: string,
     @Body() updateOrganizationApprovalDto: UpdateOrganizationApprovalDto,
   ) {
-    await this.organizationsService.ensureMapsAdmin(req.user.id);
+    await this.administrationService.ensureAdmin(req.user.id);
     return this.organizationsService.updateApproval(
       orgId,
       updateOrganizationApprovalDto.approved,

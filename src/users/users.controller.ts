@@ -39,6 +39,7 @@ import { OrganizationsService } from "../organizations/organizations.service";
 import { SearchUserDto } from "./dto/search-user.dto";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AuthService } from "../auth/auth.service";
+import { AdministrationService } from "../administration/administration.service";
 
 @Controller("users")
 export class UsersController {
@@ -51,12 +52,16 @@ export class UsersController {
     private readonly notificationsService: NotificationsService,
     private readonly authService: AuthService,
     private readonly followService: FollowService,
+    private readonly administrationService: AdministrationService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
-    return withoutRefreshTokenId(req.user);
+    return {
+      ...withoutRefreshTokenId(req.user),
+      ...(await this.administrationService.getPermissions(req.user.id)),
+    };
   }
 
   @UseGuards(AuthenticatedGuard)

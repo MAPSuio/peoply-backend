@@ -1,0 +1,85 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":enableVulnerabilityAlerts"],
+  "enabledManagers": ["npm", "github-actions"],
+  "timezone": "Europe/Oslo",
+  "schedule": ["before 6am on Monday"],
+  "rangeStrategy": "bump",
+  "prConcurrentLimit": 10,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": ["Group routine npm updates into one reviewable PR"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchPackageNames": [
+        "!@azure/communication-email",
+        "!node-ical"
+      ],
+      "groupName": "all non-major dependencies"
+    },
+    {
+      "description": ["Group GitHub Actions updates and check them monthly"],
+      "matchManagers": ["github-actions"],
+      "schedule": ["before 6am on the first day of the month"],
+      "groupName": "github actions",
+      "semanticCommitType": "ci"
+    },
+    {
+      "description": ["Group npm major updates into one reviewable PR"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "!@types/passport-jwt",
+        "!cookie",
+        "!js-yaml",
+        "!nanoid",
+        "!openid-client",
+        "!uuid"
+      ],
+      "groupName": "all major dependencies"
+    },
+    {
+      "description": ["Queue non-major updates that require code migrations"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchPackageNames": ["@azure/communication-email", "node-ical"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": ["Queue major updates that require code migrations"],
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "@types/passport-jwt",
+        "cookie",
+        "js-yaml",
+        "nanoid",
+        "openid-client",
+        "uuid"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": ["Keep Istanbul's legacy js-yaml consumer on patched 3.x"],
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["js-yaml"],
+      "matchCurrentVersion": "/^3\\./",
+      "matchCurrentValue": "/^\\^3\\./",
+      "allowedVersions": "<4"
+    },
+    {
+      "description": ["Keep Postgres test images on the same major release"],
+      "matchManagers": ["github-actions"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "postgres",
+        "public.ecr.aws/docker/library/postgres"
+      ],
+      "matchUpdateTypes": ["major"],
+      "groupName": "postgres major"
+    }
+  ]
+}
