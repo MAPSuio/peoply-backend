@@ -4,9 +4,7 @@
    discovery entry point are needed here; validate() talks to the client it was
    handed, and that one is a stub either way. */
 jest.mock("openid-client", () => ({
-  Strategy: class {
-    constructor(..._args: unknown[]) {}
-  },
+  Strategy: class {},
   Issuer: { discover: jest.fn() },
 }));
 
