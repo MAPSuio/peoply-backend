@@ -1,29 +1,26 @@
-// src/auth/oidc.strategy.ts
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { Provider } from "../../generated/prisma/client";
-import {
-  Strategy,
-  Client,
-  UserinfoResponse,
-  TokenSet,
-  Issuer,
-} from "openid-client";
+import { Strategy, Client, UserinfoResponse, TokenSet } from "openid-client";
 import { UsersService } from "../../users/services";
+import {
+  buildOidcClient,
+  findOrCreateProviderUser,
+  oidcStrategyOptions,
+  OidcProviderKeys,
+} from "./oidc";
 
-export const buildGoogleClient = async (configService: ConfigService) => {
-  const TrustIssuer = await Issuer.discover(
-    `${process.env.GOOGLE_OIDC_ISSUER}/.well-known/openid-configuration`,
-  );
-  const client = new TrustIssuer.Client({
-    client_id: configService.get<string>("GOOGLE_OIDC_LOGIN_CLIENT_ID")!,
-    client_secret: configService.get<string>(
-      "GOOGLE_OIDC_LOGIN_CLIENT_SECRET",
-    )!,
-  });
-  return client;
+const GOOGLE_KEYS: OidcProviderKeys = {
+  issuerEnvKey: "GOOGLE_OIDC_ISSUER",
+  clientIdKey: "GOOGLE_OIDC_LOGIN_CLIENT_ID",
+  clientSecretKey: "GOOGLE_OIDC_LOGIN_CLIENT_SECRET",
+  redirectUriKey: "GOOGLE_OIDC_LOGIN_REDIRECT_URI",
+  scopeKey: "GOOGLE_OIDC_LOGIN_SCOPE",
 };
+
+export const buildGoogleClient = (configService: ConfigService) =>
+  buildOidcClient(configService, GOOGLE_KEYS);
 
 export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   client: Client;
@@ -33,21 +30,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     private userService: UsersService,
     configService: ConfigService,
   ) {
-    super({
-      client: client,
-      params: {
-        redirect_uri: configService.get<string>(
-          "GOOGLE_OIDC_LOGIN_REDIRECT_URI",
-        ),
-        scope: configService.get<string>("GOOGLE_OIDC_LOGIN_SCOPE"),
-      },
-    });
+    super(oidcStrategyOptions(client, configService, GOOGLE_KEYS));
 
     this.client = client;
   }
 
   async validate(tokenset: TokenSet): Promise<any> {
-    /* get user info from vipps */
     const userinfo: UserinfoResponse = await this.client.userinfo(tokenset);
 
     const {
@@ -61,34 +49,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       throw new UnauthorizedException("Missing user info");
     }
 
+    /* An unverified address would let anyone who can create a Google account
+       for someone else's address log in as them. */
     if (!emailVerified) {
       throw new UnauthorizedException("Email not verified");
     }
 
-    /* check if user exists */
-    const user = await this.userService.findByProviderSub(
+    return await findOrCreateProviderUser(
+      this.userService,
       Provider.GOOGLE,
       userinfo.sub,
+      { email, firstName, lastName },
     );
-
-    if (!user) {
-      /* this may fail, as phone or email could belong to existing user. */
-      /* We could connect these accounts if phone AND email are equal */
-      /* or some similar strategy */
-      /* Currently a Vipps user is separate from a potential Google user. */
-      const newUser = await this.userService.create(
-        {
-          email,
-          firstName,
-          lastName,
-        },
-        Provider.GOOGLE,
-        userinfo.sub,
-      );
-
-      return newUser;
-    }
-
-    return user;
   }
 }
