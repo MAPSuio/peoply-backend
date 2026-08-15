@@ -27,7 +27,18 @@
     // Fallow teller ikke den import-formen som bruk.
     "cookie-parser",
     // Lastes av Nest CLI gjennom "collection" i nest-cli.json.
-    "@nestjs/schematics"
+    "@nestjs/schematics",
+    // scripts/test-discord-alerts.js gjør `require("dotenv")` inne i en
+    // try/catch og faller tilbake på env satt utenfra. Den er valgfri med
+    // vilje, så den skal ikke stå i package.json.
+    "dotenv",
+    // Meldes som test-only fordi ingen produksjonsfil importerer dem direkte.
+    // Begge trengs likevel når appen kjører: predeploy:prod kjører
+    // `prisma migrate deploy`, og pg er driveren @prisma/adapter-pg åpner
+    // databasen med ved oppstart. Flytter man dem til devDependencies, ryker
+    // deployen den dagen de blir prunet.
+    "pg",
+    "prisma"
   ],
 
   "rules": {
