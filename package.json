@@ -152,7 +152,7 @@
     "on-headers": "^1.1.0",
     "picomatch": "^4.0.5",
     "postcss": {
-      "nanoid": "^3.3.18"
+      "nanoid": "^6.0.1"
     },
     "qs": "^6.15.3",
     "tough-cookie": "^6.0.2",
