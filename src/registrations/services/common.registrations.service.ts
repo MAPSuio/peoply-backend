@@ -54,12 +54,17 @@ export class CommonRegistrationService {
         include: { registrations: { orderBy: { updatedAt: "asc" } } },
       });
 
+      /* Bare Error is not an HttpException, so PrismaExceptionFilter passes
+         it through and Nest answers 500 - a caller asking to unregister after
+         registration closed got "Internal server error" instead of being told
+         why. The sibling checks in updateRegistration already use
+         BadRequestException. */
       if (event?.regStart && new Date() < event.regStart) {
-        throw new Error("Registration is not open yet");
+        throw new BadRequestException("Registration is not open yet");
       }
 
       if (event?.regEnd && new Date() > event.regEnd) {
-        throw new Error("Registration closed");
+        throw new BadRequestException("Registration closed");
       }
 
       const existingReg = event?.registrations.find(
@@ -242,7 +247,16 @@ export class CommonRegistrationService {
             // and logged: unawaited, the try/catch could never observe a
             // rejected send, and the empty block discarded the reason.
             try {
-              if (nextGoingUser?.allowEmailFromArranger) {
+              /* This is the waitlist notification, so it is the waitlist
+                 preference that governs it. `allowEmailOnWaitlist` is offered
+                 in UpdateUserDto and stored on the row, but was read nowhere
+                 in the codebase - a user who turned waitlist mail off still
+                 got it, because the check used the general arranger flag.
+                 Both must hold: the arranger flag is the blanket opt-out. */
+              if (
+                nextGoingUser?.allowEmailFromArranger &&
+                nextGoingUser?.allowEmailOnWaitlist
+              ) {
                 await this.azureCommunicationService.send({
                   sender: "no-reply@peoply.app",
                   recipients: {
