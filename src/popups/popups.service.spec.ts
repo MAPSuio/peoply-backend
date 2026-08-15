@@ -66,7 +66,7 @@ describe("PopupsService", () => {
         startsAt: { lt: new Date("2026-08-16T12:00:00.000Z") },
         endsAt: { gt: new Date("2026-08-16T10:00:00.000Z") },
       },
-      select: { id: true },
+      select: { id: true, title: true, startsAt: true, endsAt: true },
     });
     expect(popup.create).toHaveBeenCalledWith({
       data: {
@@ -91,8 +91,14 @@ describe("PopupsService", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("rejects overlapping intervals", async () => {
-    popup.findFirst.mockResolvedValueOnce({ id: "existing-popup" });
+  it("rejects overlapping intervals and names the popup it collided with", async () => {
+    const existing = {
+      id: "existing-popup",
+      title: "Fadderuka",
+      startsAt: new Date("2026-08-16T09:00:00.000Z"),
+      endsAt: new Date("2026-08-16T11:00:00.000Z"),
+    };
+    popup.findFirst.mockResolvedValueOnce(existing);
 
     await expect(
       service.create({
@@ -101,7 +107,15 @@ describe("PopupsService", () => {
         startsAt: "2026-08-16T10:00:00.000Z",
         endsAt: "2026-08-16T12:00:00.000Z",
       }),
-    ).rejects.toMatchObject({ status: HttpStatus.CONFLICT });
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+      /* The admin has to be able to find it - a bare "overlaps another popup"
+         is unactionable when the other popup is not on screen. */
+      response: {
+        message: "Tidsrommet overlapper «Fadderuka»",
+        conflictingPopup: existing,
+      },
+    });
 
     expect(popup.create).not.toHaveBeenCalled();
   });
@@ -127,7 +141,7 @@ describe("PopupsService", () => {
         startsAt: { lt: new Date("2026-08-16T13:00:00.000Z") },
         endsAt: { gt: new Date("2026-08-16T10:00:00.000Z") },
       },
-      select: { id: true },
+      select: { id: true, title: true, startsAt: true, endsAt: true },
     });
     expect(popup.update).toHaveBeenCalledWith({
       where: { id: "popup-1" },

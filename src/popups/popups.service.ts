@@ -98,11 +98,17 @@ export class PopupsService {
         startsAt: { lt: endsAt },
         endsAt: { gt: startsAt },
       },
-      select: { id: true },
+      /* Enough to name the offender. "Tidsrommet overlapper en annen popup"
+         on its own is unactionable when the popup it collides with is one the
+         admin cannot see - it reads as the scheduler inventing a conflict. */
+      select: { id: true, title: true, startsAt: true, endsAt: true },
     });
 
     if (overlap) {
-      throw new ConflictException("Tidsrommet overlapper en annen popup");
+      throw new ConflictException({
+        message: `Tidsrommet overlapper «${overlap.title}»`,
+        conflictingPopup: overlap,
+      });
     }
   }
 }
