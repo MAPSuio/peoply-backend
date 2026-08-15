@@ -9,6 +9,7 @@ import { InvitationsModule } from "../invitations/invitations.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { AuthModule } from "../auth/auth.module";
 import { UsersModule } from "../users/users.module";
+import { EventAccessModule } from "../event-access/event-access.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UsersModule } from "../users/users.module";
     OrganizationsModule,
     AuthModule,
     UsersModule,
+    EventAccessModule,
   ],
   controllers: [EventsController],
   providers: [EventsService],

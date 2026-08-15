@@ -17,7 +17,7 @@ describe("FavoritesService", () => {
       eventId: "event-1",
       userId: "user-1",
     });
-    service = new FavoritesService(prismaService);
+    service = new FavoritesService(prismaService, {} as any);
   });
 
   it.each([EventVisibility.PUBLIC, EventVisibility.UNLISTED])(

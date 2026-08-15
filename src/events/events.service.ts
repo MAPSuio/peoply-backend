@@ -35,6 +35,7 @@ import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { createUuid } from "../util/uuid";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
+import { EventAccessService } from "../event-access/event-access.service";
 
 /**
  * How many email-bearing updates one event may send in a rolling 24 hours.
@@ -52,6 +53,7 @@ export class EventsService {
     private readonly azureStorageService: AzureStorageService,
     private readonly azureCommunicationService: AzureCommunicationService,
     private readonly coOrganizerInvitationsService: EventCoOrganizerInvitationsService,
+    private readonly eventAccess: EventAccessService,
   ) {}
 
   private normalizeCreateRegistrationData(createEventDto: CreateEventDto) {
@@ -422,7 +424,12 @@ export class EventsService {
 
     if (
       !event ||
-      !(await this.canViewEvent(event.id, event.visibility, userId, isArranger))
+      !(await this.eventAccess.canView(
+        event.id,
+        event.visibility,
+        userId,
+        isArranger,
+      ))
     ) {
       throw new EventNotFoundException(eventId);
     }
@@ -438,7 +445,12 @@ export class EventsService {
     const event = await this.findOneByUrlId(urlId);
 
     if (
-      !(await this.canViewEvent(event.id, event.visibility, userId, isArranger))
+      !(await this.eventAccess.canView(
+        event.id,
+        event.visibility,
+        userId,
+        isArranger,
+      ))
     ) {
       throw new EventNotFoundException(urlId);
     }
@@ -839,7 +851,12 @@ export class EventsService {
 
     if (
       !event ||
-      !(await this.canViewEvent(event.id, event.visibility, userId, isArranger))
+      !(await this.eventAccess.canView(
+        event.id,
+        event.visibility,
+        userId,
+        isArranger,
+      ))
     ) {
       throw new EventNotFoundException(eventId);
     }
@@ -884,71 +901,6 @@ export class EventsService {
       },
       orderBy: { createdAt: "desc" },
     });
-  }
-
-  private async canViewEvent(
-    eventId: string,
-    visibility: EventVisibility,
-    userId?: string,
-    isArranger = false,
-  ) {
-    if (
-      !isArranger &&
-      (await this.hasUnapprovedOrganizationArranger(eventId))
-    ) {
-      return false;
-    }
-
-    if (visibility === EventVisibility.PUBLIC) {
-      return true;
-    }
-
-    if (!userId) {
-      return false;
-    }
-
-    if (isArranger) {
-      return true;
-    }
-
-    const registration = await this.prisma.registration.findUnique({
-      where: {
-        eventId_userId: {
-          eventId,
-          userId,
-        },
-      },
-      select: {
-        regStatus: true,
-      },
-    });
-
-    return (
-      registration?.regStatus === RegStatus.INVITED ||
-      registration?.regStatus === RegStatus.GOING ||
-      registration?.regStatus === RegStatus.WAITLISTED
-    );
-  }
-
-  private async hasUnapprovedOrganizationArranger(eventId: string) {
-    const unapprovedOrganizationArranger =
-      await this.prisma.eventArranger.findFirst({
-        where: {
-          eventId,
-          arranger: {
-            organization: {
-              is: {
-                approved: false,
-              },
-            },
-          },
-        },
-        select: {
-          eventId: true,
-        },
-      });
-
-    return Boolean(unapprovedOrganizationArranger);
   }
 
   /**

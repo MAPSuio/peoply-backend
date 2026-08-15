@@ -380,7 +380,7 @@ export class EventInvitationsService {
       });
 
       /* Inviting someone writes an INVITED registration alongside the
-         invitation, and canViewEvent counts INVITED as permission to read the
+         invitation, and EventAccessService.canView counts INVITED as permission to read the
          event. Cancelling only the invitation therefore revoked nothing - the
          uninvited user kept reading a private event indefinitely.
 

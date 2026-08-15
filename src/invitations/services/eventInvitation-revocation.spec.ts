@@ -88,7 +88,7 @@ describe("EventInvitationsService — invitation revocation", () => {
     it("clears a registration still sitting at INVITED", async () => {
       await service.cancelInvitation("inv-1");
 
-      /* canViewEvent treats INVITED as permission to read the event, so
+      /* EventAccessService.canView treats INVITED as permission to read the event, so
          leaving it behind meant cancelling revoked nothing. */
       expect(registration.updateMany).toHaveBeenCalledWith({
         where: {

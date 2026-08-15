@@ -2,153 +2,105 @@ jest.mock("../auth.service", () => ({
   AuthService: class AuthService {},
 }));
 
-import { ExecutionContext, NotFoundException } from "@nestjs/common";
+import { ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { EventArrangerRole } from "../../generated/prisma/client";
+import { EVENT_ARRANGER_ROLES_KEY } from "../../../decorators/eventArrangerRoles.decorator";
 import { EventRolesGuard } from "./eventRoles.guard";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
-import { EventArrangerRole } from "../../generated/prisma/client";
 
+/**
+ * Plumbing only: the role matrix itself is EventAccessService's, and is
+ * covered by its table-driven spec. What is the guard's own is reading the
+ * decorators, resolving the caller, and exposing the matched role on the
+ * request.
+ */
 describe("EventRolesGuard", () => {
-  const reflector = { get: jest.fn() } as unknown as Reflector;
-  const organizationsService = {
-    findByArrangerId: jest.fn(),
-    checkUserRole: jest.fn(),
-  } as any;
-  const eventsService = {
-    findOneWithArrangers: jest.fn(),
-    findOneWithArrangersByUrlId: jest.fn(),
-  } as any;
   const authService = { validateJWT: jest.fn() } as any;
   const usersService = { findById: jest.fn() } as any;
-  const prisma = {} as any;
+  const eventAccess = { arrangerRoleFor: jest.fn() } as any;
 
-  let guard: EventRolesGuard;
-
-  /** An event the user arranges directly, so the org lookup is skipped. */
-  /* `role` is non-null in the schema and the guard fails closed without it,
-     so every fixture has to carry one. */
-  const direct = {
-    eventArrangers: [
-      { arrangerId: "arranger-user-1", role: EventArrangerRole.ADMIN },
-    ],
+  const user = { id: "user-1", arrangerId: "arranger-user-1" };
+  const request: any = {
+    cookies: { access: "token" },
+    params: { id: "event-1", urlId: "my-event" },
   };
 
-  const run = (params: any = { id: "event-1" }) => {
-    const context = {
+  const guardFor = (arrangerRoles?: EventArrangerRole[]) => {
+    const reflector = {
+      get: jest.fn((key: string) =>
+        key === EVENT_ARRANGER_ROLES_KEY ? arrangerRoles : ["ADMIN"],
+      ),
+    } as unknown as Reflector;
+
+    return new EventRolesGuard(
+      reflector,
+      authService,
+      usersService,
+      eventAccess,
+    );
+  };
+
+  const run = (guard: EventRolesGuard) =>
+    guard.canActivate({
       getHandler: jest.fn(),
-      switchToHttp: () => ({
-        getRequest: () => ({ cookies: { access: "token" }, params }),
-      }),
-    } as unknown as ExecutionContext;
-    return guard.canActivate(context);
-  };
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    guard = new EventRolesGuard(
-      reflector,
-      organizationsService,
+    delete request.eventArrangerRole;
+    authService.validateJWT.mockReturnValue({ sub: "user-1" });
+    usersService.findById.mockResolvedValue(user);
+    eventAccess.arrangerRoleFor.mockResolvedValue(EventArrangerRole.ADMIN);
+  });
+
+  it("throws when the handler declares no organization roles", async () => {
+    const guard = new EventRolesGuard(
+      { get: jest.fn().mockReturnValue(undefined) } as unknown as Reflector,
       authService,
       usersService,
-      prisma,
-      eventsService,
+      eventAccess,
     );
-    reflector.get = jest.fn().mockReturnValue(["ADMIN"]);
-    authService.validateJWT.mockReturnValue({ sub: "user-1" });
-    usersService.findById.mockResolvedValue({
-      id: "user-1",
-      arrangerId: "arranger-user-1",
-    });
+
+    await expect(run(guard)).rejects.toBeInstanceOf(RolesNotFoundException);
   });
 
-  it("throws when the handler declares no roles", async () => {
-    reflector.get = jest.fn().mockReturnValue(undefined);
+  it("returns false when the token resolves to no user, without consulting EventAccess", async () => {
+    usersService.findById.mockResolvedValueOnce(null);
 
-    await expect(run()).rejects.toBeInstanceOf(RolesNotFoundException);
+    await expect(run(guardFor())).resolves.toBe(false);
+    expect(eventAccess.arrangerRoleFor).not.toHaveBeenCalled();
   });
 
-  describe("resolving the event from route params", () => {
-    it("looks the event up by id when id is present", async () => {
-      eventsService.findOneWithArrangers.mockResolvedValueOnce(direct);
+  it("hands the route params and both decorators to EventAccessService", async () => {
+    await run(guardFor([EventArrangerRole.ADMIN]));
 
-      await expect(run({ id: "event-1" })).resolves.toBe(true);
-      expect(eventsService.findOneWithArrangers).toHaveBeenCalledWith(
-        "event-1",
-      );
-      expect(eventsService.findOneWithArrangersByUrlId).not.toHaveBeenCalled();
-    });
-
-    it("falls back to urlId when id is absent", async () => {
-      eventsService.findOneWithArrangersByUrlId.mockResolvedValueOnce(direct);
-
-      await expect(run({ urlId: "my-event" })).resolves.toBe(true);
-      expect(eventsService.findOneWithArrangersByUrlId).toHaveBeenCalledWith(
-        "my-event",
-      );
-      expect(eventsService.findOneWithArrangers).not.toHaveBeenCalled();
-    });
-
-    it("prefers id over urlId when the route supplies both", async () => {
-      eventsService.findOneWithArrangers.mockResolvedValueOnce(direct);
-
-      // The only case where the two lookups can disagree, and so the only
-      // one that pins the precedence rather than just the happy path.
-      await expect(run({ id: "event-1", urlId: "my-event" })).resolves.toBe(
-        true,
-      );
-      expect(eventsService.findOneWithArrangers).toHaveBeenCalledWith(
-        "event-1",
-      );
-      expect(eventsService.findOneWithArrangersByUrlId).not.toHaveBeenCalled();
-    });
-
-    it("throws when neither id nor urlId is present", async () => {
-      await expect(run({})).rejects.toBeInstanceOf(NotFoundException);
-      expect(eventsService.findOneWithArrangers).not.toHaveBeenCalled();
-      expect(eventsService.findOneWithArrangersByUrlId).not.toHaveBeenCalled();
-    });
+    expect(eventAccess.arrangerRoleFor).toHaveBeenCalledWith(
+      user,
+      { id: "event-1", urlId: "my-event" },
+      {
+        allowedArrangerRoles: [EventArrangerRole.ADMIN],
+        orgRoles: ["ADMIN"],
+      },
+    );
   });
 
-  describe("role resolution", () => {
-    it("returns false when the token resolves to no user", async () => {
-      usersService.findById.mockResolvedValueOnce(null);
-      eventsService.findOneWithArrangers.mockResolvedValueOnce(direct);
+  it("admits the caller and exposes the matched role on the request", async () => {
+    eventAccess.arrangerRoleFor.mockResolvedValueOnce(
+      EventArrangerRole.COLLABORATOR,
+    );
 
-      await expect(run()).resolves.toBe(false);
-    });
+    await expect(run(guardFor())).resolves.toBe(true);
+    /* Read downstream to decide whether the co-organizer list may be
+       edited, which cannot be expressed as a whole-route rule. */
+    expect(request.eventArrangerRole).toBe(EventArrangerRole.COLLABORATOR);
+  });
 
-    it("skips arrangers that are individuals and keeps checking orgs", async () => {
-      eventsService.findOneWithArrangers.mockResolvedValueOnce({
-        eventArrangers: [
-          { arrangerId: "arranger-individual", role: EventArrangerRole.ADMIN },
-          { arrangerId: "arranger-org", role: EventArrangerRole.ADMIN },
-        ],
-      });
-      organizationsService.findByArrangerId
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: "org-1" });
-      organizationsService.checkUserRole.mockResolvedValueOnce(true);
+  it("refuses the caller when no role resolves", async () => {
+    eventAccess.arrangerRoleFor.mockResolvedValueOnce(null);
 
-      await expect(run()).resolves.toBe(true);
-      expect(organizationsService.checkUserRole).toHaveBeenCalledWith(
-        "user-1",
-        "org-1",
-        ["ADMIN"],
-      );
-    });
-
-    it("returns false when the user holds no role in any arranging org", async () => {
-      eventsService.findOneWithArrangers.mockResolvedValueOnce({
-        eventArrangers: [
-          { arrangerId: "arranger-org", role: EventArrangerRole.ADMIN },
-        ],
-      });
-      organizationsService.findByArrangerId.mockResolvedValueOnce({
-        id: "org-1",
-      });
-      organizationsService.checkUserRole.mockResolvedValueOnce(false);
-
-      await expect(run()).resolves.toBe(false);
-    });
+    await expect(run(guardFor())).resolves.toBe(false);
+    expect(request.eventArrangerRole).toBeUndefined();
   });
 });

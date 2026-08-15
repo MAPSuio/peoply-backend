@@ -1,17 +1,19 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import {
-  EventVisibility,
-  Favorite,
-  RegStatus,
-} from "../generated/prisma/client";
+import { EventVisibility, Favorite } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventNotFoundException } from "../events/exceptions";
-import { viewableEventIds } from "../registrations/registration-visibility";
+import {
+  EventAccessService,
+  VIEW_GRANTING_REG_STATUSES,
+} from "../event-access/event-access.service";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
 
 @Injectable()
 export class FavoritesService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly eventAccess: EventAccessService,
+  ) {}
 
   async create(userId: string, eventId: string) {
     /* findAll returns the whole event row when includeEvent=true, so a
@@ -35,9 +37,8 @@ export class FavoritesService {
       });
 
       const mayView =
-        registration?.regStatus === RegStatus.INVITED ||
-        registration?.regStatus === RegStatus.GOING ||
-        registration?.regStatus === RegStatus.WAITLISTED;
+        registration !== null &&
+        VIEW_GRANTING_REG_STATUSES.has(registration.regStatus);
 
       if (!mayView) {
         throw new EventNotFoundException(eventId);
@@ -123,8 +124,7 @@ export class FavoritesService {
       return favorites;
     }
 
-    const viewable = await viewableEventIds(
-      this.prismaService,
+    const viewable = await this.eventAccess.viewableEventIds(
       userId,
       nonPublic.map(({ eventId }) => eventId),
     );
