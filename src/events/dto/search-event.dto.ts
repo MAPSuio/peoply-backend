@@ -10,7 +10,6 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  Max,
   Min,
   MinLength,
 } from "class-validator";
@@ -18,13 +17,13 @@ import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import { IsUrlId } from "../../../decorators/validators/isUrlId.validator";
 import { PrismaOrderDirections } from "../../prisma/prisma.constants";
-import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { PaginationDto } from "../../util/pagination.dto";
 import { Prisma } from "../../generated/prisma/client";
 
 /** The Event table's own columns — the only things Prisma may be told to sort by. */
 const EVENT_SCALAR_FIELDS = Object.keys(Prisma.EventScalarFieldEnum);
 
-export class SearchEventDto {
+export class SearchEventDto extends PaginationDto {
   @IsOptional()
   @IsString()
   @IsUrlId()
@@ -88,21 +87,6 @@ export class SearchEventDto {
   @IsBoolean()
   @ApiProperty()
   featured?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  @ApiProperty({ required: false })
-  skip?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(MAX_PAGE_SIZE)
-  @Type(() => Number)
-  @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
-  take?: number;
 
   /* Reached `findAll` as `orderBy: { [orderBy]: orderDirection }` with nothing
      but @IsString() in the way, so any non-column name - a relation such as
