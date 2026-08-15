@@ -43,6 +43,18 @@ export class OrganizationInvitationsService {
   }
 
   async findAllPendingInvitationsToUser(userId: string) {
+    const cutoff = new Date(Date.now() - INVITATION_MAX_AGE_MS);
+    await this.prisma.organizationInvitation.updateMany({
+      where: {
+        toUserId: userId,
+        invitationStatus: InvitationStatus.PENDING,
+        createdAt: { lt: cutoff },
+      },
+      data: {
+        invitationStatus: InvitationStatus.IGNORED,
+      },
+    });
+
     return this.prisma.organizationInvitation.findMany({
       where: {
         toUserId: userId,
