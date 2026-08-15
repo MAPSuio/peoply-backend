@@ -24,6 +24,10 @@ import {
 } from "../../../decorators/validators";
 import { CreateEventDto } from "./create-event.dto";
 import { StringToNumberOrNull } from "../../../decorators/transformers/string.to.number.or.null";
+import {
+  ClearableAddressText,
+  ClearableCoordinate,
+} from "./address-fields.decorator";
 
 /* `arrangerId` is inherited from CreateEventDto, so whitelist:true kept it -
    but `Event` has no such column (the relation lives in EventArranger), and
@@ -106,81 +110,42 @@ export class UpdateEventDto extends PartialType(
   @ApiProperty()
   deleteImage?: boolean;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   poiName?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   country?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   countryCode?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   countryCodeISO3?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   countrySubdivision?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   localName?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   municipality?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   postalCode?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   streetName?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   streetNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  @EmptyStringToNull()
-  @ApiProperty()
+  @ClearableAddressText()
   freeformAddress?: string;
 
-  @IsOptional()
-  @IsNumber()
-  @StringToNumberOrNull()
-  @ApiProperty()
+  @ClearableCoordinate()
   latitude?: number;
 
-  @IsOptional()
-  @IsNumber()
-  @StringToNumberOrNull()
-  @ApiProperty()
+  @ClearableCoordinate()
   longitude?: number;
 }

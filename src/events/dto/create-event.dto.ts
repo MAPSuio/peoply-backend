@@ -27,6 +27,7 @@ import {
   MaxDateString,
   MinDateString,
 } from "../../../decorators/validators";
+import { AddressText, Coordinate } from "./address-fields.decorator";
 
 export class CreateEventDto {
   @IsNotEmpty()
@@ -124,70 +125,42 @@ export class CreateEventDto {
   @ApiProperty()
   locationName: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   poiName?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   country?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   countryCode?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   countryCodeISO3?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   countrySubdivision?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   localName?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   municipality?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   postalCode?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   streetName?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   streetNumber?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty()
+  @AddressText()
   freeformAddress?: string;
 
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  @ApiProperty()
+  @Coordinate()
   latitude?: number;
 
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  @ApiProperty()
+  @Coordinate()
   longitude?: number;
 }
