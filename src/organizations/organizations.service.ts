@@ -27,7 +27,6 @@ import { createUuid, isUUID } from "../util/uuid";
 import { postDiscordWebhook } from "../threat-detection/discord-webhook";
 import { toDiscordFieldValue } from "../threat-detection/discord-field";
 
-const MAPS_ORG_ID = "c997beea-620f-4b83-bb97-12f3c0b96a14";
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
 const ORGANIZATION_SOCIAL_LINK_FIELDS = [
   "websiteUrl",
@@ -439,40 +438,6 @@ export class OrganizationsService {
       },
     });
     return userRole !== null;
-  }
-
-  /** Anyone in MAPS may look at the moderation queue. */
-  async ensureMapsMember(userId: string) {
-    const isMapsMember = await this.checkUserRole(userId, MAPS_ORG_ID, [
-      OrganizationRole.MEMBER,
-      OrganizationRole.ADMIN,
-      OrganizationRole.OWNER,
-    ]);
-
-    if (!isMapsMember) {
-      throw new ForbiddenException("You must be a MAPS member to access this");
-    }
-  }
-
-  /**
-   * Deciding whether an organization is approved is not the same authority as
-   * reading the queue. Unapproving hides the organization and every one of its
-   * events from listings, recommendations and each event's own page, platform
-   * wide, in one request — and MEMBER is the rung every invited MAPS volunteer
-   * lands on. Everywhere else in this service a MEMBER may not even edit their
-   * own organization, so they must not be able to take down somebody else's.
-   */
-  async ensureMapsAdmin(userId: string) {
-    const isMapsAdmin = await this.checkUserRole(userId, MAPS_ORG_ID, [
-      OrganizationRole.ADMIN,
-      OrganizationRole.OWNER,
-    ]);
-
-    if (!isMapsAdmin) {
-      throw new ForbiddenException(
-        "You must be a MAPS admin to change approval",
-      );
-    }
   }
 
   async updateApproval(orgId: string, approved: boolean) {

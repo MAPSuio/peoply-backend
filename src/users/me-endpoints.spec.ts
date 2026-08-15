@@ -27,12 +27,18 @@ describe("endpoints that return the caller's own row", () => {
       {} as any,
       {} as any,
       {} as any,
+      {
+        getPermissions: jest
+          .fn()
+          .mockResolvedValue({ isAdmin: true, hasAdminAccess: true }),
+      } as any,
     );
 
     const body: any = await controller.me(req());
 
     expect(body).not.toHaveProperty("refreshTokenId");
     expect(body.email).toBe("ada@example.com");
+    expect(body.isAdmin).toBe(true);
   });
 
   it("GET /auth/user omits refreshTokenId", async () => {
