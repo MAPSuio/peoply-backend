@@ -1,34 +1,10 @@
-// this code is from stack overflow: https://stackoverflow.com/questions/59046629/boolean-parameter-in-request-body-is-always-true-in-nestjs-api
-import { Transform } from "class-transformer";
-
-const EmptyStringToNull = () => {
-  const toPlain = Transform(
-    ({ value }) => {
-      return value;
-    },
-    {
-      toPlainOnly: true,
-    },
-  );
-  const toClass = (target: any, key: string) => {
-    return Transform(
-      ({ obj }) => {
-        return stringToNull(obj[key]);
-      },
-      {
-        toClassOnly: true,
-      },
-    )(target, key);
-  };
-  return (target: any, key: string) => {
-    toPlain(target, key);
-    toClass(target, key);
-  };
-};
+import { createTransformer } from "./create.transformer";
 
 const stringToNull = (value: string) => {
   if (value === "") return null;
   return value;
 };
+
+const EmptyStringToNull = () => createTransformer(stringToNull);
 
 export { EmptyStringToNull };
