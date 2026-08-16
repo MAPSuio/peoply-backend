@@ -16,7 +16,6 @@ import {
   isUntrustedOrigin,
   parseTrustedOrigins,
 } from "./auth/auth-origin";
-import { ThreatDetectionService } from "./threat-detection/threat-detection.service";
 import { isOriginSecretConfigured, resolveClientIp } from "./util/client-ip";
 import { oauthSessionOptions } from "./auth/oauth-session";
 
@@ -30,27 +29,32 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
-  const threatDetection = app.get(ThreatDetectionService);
 
   // Trust the first proxy hop (Cloudflare → DO App Platform) so req.ip
   // reflects the real client IP rather than the proxy address.
   app.getHttpAdapter().getInstance().set("trust proxy", 1);
 
-  // Log every inbound request (method, path, status, duration, client IP).
-  // Placed before helmet so the entire request lifecycle is captured,
-  // including bot probes to paths like /.env that never reach NestJS routing.
+  /* Access log: method, path, status, duration, client IP. Placed before
+     helmet so the entire request lifecycle is captured.
+
+     Note what the IP is worth. Requests reach the origin through Cloudflare,
+     and CF-Connecting-IP is not making it through, so what gets logged is a
+     Cloudflare edge address shared by many visitors rather than any one of
+     them. Useful for "is anything reaching us and what is it answering",
+     which is what this log is for; not usable for attributing traffic to a
+     client. */
   const httpLogger = new Logger("HTTP");
   const SKIP_PATHS = new Set(["/_health", "/readiness"]);
 
   // Without the shared secret there is no way to tell a request that came
   // through Cloudflare from one sent straight to the origin, so CF-Connecting-IP
-  // has to be taken at face value and every per-IP limit can be sidestepped by
-  // rotating it. Say so rather than letting it look protected.
+  // has to be taken at face value and the per-IP rate limit can be sidestepped
+  // by rotating it. Say so rather than letting it look protected.
   if (!isOriginSecretConfigured()) {
     new Logger("Bootstrap").warn(
       "CLOUDFLARE_ORIGIN_SECRET is not set — CF-Connecting-IP is trusted " +
-        "unverified, so rate limiting and threat detection can be bypassed by " +
-        "reaching the origin directly. See docs/threat-detection.md.",
+        "unverified, so rate limiting can be bypassed by reaching the origin " +
+        "directly. See docs/rate-limiting.md.",
     );
   }
 
@@ -63,7 +67,6 @@ async function bootstrap() {
       httpLogger.log(
         `${req.method} ${req.path} ${res.statusCode} ${ms}ms ${ip}`,
       );
-      threatDetection.analyzeRequest(req.method, req.path, res.statusCode, ip);
     });
     next();
   });

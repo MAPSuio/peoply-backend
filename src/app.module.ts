@@ -21,7 +21,7 @@ import { ModerationModule } from "./moderation/moderation.module";
 import { AllergensModule } from "./allergens/allergens.module";
 import { IcsFeedsModule } from "./ics-feeds/ics-feeds.module";
 import { CfThrottlerGuard } from "./cf-throttler.guard";
-import { ThreatDetectionModule } from "./threat-detection/threat-detection.module";
+import { DiscordModule } from "./discord/discord.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { HealthModule } from "./health/health.module";
 import { RecommendationsModule } from "./recommendations/recommendations.module";
@@ -86,10 +86,8 @@ import { PopupsModule } from "./popups/popups.module";
         // Shared with a Cloudflare transform rule so the origin can tell
         // traffic that came through Cloudflare from traffic sent straight to
         // its *.ondigitalocean.app hostname. Without it CF-Connecting-IP has
-        // to be taken on trust. See docs/threat-detection.md.
+        // to be taken on trust. See docs/rate-limiting.md.
         CLOUDFLARE_ORIGIN_SECRET: Joi.string().min(16).optional(),
-        THREAT_DETECTION_ENABLED: Joi.boolean().default(true),
-        THREAT_ALERT_COOLDOWN_MS: Joi.number().default(300000),
         // Comma-separated emails allowed through ModeratorGuard. Unset means
         // every /moderation endpoint answers 403 — the /stats page in the
         // frontend is dead until this is configured.
@@ -98,7 +96,7 @@ import { PopupsModule } from "./popups/popups.module";
     }),
     AuthModule,
     HealthModule,
-    ThreatDetectionModule,
+    DiscordModule,
     AzureModule,
     CategoriesModule,
     PrismaModule,

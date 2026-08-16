@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 
 /**
- * Resolves the client IP that rate limiting and threat detection are keyed on.
+ * Resolves the client IP that rate limiting is keyed on.
  *
  * `CF-Connecting-IP` is set by Cloudflare and overwritten on every request that
  * transits its edge, so behind Cloudflare it is authoritative. It is also just
@@ -24,7 +24,7 @@ import { isIP } from "node:net";
  *    into log lines and Discord alerts.
  * 2. The request must prove it came through Cloudflare, by presenting the
  *    shared secret in `CLOUDFLARE_ORIGIN_SECRET` (injected by a Cloudflare
- *    transform rule — see docs/threat-detection.md). Requests that cannot
+ *    transform rule — see docs/rate-limiting.md). Requests that cannot
  *    prove it fall back to `req.ip`, which Express derives from the proxy
  *    chain and an attacker cannot forge past the trusted hop.
  *

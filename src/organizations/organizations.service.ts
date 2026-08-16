@@ -23,8 +23,8 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { calculateEditDistance } from "../util/string";
 import { createUuid, isUUID } from "../util/uuid";
-import { DiscordAlertService } from "../threat-detection/discord-alert.service";
-import { toDiscordFieldValue } from "../threat-detection/discord-field";
+import { DiscordAlertService } from "../discord/discord-alert.service";
+import { toDiscordFieldValue } from "../discord/discord-field";
 
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
 const ORGANIZATION_SOCIAL_LINK_FIELDS = [

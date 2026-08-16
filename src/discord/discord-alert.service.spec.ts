@@ -33,14 +33,16 @@ describe("DiscordAlertService", () => {
     const service = new DiscordAlertService(config);
     service.onModuleInit();
 
-    await service.sendAlert("Threat title", [{ name: "IP", value: "1.2.3.4" }]);
+    await service.sendAlert("Ny tilbakemelding", [
+      { name: "IP", value: "1.2.3.4" },
+    ]);
 
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
     });
 
     expect(requests).toHaveLength(1);
-    expect(requests[0]).toContain("Threat title");
+    expect(requests[0]).toContain("Ny tilbakemelding");
     expect(requests[0]).toContain("1.2.3.4");
   });
 });

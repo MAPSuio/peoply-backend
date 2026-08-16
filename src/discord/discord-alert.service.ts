@@ -85,10 +85,11 @@ export class DiscordAlertService implements OnModuleInit {
     fields: EmbedField[],
     color = 0xff0000,
   ): Promise<void> {
-    this.logger.warn(
-      `THREAT: ${title} | ${fields
-        .map((f) => `${f.name}: ${f.value}`)
-        .join(", ")}`,
+    /* Logged as well as posted so the notice survives a Discord outage.
+       `log`, not `warn`: what is left calling this is a feedback submission
+       and an organization awaiting approval. Neither is a fault. */
+    this.logger.log(
+      `${title} | ${fields.map((f) => `${f.name}: ${f.value}`).join(", ")}`,
     );
 
     await this.send({ title, fields, color, context: "Discord alert" });
