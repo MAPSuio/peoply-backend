@@ -5,13 +5,13 @@ import type {
   LocationSearchResponse,
   LocationSearchResult,
 } from "../location-search.types";
+import { fetchJsonWithTimeout } from "./fetch-json";
 import type { LocationSearchProvider } from "./location-search-provider.interface";
 
 const ENTUR_BASE_URL = "https://api.entur.io/geocoder/v3/autocomplete";
 const ENTUR_DEFAULT_LIMIT = 5;
 const ENTUR_DEFAULT_RADIUS_KM = 50;
 const ENTUR_DEFAULT_WEIGHT = 0.5;
-const REQUEST_TIMEOUT_MS = 5000;
 
 interface EnturFeatureCollection {
   features?: EnturFeature[];
@@ -163,31 +163,7 @@ export class EnturGeocoderProvider implements LocationSearchProvider {
     return [street, locality].filter(Boolean).join(", ") || undefined;
   }
 
-  private async fetchJson<T>(url: string, init?: RequestInit) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(url, {
-        ...init,
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new BadGatewayException(
-          `Entur geocoder request failed with status ${response.status}`,
-        );
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      if (error instanceof BadGatewayException) {
-        throw error;
-      }
-
-      throw new BadGatewayException("Entur geocoder request failed");
-    } finally {
-      clearTimeout(timeout);
-    }
+  private fetchJson<T>(url: string, init?: RequestInit) {
+    return fetchJsonWithTimeout<T>("Entur geocoder", url, init);
   }
 }

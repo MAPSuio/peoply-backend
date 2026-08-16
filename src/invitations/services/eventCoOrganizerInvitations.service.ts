@@ -5,6 +5,7 @@ import {
   OrganizationRole,
 } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PUBLIC_USER_SELECT } from "../../users/user.select";
 
 /**
  * Organization roles that may answer a co-organizer invitation.
@@ -41,9 +42,7 @@ const INVITATION_INCLUDE = {
     select: { id: true, urlId: true, name: true, image: true },
   },
   event: { select: EVENT_SUMMARY_SELECT },
-  fromUser: {
-    select: { id: true, firstName: true, lastName: true, image: true },
-  },
+  fromUser: { select: PUBLIC_USER_SELECT },
 } as const;
 
 /** The Prisma surface this service needs, so it can run inside a transaction. */

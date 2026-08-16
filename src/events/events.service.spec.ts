@@ -87,19 +87,19 @@ describe("EventsService", () => {
   it("rejects unauthenticated access to an unlisted event", async () => {
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.UNLISTED,
     });
 
     await expect(
-      service.findOneVisibleToUser("event-1"),
+      service.findOneVisibleToUser("11111111-1111-4111-8111-111111111111"),
     ).rejects.toBeInstanceOf(EventNotFoundException);
   });
 
   it("allows invited users to view an unlisted event", async () => {
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.UNLISTED,
     });
     prisma.registration.findUnique.mockResolvedValueOnce({
@@ -107,37 +107,49 @@ describe("EventsService", () => {
     });
 
     await expect(
-      service.findOneVisibleToUser("event-1", "user-1", false),
+      service.findOneVisibleToUser(
+        "11111111-1111-4111-8111-111111111111",
+        "user-1",
+        false,
+      ),
     ).resolves.toEqual({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.UNLISTED,
     });
   });
 
   it("rejects public events from unapproved organizations for regular users", async () => {
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.PUBLIC,
     });
     prisma.eventArranger.findFirst.mockResolvedValueOnce({
-      eventId: "event-1",
+      eventId: "11111111-1111-4111-8111-111111111111",
     });
 
     await expect(
-      service.findOneVisibleToUser("event-1", "user-1", false),
+      service.findOneVisibleToUser(
+        "11111111-1111-4111-8111-111111111111",
+        "user-1",
+        false,
+      ),
     ).rejects.toBeInstanceOf(EventNotFoundException);
   });
 
   it("allows public events from unapproved organizations for arrangers", async () => {
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.PUBLIC,
     });
 
     await expect(
-      service.findOneVisibleToUser("event-1", "user-1", true),
+      service.findOneVisibleToUser(
+        "11111111-1111-4111-8111-111111111111",
+        "user-1",
+        true,
+      ),
     ).resolves.toEqual({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.PUBLIC,
     });
 
@@ -146,22 +158,26 @@ describe("EventsService", () => {
 
   it("allows public user-arranged events for regular users", async () => {
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.PUBLIC,
     });
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
 
     await expect(
-      service.findOneVisibleToUser("event-1", "user-1", false),
+      service.findOneVisibleToUser(
+        "11111111-1111-4111-8111-111111111111",
+        "user-1",
+        false,
+      ),
     ).resolves.toEqual({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.PUBLIC,
     });
   });
 
   it("sanitizes public event updates", async () => {
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.PUBLIC,
     });
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
@@ -176,7 +192,9 @@ describe("EventsService", () => {
       },
     ]);
 
-    await expect(service.getUpdatesForEvent("event-1")).resolves.toEqual([
+    await expect(
+      service.getUpdatesForEvent("11111111-1111-4111-8111-111111111111"),
+    ).resolves.toEqual([
       {
         id: "update-1",
         visibility: EventUpdateVisibility.ALL,
@@ -188,7 +206,10 @@ describe("EventsService", () => {
     ]);
 
     expect(prisma.eventUpdate.findMany).toHaveBeenCalledWith({
-      where: { eventId: "event-1", visibility: EventUpdateVisibility.ALL },
+      where: {
+        eventId: "11111111-1111-4111-8111-111111111111",
+        visibility: EventUpdateVisibility.ALL,
+      },
       select: {
         id: true,
         visibility: true,
@@ -207,14 +228,14 @@ describe("EventsService", () => {
   // an event GET /events/:id would 404 for them.
   it("refuses updates for an unlisted event the caller cannot view", async () => {
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.UNLISTED,
     });
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
 
-    await expect(service.getUpdatesForEvent("event-1")).rejects.toBeInstanceOf(
-      EventNotFoundException,
-    );
+    await expect(
+      service.getUpdatesForEvent("11111111-1111-4111-8111-111111111111"),
+    ).rejects.toBeInstanceOf(EventNotFoundException);
 
     expect(prisma.eventUpdate.findMany).not.toHaveBeenCalled();
   });
@@ -231,7 +252,7 @@ describe("EventsService", () => {
 
   it("serves updates for an unlisted event to an invited user", async () => {
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       visibility: EventVisibility.UNLISTED,
     });
     prisma.eventArranger.findFirst.mockResolvedValueOnce(null);
@@ -242,7 +263,11 @@ describe("EventsService", () => {
     prisma.eventUpdate.findMany.mockResolvedValueOnce([]);
 
     await expect(
-      service.getUpdatesForEvent("event-1", "user-1", false),
+      service.getUpdatesForEvent(
+        "11111111-1111-4111-8111-111111111111",
+        "user-1",
+        false,
+      ),
     ).resolves.toEqual([]);
   });
 
@@ -252,10 +277,16 @@ describe("EventsService", () => {
   it("scopes an update delete to the event that was authorised", async () => {
     prisma.eventUpdate.updateMany.mockResolvedValueOnce({ count: 1 });
 
-    await service.deleteUpdateForEvent("event-1", "update-1");
+    await service.deleteUpdateForEvent(
+      "11111111-1111-4111-8111-111111111111",
+      "update-1",
+    );
 
     expect(prisma.eventUpdate.updateMany).toHaveBeenCalledWith({
-      where: { id: "update-1", eventId: "event-1" },
+      where: {
+        id: "update-1",
+        eventId: "11111111-1111-4111-8111-111111111111",
+      },
       data: { visibility: EventUpdateVisibility.DELETED },
     });
   });
@@ -281,7 +312,7 @@ describe("EventsService", () => {
       { id: "org-2", arrangerId: "org-arranger-2" },
     ]);
     prisma.event.create.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       urlId: "event-url",
     });
 
@@ -337,7 +368,7 @@ describe("EventsService", () => {
       { id: "org-1", arrangerId: "org-arranger-1" },
     ]);
     prisma.event.create.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       urlId: "event-url",
     });
 
@@ -363,7 +394,9 @@ describe("EventsService", () => {
       .fn()
       .mockResolvedValue({ id: "arranger-1" });
     prisma.organization.findMany.mockResolvedValueOnce([]);
-    prisma.event.create.mockResolvedValueOnce({ id: "event-1" });
+    prisma.event.create.mockResolvedValueOnce({
+      id: "11111111-1111-4111-8111-111111111111",
+    });
 
     await expect(
       service.create(
@@ -399,25 +432,27 @@ describe("EventsService", () => {
       },
     ]);
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       image: null,
       readOnly: false,
       registrationMode: "PEOPLY",
       externalUrl: null,
       eventArrangers: [
         {
-          eventId: "event-1",
+          eventId: "11111111-1111-4111-8111-111111111111",
           arrangerId: "arranger-1",
           role: EventArrangerRole.ADMIN,
         },
         {
-          eventId: "event-1",
+          eventId: "11111111-1111-4111-8111-111111111111",
           arrangerId: "org-arranger-1",
           role: EventArrangerRole.COLLABORATOR,
         },
       ],
     });
-    prisma.event.update.mockResolvedValueOnce({ id: "event-1" });
+    prisma.event.update.mockResolvedValueOnce({
+      id: "11111111-1111-4111-8111-111111111111",
+    });
 
     await service.update(
       {
@@ -427,7 +462,7 @@ describe("EventsService", () => {
         visibility: EventVisibility.PUBLIC,
         coOrganizerOrganizationIds: ["org-2"],
       } as any,
-      "event-1",
+      "11111111-1111-4111-8111-111111111111",
       "user-1",
     );
 
@@ -443,7 +478,7 @@ describe("EventsService", () => {
     // every collaborator on the event.
     expect(prisma.eventArranger.deleteMany).toHaveBeenCalledWith({
       where: {
-        eventId: "event-1",
+        eventId: "11111111-1111-4111-8111-111111111111",
         role: EventArrangerRole.COLLABORATOR,
         arrangerId: { in: ["org-arranger-1"] },
       },
@@ -475,20 +510,22 @@ describe("EventsService", () => {
       },
     ]);
     prisma.event.findUnique.mockResolvedValueOnce({
-      id: "event-1",
+      id: "11111111-1111-4111-8111-111111111111",
       image: null,
       readOnly: false,
       registrationMode: "PEOPLY",
       externalUrl: null,
       eventArrangers: [
         {
-          eventId: "event-1",
+          eventId: "11111111-1111-4111-8111-111111111111",
           arrangerId: "arranger-1",
           role: EventArrangerRole.ADMIN,
         },
       ],
     });
-    prisma.event.update.mockResolvedValueOnce({ id: "event-1" });
+    prisma.event.update.mockResolvedValueOnce({
+      id: "11111111-1111-4111-8111-111111111111",
+    });
 
     await service.update(
       {
@@ -498,7 +535,7 @@ describe("EventsService", () => {
         visibility: EventVisibility.PUBLIC,
         coOrganizerOrganizationIds: ["org-1"],
       } as any,
-      "event-1",
+      "11111111-1111-4111-8111-111111111111",
       "user-1",
     );
 
@@ -523,9 +560,9 @@ describe("EventsService", () => {
         { arrangerId: "arranger-1" },
       ]);
 
-      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
-        true,
-      );
+      await expect(
+        service.isEventAdmin("11111111-1111-4111-8111-111111111111", "user-1"),
+      ).resolves.toBe(true);
     });
 
     it("accepts an admin of the organization that runs the event", async () => {
@@ -539,9 +576,9 @@ describe("EventsService", () => {
         organizationId: "org-1",
       });
 
-      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
-        true,
-      );
+      await expect(
+        service.isEventAdmin("11111111-1111-4111-8111-111111111111", "user-1"),
+      ).resolves.toBe(true);
       expect(prisma.userOrganizationRole.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -565,13 +602,13 @@ describe("EventsService", () => {
       ]);
       prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
 
-      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
-        false,
-      );
+      await expect(
+        service.isEventAdmin("11111111-1111-4111-8111-111111111111", "user-1"),
+      ).resolves.toBe(false);
       expect(prisma.eventArranger.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
-            eventId: "event-1",
+            eventId: "11111111-1111-4111-8111-111111111111",
             role: EventArrangerRole.ADMIN,
           },
         }),
@@ -587,9 +624,9 @@ describe("EventsService", () => {
       ]);
       prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
 
-      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
-        false,
-      );
+      await expect(
+        service.isEventAdmin("11111111-1111-4111-8111-111111111111", "user-1"),
+      ).resolves.toBe(false);
     });
 
     it("refuses when the event has no admin arranger at all", async () => {
@@ -598,9 +635,9 @@ describe("EventsService", () => {
       });
       prisma.eventArranger.findMany.mockResolvedValueOnce([]);
 
-      await expect(service.isEventAdmin("event-1", "user-1")).resolves.toBe(
-        false,
-      );
+      await expect(
+        service.isEventAdmin("11111111-1111-4111-8111-111111111111", "user-1"),
+      ).resolves.toBe(false);
       expect(prisma.userOrganizationRole.findFirst).not.toHaveBeenCalled();
     });
   });

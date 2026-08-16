@@ -18,6 +18,7 @@ import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from "../generated/prisma/client";
 import { EventArrangerRole, Organization } from "../generated/prisma/client";
 import { buildDescriptionSearchQuery } from "../util/search";
+import { PUBLIC_USER_PROFILE_SELECT } from "../users/user.select";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
@@ -337,15 +338,7 @@ export class OrganizationsService {
       include: {
         organizationRoles: {
           include: {
-            user: {
-              select: {
-                id: true,
-                image: true,
-                firstName: true,
-                lastName: true,
-                description: true,
-              },
-            },
+            user: { select: PUBLIC_USER_PROFILE_SELECT },
           },
         },
       },
@@ -734,15 +727,7 @@ export class OrganizationsService {
         arrangerId: org.arrangerId,
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            image: true,
-            description: true,
-          },
-        },
+        user: { select: PUBLIC_USER_PROFILE_SELECT },
       },
     });
   }

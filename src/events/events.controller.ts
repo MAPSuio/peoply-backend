@@ -132,14 +132,7 @@ export class EventsController {
     const isArranger: boolean | undefined = req.isArranger;
 
     /* both urlId and id are valid here */
-    if (isUUID(id)) {
-      return this.eventsService.findOneVisibleToUser(id, user?.id, isArranger);
-    }
-    return this.eventsService.findOneByUrlIdVisibleToUser(
-      id,
-      user?.id,
-      isArranger,
-    );
+    return this.eventsService.findOneVisibleToUser(id, user?.id, isArranger);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
