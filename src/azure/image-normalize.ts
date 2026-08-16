@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type Metadata } from "sharp";
 
 /**
  * Longest edge, in pixels, that a stored image is allowed to have.
@@ -21,7 +21,7 @@ const JPEG_QUALITY = 82;
  * CPU and the memory. A decompression bomb is small on the wire and enormous
  * once decoded, so this is the limit that actually protects the process.
  */
-export const MAX_INPUT_PIXELS = 50_000_000;
+const MAX_INPUT_PIXELS = 50_000_000;
 
 /**
  * Thrown instead of sharp's raw error when an image decodes to more pixels
@@ -83,7 +83,7 @@ async function usesTransparency(
 
   try {
     const { isOpaque } = await sharp(input, {
-      limitInputPixels: MAX_INPUT_PIXELS,
+      limitInputPixels: maxInputPixels,
     }).stats();
 
     return !isOpaque;
@@ -132,6 +132,56 @@ async function usesTransparency(
  * touch anything: an image inside the limit keeps whatever metadata it came
  * with, because re-encoding it to strip a tag would cost more than the tag.
  */
+/** Refuses an image whose decoded size the caller cannot afford. */
+async function assertWithinPixelCeiling(input: Buffer, maxInputPixels: number) {
+  const probe = await sharp(input, { limitInputPixels: false }).metadata();
+  const megapixels = ((probe.width ?? 0) * (probe.height ?? 0)) / 1e6;
+
+  if (megapixels * 1e6 > maxInputPixels) {
+    throw new ImageTooLargeError(megapixels, maxInputPixels);
+  }
+}
+
+function dimensionsOf(metadata: Metadata, bytes: number): ImageDimensions {
+  return {
+    width: metadata.width ?? 0,
+    height: metadata.height ?? 0,
+    bytes,
+  };
+}
+
+/** Resizes to the edge limit and encodes in whichever format the content wants. */
+async function encodeDownscaled(
+  input: Buffer,
+  metadata: Metadata,
+  maxInputPixels: number,
+) {
+  const keepAlpha = await usesTransparency(
+    input,
+    metadata.hasAlpha,
+    maxInputPixels,
+  );
+
+  const pipeline = sharp(input, { limitInputPixels: maxInputPixels })
+    .rotate()
+    /* No `withoutEnlargement`: the caller only gets here when an edge is
+       already over the limit, so `inside` can only shrink. */
+    .resize({
+      width: MAX_IMAGE_EDGE_PX,
+      height: MAX_IMAGE_EDGE_PX,
+      fit: "inside",
+    });
+
+  const buffer = await (keepAlpha
+    ? pipeline.png({ compressionLevel: 9 })
+    : pipeline
+        .flatten({ background: "#ffffff" })
+        .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+  ).toBuffer();
+
+  return { buffer, format: keepAlpha ? ("png" as const) : ("jpeg" as const) };
+}
+
 export async function normalizeImage(
   input: Buffer,
   /* Two images in production decode to 71.7 and 62.2 megapixels while
@@ -143,22 +193,12 @@ export async function normalizeImage(
      ones that need fixing, and it can be run somewhere with memory to spare. */
   maxInputPixels: number = MAX_INPUT_PIXELS,
 ): Promise<NormalizedImage> {
-  const probe = await sharp(input, { limitInputPixels: false }).metadata();
-  const megapixels = ((probe.width ?? 0) * (probe.height ?? 0)) / 1e6;
-
-  if (megapixels * 1e6 > maxInputPixels) {
-    throw new ImageTooLargeError(megapixels, maxInputPixels);
-  }
+  await assertWithinPixelCeiling(input, maxInputPixels);
 
   const metadata = await sharp(input, {
     limitInputPixels: maxInputPixels,
   }).metadata();
-
-  const before: ImageDimensions = {
-    width: metadata.width ?? 0,
-    height: metadata.height ?? 0,
-    bytes: input.length,
-  };
+  const before = dimensionsOf(metadata, input.length);
 
   /* An image inside the limit is left exactly as it arrived. Re-encoding it
      would burn CPU on every upload to produce a file that is no better and
@@ -175,41 +215,17 @@ export async function normalizeImage(
     };
   }
 
-  const keepAlpha = await usesTransparency(
+  const { buffer, format } = await encodeDownscaled(
     input,
-    metadata.hasAlpha,
+    metadata,
     maxInputPixels,
   );
-
-  const pipeline = sharp(input, { limitInputPixels: maxInputPixels })
-    .rotate()
-    /* No `withoutEnlargement`: the guard above means at least one edge is
-       already over the limit, so `inside` can only shrink. */
-    .resize({
-      width: MAX_IMAGE_EDGE_PX,
-      height: MAX_IMAGE_EDGE_PX,
-      fit: "inside",
-    });
-
-  const buffer = await (keepAlpha
-    ? pipeline.png({ compressionLevel: 9 })
-    : pipeline.flatten({ background: "#ffffff" }).jpeg({
-        quality: JPEG_QUALITY,
-        mozjpeg: true,
-      })
-  ).toBuffer();
-
-  const after = await sharp(buffer).metadata();
 
   return {
     buffer,
     before,
-    after: {
-      width: after.width ?? 0,
-      height: after.height ?? 0,
-      bytes: buffer.length,
-    },
+    after: dimensionsOf(await sharp(buffer).metadata(), buffer.length),
     changed: true,
-    format: keepAlpha ? "png" : "jpeg",
+    format,
   };
 }
