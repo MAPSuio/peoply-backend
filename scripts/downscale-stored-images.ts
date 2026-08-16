@@ -8,6 +8,14 @@ import { AzureStorageContainer } from "../src/azure/azure-storage.constants";
 import { needsDownscaling, normalizeImage } from "../src/azure/image-normalize";
 
 /**
+ * The two worst images in production decode to 71.7 and 62.2 megapixels, over
+ * the ceiling the upload path enforces to protect a 512 MB container. They are
+ * exactly the ones that need rewriting, so this job lifts the ceiling and is
+ * run where there is memory to spare. Override with IMAGE_MAX_MEGAPIXELS.
+ */
+const MAX_MEGAPIXELS = Number(process.env.IMAGE_MAX_MEGAPIXELS ?? 200);
+
+/**
  * Rewrites images that were stored before uploads were bounded.
  *
  * A profile picture in production was a 9.2 MB, 5184x3456 camera original
@@ -74,13 +82,13 @@ async function downscaleBlob(container: ContainerClient, blobName: string) {
   const original = await toBuffer(
     download.readableStreamBody as NodeJS.ReadableStream,
   );
-  const metadata = await sharp(original).metadata();
+  const metadata = await sharp(original, { limitInputPixels: false }).metadata();
 
   if (!needsDownscaling(metadata.width ?? 0, metadata.height ?? 0)) {
     return null;
   }
 
-  const result = await normalizeImage(original);
+  const result = await normalizeImage(original, MAX_MEGAPIXELS * 1e6);
 
   if (!result.changed) {
     return null;

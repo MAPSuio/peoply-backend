@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import {
+  ImageTooLargeError,
   MAX_IMAGE_EDGE_PX,
   needsDownscaling,
   normalizeImage,
@@ -65,9 +66,42 @@ describe("normalizeImage", () => {
     expect(after.height).toBe(200);
   });
 
+  /* The bug this rule exists for. 480 of the 663 images in production are
+     PNGs, and most are photographs exported as PNG. Re-encoding those back to
+     PNG made 162 of them larger than they started. */
+  it("turns an opaque PNG photograph into a JPEG", async () => {
+    const input = await solid(3000, 2000).png().toBuffer();
+
+    const result = await normalizeImage(input);
+
+    expect(result.format).toBe("jpeg");
+    expect((await sharp(result.buffer).metadata()).format).toBe("jpeg");
+    expect(result.after.bytes).toBeLessThan(result.before.bytes);
+  });
+
+  /* An alpha channel that is fully opaque is something an export tool added,
+     not transparency anyone asked for. Reading `hasAlpha` alone is what kept
+     these photographs in PNG. */
+  it("treats a fully opaque alpha channel as no transparency", async () => {
+    const input = await sharp({
+      create: {
+        width: 3000,
+        height: 2000,
+        channels: 4,
+        background: { r: 90, g: 140, b: 60, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    expect((await sharp(input).metadata()).hasAlpha).toBe(true);
+
+    expect((await normalizeImage(input)).format).toBe("jpeg");
+  });
+
   /* Organization logos are PNGs with transparency. Flattening those onto a
-     JPEG background would put a black box behind every logo on the site. */
-  it("keeps a transparent PNG a PNG", async () => {
+     JPEG background would put a white box behind every logo on the site. */
+  it("keeps a genuinely transparent PNG a PNG", async () => {
     const input = await sharp({
       create: {
         width: 3000,
@@ -110,28 +144,26 @@ describe("normalizeImage", () => {
     expect((await sharp(buffer).metadata()).exif).toBeUndefined();
   });
 
-  /* Re-encoding a small PNG can come out larger than it went in; storing the
-     worse copy for the sake of having run would be a regression. */
-  it("keeps the original when processing would gain nothing", async () => {
-    const input = await sharp({
-      create: {
-        width: 64,
-        height: 64,
-        channels: 4,
-        background: { r: 10, g: 200, b: 30, alpha: 0.5 },
-      },
-    })
-      .png({ compressionLevel: 9 })
-      .toBuffer();
+  /* An image inside the limit is not the function's business. Decoding and
+     re-encoding it would spend CPU to produce a file that is no better. */
+  it("returns an image inside the limit byte-for-byte untouched", async () => {
+    const input = await solid(800, 600).png({ compressionLevel: 9 }).toBuffer();
 
     const result = await normalizeImage(input);
 
-    if (!result.changed) {
-      expect(result.buffer).toBe(input);
-      expect(result.after).toEqual(result.before);
-    } else {
-      expect(result.after.bytes).toBeLessThan(result.before.bytes);
-    }
+    expect(result.buffer).toBe(input);
+    expect(result.changed).toBe(false);
+    expect(result.after).toEqual(result.before);
+    expect(result.format).toBe("png");
+  });
+
+  it("does not convert the format of an image it leaves alone", async () => {
+    const input = await solid(800, 600).jpeg().toBuffer();
+
+    const result = await normalizeImage(input);
+
+    expect(result.buffer).toBe(input);
+    expect(result.format).toBe("jpeg");
   });
 });
 
@@ -144,5 +176,47 @@ describe("needsDownscaling", () => {
     [200, 200, false],
   ])("%ix%i -> %s", (width, height, expected) => {
     expect(needsDownscaling(width, height)).toBe(expected);
+  });
+});
+
+/**
+ * Two images in production decode to 71.7 and 62.2 megapixels while weighing
+ * 1.1 and 2.6 MB. That shape passes a byte limit and still needs 273 MB
+ * decoded, which the 512 MB service container does not have.
+ */
+describe("normalizeImage pixel ceiling", () => {
+  const wide = (width: number, height: number) =>
+    sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
+    }).png();
+
+  it("refuses an image that decodes past the ceiling", async () => {
+    const input = await wide(4000, 4000).toBuffer();
+
+    await expect(normalizeImage(input, 8_000_000)).rejects.toThrow(
+      ImageTooLargeError,
+    );
+  });
+
+  it("says how big it was and what the limit is", async () => {
+    const input = await wide(4000, 4000).toBuffer();
+
+    await expect(normalizeImage(input, 8_000_000)).rejects.toThrow(
+      /16\.0 megapixels.*8 megapixel limit/,
+    );
+  });
+
+  /* The backfill raises the ceiling precisely so it can rewrite those two. */
+  it("processes the same image when the caller allows the pixels", async () => {
+    const input = await wide(4000, 4000).toBuffer();
+
+    const result = await normalizeImage(input, 50_000_000);
+
+    expect(result.after.width).toBe(MAX_IMAGE_EDGE_PX);
   });
 });

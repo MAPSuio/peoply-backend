@@ -12,7 +12,7 @@ import { ConfigService } from "@nestjs/config";
 import { randomUUID } from "node:crypto";
 import { AzureStorageContainer } from "./azure-storage.constants";
 import { assertIsImage, extensionFor } from "./image-upload";
-import { normalizeImage } from "./image-normalize";
+import { ImageTooLargeError, normalizeImage } from "./image-normalize";
 
 @Injectable()
 export class AzureStorageService
@@ -69,7 +69,21 @@ export class AzureStorageService
     file: Buffer,
     containerName: AzureStorageContainer,
   ) {
-    const image = await normalizeImage(file);
+    let image: Awaited<ReturnType<typeof normalizeImage>>;
+
+    try {
+      image = await normalizeImage(file);
+    } catch (error) {
+      /* A 71-megapixel PNG weighing 1 MB passes the byte limit and still needs
+         273 MB decoded, which this container does not have. Refusing it is the
+         right answer; doing so with a 400 the uploader can understand rather
+         than a 500 is the point of catching it here. */
+      if (error instanceof ImageTooLargeError) {
+        throw new HttpException({ message: error.message }, 400);
+      }
+
+      throw error;
+    }
 
     if (image.changed) {
       this.logger.log(
