@@ -51,7 +51,9 @@ export class RefreshStrategy extends PassportStrategy(
         },
       ]),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>("JWT_REFRESH_TOKEN_SECRET"),
+      // getOrThrow: @types/passport-jwt 4 no longer accepts undefined, and a
+      // boot-time failure beats every token verification failing at runtime.
+      secretOrKey: configService.getOrThrow<string>("JWT_REFRESH_TOKEN_SECRET"),
     });
   }
 

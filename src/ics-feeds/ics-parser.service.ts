@@ -24,6 +24,13 @@ const WINDOW_MONTHS = 12;
  */
 const MAX_OCCURRENCES_PER_SYNC = 10 * MAX_EVENTS_PER_SYNC;
 
+/**
+ * node-ical 0.27 types text properties as `string | { val, params }` - the
+ * object form appears when the property carried parameters (LANGUAGE, ALTREP).
+ */
+const text = (value?: string | { val: string }): string =>
+  typeof value === "string" ? value : (value?.val ?? "");
+
 export interface ParsedIcsEvent {
   externalId: string;
   title: string;
@@ -51,7 +58,7 @@ export class IcsParserService {
     windowEnd.setMonth(windowEnd.getMonth() + WINDOW_MONTHS);
 
     const vevents = Object.values(calendar)
-      .filter((entry): entry is VEvent => entry.type === "VEVENT")
+      .filter((entry): entry is VEvent => entry?.type === "VEVENT")
       .filter((entry) => !entry.recurrenceid);
 
     // Spent across every VEVENT, so a calendar cannot get around the ceiling
@@ -102,7 +109,7 @@ export class IcsParserService {
       return { events: [], occurrences: 0 };
     }
 
-    if (!event.summary || !event.start) {
+    if (!text(event.summary) || !event.start) {
       return { events: [], occurrences: 0 };
     }
 
@@ -121,15 +128,36 @@ export class IcsParserService {
       };
     }
 
-    const recurrences = Object.values(event.recurrences ?? {});
+    /* The values are declared Omit<VEvent, "recurrences">, but VEvent's index
+       signature makes Omit collapse every property to unknown - so the useful
+       shape has to be asserted back. An override is a VEVENT at runtime. */
+    const recurrences = Object.values(event.recurrences ?? {}) as VEvent[];
 
     // The iterator form stops rrule mid-expansion. Without it the full
     // occurrence set is materialised before anything gets to reject it.
+    // node-ical 0.27's rrule wrapper only takes an iterator on all(), so the
+    // window filter moved in here; occurrences past the window end the walk.
     const dates: Date[] = [];
-    event.rrule.between(windowStart, windowEnd, true, (date) => {
-      dates.push(date);
-      return dates.length < maxOccurrences;
-    });
+    try {
+      event.rrule.all((date) => {
+        if (date.getTime() > windowEnd.getTime()) {
+          return false;
+        }
+
+        if (date.getTime() >= windowStart.getTime()) {
+          dates.push(date);
+        }
+
+        return dates.length < maxOccurrences;
+      });
+    } catch {
+      // rrule-temporal gives up after 10,000 internal iterations. A rule
+      // that busts that before reaching the window (say MINUTELY with a
+      // DTSTART years back) is exactly what the ceiling exists to reject.
+      throw new BadRequestException(
+        `ICS calendar exceeds ${MAX_EVENTS_PER_SYNC} events per sync`,
+      );
+    }
 
     const events = dates
       .filter((date) => !this.isExcludedDate(event, date))
@@ -139,7 +167,7 @@ export class IcsParserService {
             return false;
           }
 
-          return new Date(recurrence.recurrenceid).getTime() === date.getTime();
+          return recurrence.recurrenceid.getTime() === date.getTime();
         });
 
         const sourceEvent = override ?? event;
@@ -186,11 +214,13 @@ export class IcsParserService {
       ? new Date(endDate)
       : new Date(start.getTime() + durationMs);
 
-    if (!event.uid || !event.summary) {
+    const title = text(event.summary).trim();
+
+    if (!event.uid || !title) {
       return null;
     }
 
-    const normalizedDescription = (event.description ?? "")
+    const normalizedDescription = text(event.description)
       .replace(/<[^>]*>/g, "")
       .trim();
 
@@ -198,9 +228,9 @@ export class IcsParserService {
       externalId: event.rrule
         ? `${event.uid}::${start.toISOString()}`
         : event.uid,
-      title: event.summary.trim(),
+      title,
       description: normalizedDescription,
-      locationName: (event.location ?? "").trim() || "Ikke oppgitt",
+      locationName: text(event.location).trim() || "Ikke oppgitt",
       startDate: start,
       endDate: end,
       externalUpdatedAt: event.lastmodified

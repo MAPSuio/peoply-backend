@@ -33,7 +33,10 @@ describe("access/refresh token confusion", () => {
 
   describe("AccessStrategy rejects a refresh payload", () => {
     const userService = { findById: jest.fn() } as any;
-    const configService = { get: () => "access-secret" } as any;
+    const configService = {
+      get: () => "access-secret",
+      getOrThrow: () => "access-secret",
+    } as any;
 
     let strategy: AccessStrategy;
 

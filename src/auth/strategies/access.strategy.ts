@@ -18,7 +18,9 @@ export class AccessStrategy extends PassportStrategy(Strategy, "access_token") {
         },
       ]),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>("JWT_ACCESS_TOKEN_SECRET"),
+      // getOrThrow: @types/passport-jwt 4 no longer accepts undefined, and a
+      // boot-time failure beats every token verification failing at runtime.
+      secretOrKey: configService.getOrThrow<string>("JWT_ACCESS_TOKEN_SECRET"),
     });
   }
 

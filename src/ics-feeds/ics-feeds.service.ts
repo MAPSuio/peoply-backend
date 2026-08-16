@@ -428,10 +428,10 @@ export class IcsFeedsService {
     }
 
     await this.azureCommunicationService.send({
-      sender: "no-reply@peoply.app",
+      senderAddress: "no-reply@peoply.app",
       recipients: {
-        to: [{ email: "no-reply@peoply.app" }],
-        bCC: emails.map((email: string) => ({ email })),
+        to: [{ address: "no-reply@peoply.app" }],
+        bcc: emails.map((email: string) => ({ address: email })),
       },
       content: {
         subject,
