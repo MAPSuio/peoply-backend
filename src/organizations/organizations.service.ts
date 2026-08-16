@@ -311,21 +311,17 @@ export class OrganizationsService {
     Returns:
       list of org - List<model Organization>
     */
-    try {
-      return await this.prisma.organization.findMany({
-        where: {
-          organizationRoles: {
-            // Prisma drops undefined fields from a where clause, so an
-            // undefined role is already "any role" — the branch that built
-            // two different objects was doing the same thing twice.
-            some: { userId: userId, role: role },
-          },
+    return await this.prisma.organization.findMany({
+      where: {
+        organizationRoles: {
+          // Prisma drops undefined fields from a where clause, so an
+          // undefined role is already "any role" — the branch that built
+          // two different objects was doing the same thing twice.
+          some: { userId: userId, role: role },
         },
-        include: { organizationRoles: { where: { userId: userId } } },
-      });
-    } catch (error) {
-      throw error;
-    }
+      },
+      include: { organizationRoles: { where: { userId: userId } } },
+    });
   }
   async findOrgWithUsers(orgId: string) {
     /* Find all users in an org and the org itself
@@ -334,30 +330,26 @@ export class OrganizationsService {
     Returns:
       the organization and all users in it - model Organization
     */
-    try {
-      return await this.prisma.organization.findUnique({
-        where: {
-          id: orgId,
-        },
-        include: {
-          organizationRoles: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  image: true,
-                  firstName: true,
-                  lastName: true,
-                  description: true,
-                },
+    return await this.prisma.organization.findUnique({
+      where: {
+        id: orgId,
+      },
+      include: {
+        organizationRoles: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                image: true,
+                firstName: true,
+                lastName: true,
+                description: true,
               },
             },
           },
         },
-      });
-    } catch (error) {
-      throw error;
-    }
+      },
+    });
   }
   async getArrangerId(orgId: string) {
     /* Find the arranger id of an org

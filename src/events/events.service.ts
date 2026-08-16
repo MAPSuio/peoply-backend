@@ -516,21 +516,6 @@ export class EventsService {
     return organizationRole !== null;
   }
 
-  async findOneWithArrangersByUrlId(urlId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { urlId: urlId },
-      include: {
-        eventArrangers: true,
-      },
-    });
-
-    if (!event || event.archivedAt) {
-      throw new EventNotFoundException(urlId);
-    } else {
-      return event;
-    }
-  }
-
   async update(
     updateEventDto: UpdateEventDto,
     id: string,

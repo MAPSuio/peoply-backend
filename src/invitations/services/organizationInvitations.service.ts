@@ -9,7 +9,7 @@ import {
 } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateOrganizationInvitationDto } from "../dto/create-organizationInvitation.dto";
-import { createUuid } from "../../util/uuid";
+import { createUuid, isUUID } from "../../util/uuid";
 import { MAX_INVITATIONS_PER_REQUEST } from "../invitations.constants";
 import { OrganizationInvitationDoesNotExistException } from "../exceptions/organizationInvitationDoesNotExistException.exception";
 
@@ -87,23 +87,6 @@ export class OrganizationInvitationsService {
     });
   }
 
-  isUuid(id: string) {
-    const regexExp =
-      /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/gi;
-
-    return regexExp.test(id);
-  }
-
-  async findUuid(urlId: string) {
-    const org = await this.prisma.organization.findUnique({
-      where: {
-        urlId,
-      },
-    });
-
-    return org?.id;
-  }
-
   async createInvitations(
     organizationId: string,
     fromUserId: string,
@@ -133,13 +116,15 @@ export class OrganizationInvitationsService {
     }
 
     // if organizationId is a urlId, get the uuid id instead
-    if (!this.isUuid(organizationId)) {
-      const uuidId = await this.findUuid(organizationId);
-      if (uuidId) {
-        organizationId = uuidId;
-      } else {
+    if (!isUUID(organizationId)) {
+      const org = await this.prisma.organization.findUnique({
+        where: { urlId: organizationId },
+        select: { id: true },
+      });
+      if (!org) {
         throw new Error("Invalid Organization url id");
       }
+      organizationId = org.id;
     }
 
     const invitations = await this.prisma.$transaction(async (trx) => {
