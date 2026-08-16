@@ -34,7 +34,7 @@ describe("EventsService.sendUpdateToEvent — the daily email cap", () => {
     registration.findMany.mockResolvedValue([
       { user: { email: "a@b.no", allowEmailFromArranger: true } },
     ]);
-    send.mockResolvedValue({ messageId: "msg-1" });
+    send.mockResolvedValue({ id: "msg-1" });
     service = new EventsService(
       prisma,
       {} as any,

@@ -194,9 +194,9 @@ export class CommonRegistrationService {
     try {
       if (nextGoingUser?.allowEmailFromArranger) {
         await this.azureCommunicationService.send({
-          sender: "no-reply@peoply.app",
+          senderAddress: "no-reply@peoply.app",
           recipients: {
-            to: [{ email: nextGoingUser.email }],
+            to: [{ address: nextGoingUser.email }],
           },
           content: {
             subject: `Peoply: Du har fått plass på "${event.title}"`,

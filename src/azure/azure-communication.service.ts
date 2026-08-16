@@ -1,8 +1,5 @@
-import {
-  EmailClient,
-  EmailMessage,
-  SendEmailResult,
-} from "@azure/communication-email";
+import { randomUUID } from "node:crypto";
+import { EmailClient, EmailMessage } from "@azure/communication-email";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
@@ -36,11 +33,23 @@ export class AzureCommunicationService {
     }
   }
 
-  async send(emailMessage: EmailMessage): Promise<SendEmailResult | null> {
+  /**
+   * Resolves once Azure has accepted the message, without polling the
+   * long-running operation to a terminal state - the beta `send()` this
+   * replaced also returned on acceptance, and callers run in request paths
+   * where waiting out delivery would block the response for seconds.
+   *
+   * The operation id is generated here so it is known without a poll; it is
+   * what callers persist to correlate a row with the operation in Azure.
+   */
+  async send(emailMessage: EmailMessage): Promise<{ id: string } | null> {
     if (!this.client) {
       return null;
     }
 
-    return await this.client.send(emailMessage);
+    const operationId = randomUUID();
+    await this.client.beginSend(emailMessage, { operationId });
+
+    return { id: operationId };
   }
 }

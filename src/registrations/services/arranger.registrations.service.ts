@@ -139,7 +139,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       throw new UserDoesNotExistException(userId);
     }
 
-    const toEmails: EmailRecipients = { to: [{ email: user.email }] };
+    const toEmails: EmailRecipients = { to: [{ address: user.email }] };
 
     const updated = await super.updateRegistration(
       userId,
@@ -158,7 +158,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       switch (regStatus.regStatus) {
         case RegStatus.NOT_GOING:
           await this.azureCommunicationService.send({
-            sender: "no-reply@peoply.app",
+            senderAddress: "no-reply@peoply.app",
             recipients: toEmails,
             content: {
               subject: `Peoply: Du har blitt avmeldt "${event.title}"`,
@@ -169,7 +169,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
 
         case RegStatus.BANNED:
           await this.azureCommunicationService.send({
-            sender: "no-reply@peoply.app",
+            senderAddress: "no-reply@peoply.app",
             recipients: toEmails,
             content: {
               subject: `Peoply: Du har blitt utestengt fra "${event.title}"`,

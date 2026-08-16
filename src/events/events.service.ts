@@ -740,9 +740,9 @@ export class EventsService {
       ).filter(({ user }) => user.allowEmailFromArranger);
 
       const toEmails: EmailRecipients = {
-        to: [{ email: "no-reply@peoply.app" }],
-        bCC: registrations.map(({ user }) => ({
-          email: user.email,
+        to: [{ address: "no-reply@peoply.app" }],
+        bcc: registrations.map(({ user }) => ({
+          address: user.email,
         })),
       };
 
@@ -750,19 +750,19 @@ export class EventsService {
          `1 > 0` and was always true. The recipients are the BCC list, and it
          is empty when nobody attending has opted in - in which case there was
          nothing to send, yet a slot was spent and an empty mail went out. */
-      if (toEmails.bCC && toEmails.bCC.length > 0) {
+      if (toEmails.bcc && toEmails.bcc.length > 0) {
         const sendResult = await this.azureCommunicationService.send({
-          sender: "no-reply@peoply.app",
+          senderAddress: "no-reply@peoply.app",
           recipients: toEmails,
           content: {
             subject: `Peoply: Oppdatering for "${event.title}"`,
             html: this.buildEventUpdateHtmlEmail(updateDto, event),
           },
           replyTo: updateDto.replyTo
-            ? [{ email: updateDto.replyTo }]
+            ? [{ address: updateDto.replyTo }]
             : undefined,
         });
-        azureMessageId = sendResult?.messageId ?? null;
+        azureMessageId = sendResult?.id ?? null;
       }
 
       if (azureMessageId) {

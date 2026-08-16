@@ -400,7 +400,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
 
     expect(azure.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipients: { to: [{ email: "next@example.com" }] },
+        recipients: { to: [{ address: "next@example.com" }] },
       }),
     );
   });

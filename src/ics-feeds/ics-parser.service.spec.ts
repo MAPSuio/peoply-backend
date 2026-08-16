@@ -12,51 +12,39 @@ describe("IcsParserService", () => {
   let service: IcsParserService;
 
   /**
-   * Mirrors rrule's `between(after, before, inc, iterator)`: the iterator is
-   * called per occurrence and returning false stops the expansion. The parser
-   * relies on that to bound the work, so a mock that only returns an array
-   * would not exercise the thing under test.
+   * Mirrors node-ical 0.27's rrule wrapper: `all(iterator)` is the only form
+   * that takes an iterator, it is called per occurrence from DTSTART, and
+   * returning false stops the expansion. The parser relies on that to bound
+   * the work, so a mock that only returns an array would not exercise the
+   * thing under test.
    */
   const rruleOver = (dates: Date[]) => ({
-    between: jest.fn(
-      (
-        _after: Date,
-        _before: Date,
-        _inc: boolean,
-        iterator?: (date: Date, index: number) => boolean,
-      ) => {
-        const emitted: Date[] = [];
-        for (const date of dates) {
-          if (iterator && !iterator(date, emitted.length)) break;
-          emitted.push(date);
-        }
-        return emitted;
-      },
-    ),
+    all: jest.fn((iterator?: (date: Date, index: number) => boolean) => {
+      const emitted: Date[] = [];
+      for (const date of dates) {
+        if (iterator && !iterator(date, emitted.length)) break;
+        emitted.push(date);
+      }
+      return emitted;
+    }),
   });
 
   /** An RRULE that never stops on its own - the abusive case. */
   const infiniteRrule = () => ({
-    between: jest.fn(
-      (
-        _after: Date,
-        _before: Date,
-        _inc: boolean,
-        iterator?: (date: Date, index: number) => boolean,
-      ) => {
-        const emitted: Date[] = [];
-        for (let i = 0; ; i++) {
-          const date = new Date(Date.UTC(2026, 3, 1) + i * 60_000);
-          if (iterator && !iterator(date, i)) break;
-          emitted.push(date);
-          // Without the iterator bound this would run to 525,481. Cap the
-          // fake far above the parser's ceiling so an unbounded parser fails
-          // the test rather than hanging it.
-          if (i > 50_000) throw new Error("parser did not bound the expansion");
-        }
-        return emitted;
-      },
-    ),
+    all: jest.fn((iterator?: (date: Date, index: number) => boolean) => {
+      const emitted: Date[] = [];
+      for (let i = 0; ; i++) {
+        const date = new Date(Date.UTC(2026, 3, 1) + i * 60_000);
+        if (iterator && !iterator(date, i)) break;
+        emitted.push(date);
+        // Without the iterator bound this would run to 525,481. Cap the
+        // fake far above the parser's ceiling so an unbounded parser fails
+        // the test rather than hanging it. (rrule-temporal itself throws at
+        // 10,000 - staying above that keeps the parser's own bound on trial.)
+        if (i > 50_000) throw new Error("parser did not bound the expansion");
+      }
+      return emitted;
+    }),
   });
 
   beforeEach(() => {
@@ -188,7 +176,9 @@ describe("IcsParserService", () => {
   it("still accepts a calendar just under the event cap", () => {
     const dates = Array.from(
       { length: 499 },
-      (_, i) => new Date(Date.UTC(2026, 3, 1) + i * 86_400_000),
+      // Hourly rather than daily: the parser now applies the 12-month window
+      // itself, and 499 daily occurrences would poke out of it and be dropped.
+      (_, i) => new Date(Date.UTC(2026, 3, 1) + i * 3_600_000),
     );
 
     (ical.sync.parseICS as jest.Mock).mockReturnValueOnce({
