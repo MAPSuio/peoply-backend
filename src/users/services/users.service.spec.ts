@@ -33,7 +33,7 @@ describe("UsersService", () => {
 
     const service = new UsersService(prisma, {} as any, {} as any);
 
-    const users = await service.findAll({ name: "Ada Lovelace" }, 0, 1);
+    const users = await service.findAll({ name: "Ada Lovelace", take: 1 });
 
     expect(users).toEqual([
       {

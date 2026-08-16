@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { EventVisibility, Favorite } from "../generated/prisma/client";
+import { Injectable } from "@nestjs/common";
+import { EventVisibility } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventNotFoundException } from "../events/exceptions";
 import {
@@ -52,25 +52,13 @@ export class FavoritesService {
     });
   }
 
-  async findAll(
-    searchProps: SearchFavoritesDto,
-    userId: string,
-    skip = 0,
-    take = 10,
-    orderBy: keyof Favorite = "updatedAt",
-    orderDirection: "asc" | "desc" = "asc",
-  ) {
-    /* create a dummy object to type check runtime */
-    const dummy: Favorite = {
-      eventId: "",
-      userId: "",
-      updatedAt: new Date(),
-      createdAt: new Date(),
-    };
-    /* Check if orderBy is a key of Registration */
-    if (!Object.keys(dummy).includes(orderBy)) {
-      throw new BadRequestException(`${orderBy} is not a key of Registration`);
-    }
+  async findAll(searchProps: SearchFavoritesDto, userId: string) {
+    const {
+      skip = 0,
+      take = 10,
+      orderBy = "updatedAt",
+      orderDirection = "asc",
+    } = searchProps;
 
     const favorites = await this.prismaService.favorite.findMany({
       skip,

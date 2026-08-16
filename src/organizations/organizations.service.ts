@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -98,10 +97,10 @@ export class OrganizationsService {
 
   private async findManyOrganizations(
     searchProps: SearchOrganizationDto = {},
-    skip = 0,
-    take = 10,
     approved?: boolean,
   ) {
+    const { skip = 0, take = 10 } = searchProps;
+
     const descriptionSearch = searchProps.description
       ? buildDescriptionSearchQuery(searchProps.description)
       : undefined;
@@ -140,16 +139,12 @@ export class OrganizationsService {
     return orgs;
   }
 
-  async findAll(searchProps: SearchOrganizationDto = {}, skip = 0, take = 10) {
-    return this.findManyOrganizations(searchProps, skip, take, true);
+  async findAll(searchProps: SearchOrganizationDto = {}) {
+    return this.findManyOrganizations(searchProps, true);
   }
 
-  async findAllIncludingUnapproved(
-    searchProps: SearchOrganizationDto = {},
-    skip = 0,
-    take = 10,
-  ) {
-    return this.findManyOrganizations(searchProps, skip, take);
+  async findAllIncludingUnapproved(searchProps: SearchOrganizationDto = {}) {
+    return this.findManyOrganizations(searchProps);
   }
 
   async findOne(id: string) {
