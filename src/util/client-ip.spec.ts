@@ -51,7 +51,7 @@ describe("resolveClientIp", () => {
       expect(resolveClientIp({ headers: {}, ip: undefined })).toBe("unknown");
     });
 
-    // The header is a Map key in the throttler and in threat detection, and is
+    // The header is a Map key in the throttler and is
     // interpolated into log lines and Discord alerts. Anything that is not an
     // address has no business being any of those.
     it.each([

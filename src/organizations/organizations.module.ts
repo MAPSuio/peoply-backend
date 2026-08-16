@@ -9,12 +9,12 @@ import { AuthModule } from "../auth/auth.module";
 import { UsersModule } from "../users/users.module";
 import { AzureModule } from "../azure/azure.module";
 import { AdministrationModule } from "../administration/administration.module";
-import { ThreatDetectionModule } from "../threat-detection/threat-detection.module";
+import { DiscordModule } from "../discord/discord.module";
 
 @Module({
   imports: [
     ConfigModule,
-    ThreatDetectionModule,
+    DiscordModule,
     PrismaModule,
     ArrangersModule,
     InvitationsModule,

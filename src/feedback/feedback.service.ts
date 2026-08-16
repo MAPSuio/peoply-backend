@@ -1,12 +1,14 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { DiscordAlertService } from "../threat-detection/discord-alert.service";
+import { DiscordAlertService } from "../discord/discord-alert.service";
 import { CreateFeedbackDto } from "./dto/create-feedback.dto";
 
 const FEEDBACK_COOLDOWN_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class FeedbackService {
+  private readonly logger = new Logger(FeedbackService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly discordAlert: DiscordAlertService,
@@ -61,6 +63,18 @@ export class FeedbackService {
         },
       });
     });
+
+    /* Logged here rather than left to the Discord call below, which only logs
+       once the webhook has answered and does nothing at all when
+       DISCORD_ALERT_WEBHOOK_URL is unset. This line is the record that a
+       submission happened, so it has to survive Discord being down.
+
+       Id and timestamp only. The feedback is anonymous by design, so the
+       author does not go in the log, and neither does the message: it is
+       free text from a user and already stored in the row this id points at. */
+    this.logger.log(
+      `Feedback received: ${feedback.id} at ${feedback.createdAt.toISOString()}`,
+    );
 
     await this.discordAlert.send({
       title: "Ny anonym feedback",
