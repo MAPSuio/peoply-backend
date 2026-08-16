@@ -36,11 +36,29 @@ export const buildOidcConfig = async (
     throw new Error(`${keys.issuerEnvKey} is not set`);
   }
 
+  const clientSecret = configService.getOrThrow<string>(keys.clientSecretKey);
+
   try {
     return await client.discovery(
       new URL(issuer),
       configService.getOrThrow<string>(keys.clientIdKey),
-      configService.getOrThrow<string>(keys.clientSecretKey),
+      clientSecret,
+      /* How the client authenticates at the token endpoint. Spelled out
+         because v5 and v6 disagree on the default and the disagreement is
+         silent: v5's Client defaulted to `client_secret_basic`, which is also
+         the default OIDC assigns when a client says nothing, while v6 defaults
+         to ClientSecretPost.
+
+         Vipps registers our client for Basic. Their Login API guide gives the
+         token request as `Authorization: Basic {Client Credentials}`, where
+         "the Client Credentials is a base 64 encoded string consisting of the
+         client_id and secret joined by `:`". Sending the credentials as form
+         parameters instead gets the token exchange rejected with
+         `invalid_client`: "There's an issue with the client
+         authentication_method." The authorization redirect succeeds either
+         way, so this surfaced only at the callback, as a 500 after the user
+         had already approved in the Vipps app. */
+      client.ClientSecretBasic(clientSecret),
     );
   } catch (error) {
     const discovered = discoveredIssuer(error);
