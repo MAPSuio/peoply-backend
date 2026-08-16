@@ -15,6 +15,7 @@ import { EventAccessService } from "../../event-access/event-access.service";
 import { eventCardInclude } from "../../events/event.select";
 import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
+import { assertRegistrationWindowOpen } from "../registration-window";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 
 @Injectable()
@@ -46,17 +47,7 @@ export class UserRegistrationService extends CommonRegistrationService {
         where: { id: userId },
       });
 
-      if (event?.endDate && new Date() > event.endDate) {
-        throw new BadRequestException("Event has ended");
-      }
-
-      if (event?.regStart && new Date() < event.regStart) {
-        throw new BadRequestException("Registration has not opened yet");
-      }
-
-      if (event?.regEnd && new Date() > event.regEnd) {
-        throw new BadRequestException("Registration has closed");
-      }
+      assertRegistrationWindowOpen(event, { requirePeoplyMode: false });
 
       if (event?.formQuestion && !createRegistrationDto.formAnswer) {
         throw new BadRequestException("Form answer is required");
