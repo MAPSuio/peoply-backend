@@ -20,13 +20,23 @@ const JPEG_QUALITY = 82;
  * a 4 MB JPEG can decode to 24 megapixels, and it is the pixels that take the
  * CPU and the memory. A decompression bomb is small on the wire and enormous
  * once decoded, so this is the limit that actually protects the process.
+ *
+ * 100 megapixels, matching the backfill. The largest image in production is
+ * 71.7 and it measured at +61 MB of RSS to decode and resize, so this is not a
+ * number anything real approaches: a 48 megapixel phone shooting at full
+ * resolution lands at half of it. It is a floor under absurdity, not a
+ * judgement about the picture.
  */
-const MAX_INPUT_PIXELS = 50_000_000;
+const MAX_INPUT_PIXELS = 100_000_000;
 
 /**
  * Thrown instead of sharp's raw error when an image decodes to more pixels
  * than the caller allows, so the upload path can answer 400 with something a
  * person can act on rather than 500 with a stack trace.
+ *
+ * "Megapixels" is a number about the file, not about the person holding the
+ * phone, so the message leads with what to do and keeps the measurement as the
+ * detail it is.
  */
 export class ImageTooLargeError extends Error {
   constructor(
@@ -34,8 +44,9 @@ export class ImageTooLargeError extends Error {
     readonly limit: number,
   ) {
     super(
-      `Image is ${megapixels.toFixed(1)} megapixels, which is over the ` +
-        `${(limit / 1e6).toFixed(0)} megapixel limit.`,
+      "This image has too many pixels for us to process. Export it at a " +
+        `smaller resolution and try again. (${megapixels.toFixed(1)} ` +
+        `megapixels, limit is ${(limit / 1e6).toFixed(0)}.)`,
     );
     this.name = "ImageTooLargeError";
   }

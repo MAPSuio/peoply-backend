@@ -1,5 +1,6 @@
 import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { UploadSizeFilter } from "./azure/upload-size.filter";
 import { PrismaExceptionFilter } from "./prisma/prisma-exception.filter";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";
@@ -88,7 +89,10 @@ async function bootstrap() {
   // Maps Prisma error codes to HTTP responses so services do not each repeat
   // the same try/catch. Registered here rather than as an APP_FILTER provider
   // because it needs no request-scoped dependencies.
-  app.useGlobalFilters(new PrismaExceptionFilter(app.get(HttpAdapterHost)));
+  app.useGlobalFilters(
+    new PrismaExceptionFilter(app.get(HttpAdapterHost)),
+    new UploadSizeFilter(),
+  );
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
     const trustedOrigins = parseTrustedOrigins(process.env.CORS_ORIGIN);

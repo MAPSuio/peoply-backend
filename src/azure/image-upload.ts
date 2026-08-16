@@ -9,16 +9,24 @@ import { MulterOptions } from "@nestjs/platform-express/multer/interfaces/multer
  */
 
 /**
- * 5 MB, down from 50.
+ * The point past which we stop accepting bytes at all.
  *
- * No `storage` is passed to FileInterceptor, so multer uses memoryStorage and
- * the whole file lands in `file.buffer` on the heap before it is handed to
- * Azure. The rate limiter caps requests per minute, not requests in flight, so
- * the old 50 MB meant 20 concurrent uploads held a gigabyte of live heap and
- * OOM-killed the container. 50 MB was also roughly 50x larger than any
- * plausible profile or event image.
+ * This is not a statement about what a reasonable image is. Every upload is
+ * downscaled to `MAX_IMAGE_EDGE_PX` on the way to storage, so what a user sends
+ * has almost nothing to do with what we keep: the 9.2 MB camera original that
+ * broke a profile picture in production comes out the other side at 255 kB.
+ * Rejecting the photo the phone actually took, to protect a limit that the very
+ * next step makes irrelevant, is the wrong trade - a phone photo is routinely
+ * over 5 MB, and "File too large" is a dead end for someone who only wanted an
+ * avatar.
+ *
+ * What it does bound is heap. No `storage` is passed to FileInterceptor, so
+ * multer uses memoryStorage and the whole file lands in `file.buffer` before it
+ * is handed to sharp. 30 MB sits above every phone photo and full-screen PNG
+ * anyone will realistically upload, while keeping the worst case bounded on a
+ * 1 GB container.
  */
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png"] as const;
 
