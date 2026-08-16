@@ -2,12 +2,13 @@ import { Prisma } from "../generated/prisma/client";
 import { PUBLIC_USER_SELECT } from "../users/user.select";
 
 /**
- * The shape an `Arranger` takes on endpoints that serve events to anyone,
- * logged in or not: `GET /events`, `GET /events/:urlId` and the public arm of
- * the arranger lookup.
+ * The shape an `Arranger` takes wherever an event is served with its
+ * arrangers: `GET /events`, `GET /events/:urlId`, the public arm of the
+ * arranger lookup, and (through `eventCardInclude`) the user's own favorites
+ * and registrations lists.
  *
  * `organization` is narrowed here even though the same row is public via
- * `GET /organizations/:orgId`, because these three call sites had already
+ * `GET /organizations/:orgId`, because the public call sites had already
  * agreed on the five fields and widening them is not this change's business.
  * `user` goes through {@link PUBLIC_USER_SELECT} — the same boundary every
  * other endpoint returning someone else's row is held to.

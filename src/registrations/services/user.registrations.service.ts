@@ -12,6 +12,7 @@ import {
   RegStatus,
 } from "../../generated/prisma/client";
 import { EventAccessService } from "../../event-access/event-access.service";
+import { eventCardInclude } from "../../events/event.select";
 import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
@@ -127,28 +128,7 @@ export class UserRegistrationService extends CommonRegistrationService {
         regStatus: searchProps.regStatus,
       },
       include: {
-        event: new Boolean(searchProps.includeEvent).valueOf() && {
-          include: {
-            eventArrangers: new Boolean(
-              searchProps.includeArrangers,
-            ).valueOf() && {
-              include: {
-                arranger: {
-                  include: {
-                    user: {
-                      select: {
-                        firstName: true,
-                        lastName: true,
-                        image: true,
-                      },
-                    },
-                    organization: { select: { name: true, image: true } },
-                  },
-                },
-              },
-            },
-          },
-        },
+        event: eventCardInclude(searchProps),
       },
       orderBy: {
         [orderBy]: orderDirection,
