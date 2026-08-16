@@ -1,12 +1,6 @@
 import { HttpStatus } from "@nestjs/common";
 import { FeedbackService, FEEDBACK_COOLDOWN_MS } from "./feedback.service";
 
-jest.mock("../threat-detection/discord-webhook", () => ({
-  postDiscordWebhook: jest.fn(),
-}));
-
-import { postDiscordWebhook } from "../threat-detection/discord-webhook";
-
 describe("FeedbackService", () => {
   const feedback = {
     findFirst: jest.fn(),
@@ -19,15 +13,15 @@ describe("FeedbackService", () => {
     $queryRaw: jest.fn(),
     $transaction: jest.fn((fn: any) => fn({ feedback, $queryRaw: jest.fn() })),
   };
-  const config = {
-    get: jest.fn(),
+  const discordAlert = {
+    send: jest.fn().mockResolvedValue(undefined),
   };
 
   let service: FeedbackService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new FeedbackService(prisma as any, config as any);
+    service = new FeedbackService(prisma as any, discordAlert as any);
   });
 
   it("creates feedback when cooldown has passed", async () => {
@@ -36,11 +30,6 @@ describe("FeedbackService", () => {
     feedback.create.mockResolvedValueOnce({
       id: "feedback-1",
       createdAt,
-    });
-    config.get.mockReturnValueOnce("https://discord.example/webhook");
-    (postDiscordWebhook as jest.Mock).mockResolvedValueOnce({
-      statusCode: 204,
-      body: "",
     });
 
     await expect(
@@ -61,25 +50,12 @@ describe("FeedbackService", () => {
       },
     });
 
-    expect(postDiscordWebhook).toHaveBeenCalledWith(
-      "https://discord.example/webhook",
-      expect.any(String),
-    );
-
-    const discordPayload = JSON.parse(
-      (postDiscordWebhook as jest.Mock).mock.calls[0][1],
-    );
-
-    expect(discordPayload).toMatchObject({
-      embeds: [
-        {
-          title: "Ny anonym feedback",
-          description: "Dette er nyttig feedback.",
-          color: 0x4a67ff,
-        },
-      ],
+    expect(discordAlert.send).toHaveBeenCalledWith({
+      title: "Ny anonym feedback",
+      description: "Dette er nyttig feedback.",
+      color: 0x4a67ff,
+      context: "Feedback",
     });
-    expect(discordPayload.embeds[0].timestamp).toEqual(expect.any(String));
   });
 
   it("blocks feedback inside cooldown window", async () => {
@@ -118,7 +94,6 @@ describe("FeedbackService", () => {
       id: "feedback-1",
       createdAt: new Date(),
     });
-    config.get.mockReturnValueOnce(undefined);
 
     await service.create("user-1", { message: "a".repeat(20) } as any);
 
@@ -136,7 +111,6 @@ describe("FeedbackService", () => {
       id: "feedback-1",
       createdAt: new Date(),
     });
-    config.get.mockReturnValueOnce(undefined);
 
     await service.create("user-1", { message: "a".repeat(20) } as any);
 

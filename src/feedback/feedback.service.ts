@@ -1,18 +1,15 @@
-import { HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { postDiscordWebhook } from "../threat-detection/discord-webhook";
+import { DiscordAlertService } from "../threat-detection/discord-alert.service";
 import { CreateFeedbackDto } from "./dto/create-feedback.dto";
 
 const FEEDBACK_COOLDOWN_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class FeedbackService {
-  private readonly logger = new Logger(FeedbackService.name);
-
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly discordAlert: DiscordAlertService,
   ) {}
 
   async create(userId: string, dto: CreateFeedbackDto) {
@@ -65,45 +62,14 @@ export class FeedbackService {
       });
     });
 
-    await this.sendDiscordNotification(dto.message);
+    await this.discordAlert.send({
+      title: "Ny anonym feedback",
+      description: dto.message,
+      color: 0x4a67ff,
+      context: "Feedback",
+    });
 
     return feedback;
-  }
-
-  private async sendDiscordNotification(message: string) {
-    const webhookUrl = this.config.get<string>("DISCORD_ALERT_WEBHOOK_URL");
-
-    if (!webhookUrl) {
-      return;
-    }
-
-    try {
-      const res = await postDiscordWebhook(
-        webhookUrl,
-        JSON.stringify({
-          embeds: [
-            {
-              title: "Ny anonym feedback",
-              description: message,
-              color: 0x4a67ff,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        }),
-      );
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        this.logger.error(
-          `Feedback Discord webhook responded ${res.statusCode}: ${res.body}`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to send feedback to Discord: ${
-          error instanceof Error ? error.message : error
-        }`,
-      );
-    }
   }
 }
 

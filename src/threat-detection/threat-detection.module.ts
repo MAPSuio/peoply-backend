@@ -6,6 +6,6 @@ import { DiscordAlertService } from "./discord-alert.service";
 @Module({
   imports: [ConfigModule],
   providers: [ThreatDetectionService, DiscordAlertService],
-  exports: [ThreatDetectionService],
+  exports: [ThreatDetectionService, DiscordAlertService],
 })
 export class ThreatDetectionModule {}

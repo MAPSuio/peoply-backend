@@ -1,9 +1,4 @@
-jest.mock("../threat-detection/discord-webhook", () => ({
-  postDiscordWebhook: jest.fn(),
-}));
-
 import { OrganizationsService } from "./organizations.service";
-import { postDiscordWebhook } from "../threat-detection/discord-webhook";
 
 describe("OrganizationsService", () => {
   const prisma = {
@@ -34,18 +29,20 @@ describe("OrganizationsService", () => {
   const azureStorageService = {
     swapImage: jest.fn().mockResolvedValue(undefined),
   };
-  const config = {
-    get: jest.fn(),
+  const discordAlert = {
+    send: jest.fn().mockResolvedValue(undefined),
+    isConfigured: true,
   };
 
   let service: OrganizationsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    discordAlert.isConfigured = true;
     service = new OrganizationsService(
       prisma as any,
       azureStorageService as any,
-      config as any,
+      discordAlert as any,
     );
   });
 
@@ -57,12 +54,6 @@ describe("OrganizationsService", () => {
       lastName: "Nordmann",
       email: "ola@example.com",
     });
-    config.get.mockReturnValueOnce("https://discord.example/webhook");
-    (postDiscordWebhook as jest.Mock).mockResolvedValueOnce({
-      statusCode: 204,
-      body: "",
-    });
-
     await expect(
       service.reportOrganization("user-1", {
         id: "org-1",
@@ -78,43 +69,29 @@ describe("OrganizationsService", () => {
       },
     });
 
-    expect(postDiscordWebhook).toHaveBeenCalledWith(
-      "https://discord.example/webhook",
-      expect.any(String),
+    expect(discordAlert.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Forening rapportert",
+        content: "@everyone",
+        fields: expect.arrayContaining([
+          {
+            name: "Forening",
+            value: "MAPS",
+            inline: true,
+          },
+          {
+            name: "Rapportert av",
+            value: "Ola Nordmann (ola@example.com)",
+          },
+        ]),
+      }),
     );
-
-    const payload = JSON.parse(
-      (postDiscordWebhook as jest.Mock).mock.calls[0][1],
-    );
-
-    expect(payload).toMatchObject({
-      content: "@everyone",
-      allowed_mentions: {
-        parse: ["everyone"],
-      },
-      embeds: [
-        {
-          title: "Forening rapportert",
-          fields: expect.arrayContaining([
-            {
-              name: "Forening",
-              value: "MAPS",
-              inline: true,
-            },
-            {
-              name: "Rapportert av",
-              value: "Ola Nordmann (ola@example.com)",
-            },
-          ]),
-        },
-      ],
-    });
   });
 
   it("returns success without Discord when webhook is missing", async () => {
     prisma.organizationReport.findFirst.mockResolvedValueOnce(null);
     prisma.user.findUnique.mockResolvedValueOnce(null);
-    config.get.mockReturnValueOnce(undefined);
+    discordAlert.isConfigured = false;
 
     await expect(
       service.reportOrganization("user-1", {
@@ -124,7 +101,7 @@ describe("OrganizationsService", () => {
       } as any),
     ).resolves.toMatchObject({ reported: true });
 
-    expect(postDiscordWebhook).not.toHaveBeenCalled();
+    expect(discordAlert.send).not.toHaveBeenCalled();
   });
 
   it("reports status shows remaining cooldown", async () => {
@@ -153,7 +130,7 @@ describe("OrganizationsService", () => {
     );
 
     expect(prisma.organizationReport.create).not.toHaveBeenCalled();
-    expect(postDiscordWebhook).not.toHaveBeenCalled();
+    expect(discordAlert.send).not.toHaveBeenCalled();
   });
 
   it("filters public organization lists to approved organizations", async () => {
