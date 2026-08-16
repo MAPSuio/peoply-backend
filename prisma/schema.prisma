@@ -260,6 +260,10 @@ model Event {
   @@unique([organizationIcsFeedId, externalId])
   @@index([urlId])
   @@index([archivedAt])
+  // `GET /events` filters on startDate and orders by it, then takes a page.
+  // Without this the planner has to sort the whole table to answer a query
+  // that only ever wants the next handful of rows.
+  @@index([startDate])
   @@map("events")
 }
 
