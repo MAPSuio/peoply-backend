@@ -84,10 +84,19 @@ describe("IMAGE_UPLOAD_OPTIONS", () => {
     return callback;
   };
 
-  it("caps a single file at 5 MB", () => {
-    expect(MAX_IMAGE_BYTES).toBe(5 * 1024 * 1024);
+  it("caps a single file at 30 MB", () => {
+    expect(MAX_IMAGE_BYTES).toBe(30 * 1024 * 1024);
     expect(IMAGE_UPLOAD_OPTIONS.limits?.fileSize).toBe(MAX_IMAGE_BYTES);
     expect(IMAGE_UPLOAD_OPTIONS.limits?.files).toBe(1);
+  });
+
+  /* The limit exists to bound heap, not to judge the picture. A phone photo
+     that would have been refused at 5 MB has to get through, because the next
+     step downscales it to a couple of hundred kilobytes anyway. */
+  it("accepts a photo straight from a phone", () => {
+    const typicalPhonePhotoBytes = 12 * 1024 * 1024;
+
+    expect(typicalPhonePhotoBytes).toBeLessThan(MAX_IMAGE_BYTES);
   });
 
   it("accepts the two image content types", () => {

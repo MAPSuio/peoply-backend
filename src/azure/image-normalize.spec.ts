@@ -180,9 +180,10 @@ describe("needsDownscaling", () => {
 });
 
 /**
- * Two images in production decode to 71.7 and 62.2 megapixels while weighing
- * 1.1 and 2.6 MB. That shape passes a byte limit and still needs 273 MB
- * decoded, which the 512 MB service container does not have.
+ * A byte limit cannot see this: two images in production decode to 71.7 and
+ * 62.2 megapixels while weighing 1.1 and 2.6 MB on disk. The ceiling is a
+ * guard against that shape, set well above anything a camera produces, not a
+ * second opinion on whether the upload was reasonable.
  */
 describe("normalizeImage pixel ceiling", () => {
   const wide = (width: number, height: number) =>
@@ -207,7 +208,7 @@ describe("normalizeImage pixel ceiling", () => {
     const input = await wide(4000, 4000).toBuffer();
 
     await expect(normalizeImage(input, 8_000_000)).rejects.toThrow(
-      /16\.0 megapixels.*8 megapixel limit/,
+      /Export it at a smaller resolution.*16\.0 megapixels, limit is 8/s,
     );
   });
 
