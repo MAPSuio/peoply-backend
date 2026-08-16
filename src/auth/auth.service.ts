@@ -66,12 +66,6 @@ export class AuthService {
     return this.jwtService.verify(token);
   }
 
-  validateRefreshJWT(token: string) {
-    return this.jwtService.verify(token, {
-      secret: this.configService.get<string>("JWT_REFRESH_TOKEN_SECRET"),
-    });
-  }
-
   getAccessToken(user: User) {
     const payload = { sub: user.id };
     return this.jwtService.sign(payload); // configured in AuthModule

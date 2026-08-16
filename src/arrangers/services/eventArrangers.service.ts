@@ -32,27 +32,6 @@ const ARRANGER_INCLUDE = {
 export class EventArrangersService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  //find all events arranged by a given arrangerID
-  async findAllWithEvents(arrangerId: string) {
-    return await this.prismaService.eventArranger.findMany({
-      where: {
-        arrangerId,
-        event: {
-          archivedAt: null,
-        },
-      },
-      include: {
-        event: {
-          include: {
-            eventArrangers: {
-              include: ARRANGER_INCLUDE,
-            },
-          },
-        },
-      },
-    });
-  }
-
   /**
    * Backs two unauthenticated endpoints - the organization page and its ICS
    * calendar - so the row count is set by how many events an organization has

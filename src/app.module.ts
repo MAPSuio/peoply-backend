@@ -3,8 +3,6 @@ import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD } from "@nestjs/core";
-import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
 import { EventsModule } from "./events/events.module";
 import { RegistrationsModule } from "./registrations/registrations.module";
@@ -114,9 +112,7 @@ import { PopupsModule } from "./popups/popups.module";
     RecommendationsModule,
     PopupsModule,
   ],
-  controllers: [AppController],
   providers: [
-    AppService,
     // Apply rate limiting globally, using CF-Connecting-IP when available
     {
       provide: APP_GUARD,
