@@ -701,6 +701,19 @@ export class EventsService {
 
     let azureMessageId: string | null = null;
 
+    /* Written before any send happens; a successful send patches
+       azureMessageId onto the row afterwards. */
+    const updateData = {
+      eventId,
+      body: updateDto.body,
+      subject: updateDto.subject,
+      replyTo: updateDto.replyTo,
+      azureMessageId: null,
+      sendEmail: updateDto.sendEmail,
+      visibility: updateDto.visibility,
+      createdByUserId,
+    };
+
     if (updateDto.sendEmail) {
       /* Counting here and writing the row that increments the count after the
          send left the whole window open: concurrent requests all read the same
@@ -730,18 +743,7 @@ export class EventsService {
           );
         }
 
-        return trx.eventUpdate.create({
-          data: {
-            eventId,
-            body: updateDto.body,
-            subject: updateDto.subject,
-            replyTo: updateDto.replyTo,
-            azureMessageId: null,
-            sendEmail: updateDto.sendEmail,
-            visibility: updateDto.visibility,
-            createdByUserId,
-          },
-        });
+        return trx.eventUpdate.create({ data: updateData });
       });
 
       const registrations = (
@@ -789,18 +791,7 @@ export class EventsService {
       return;
     }
 
-    await this.prisma.eventUpdate.create({
-      data: {
-        eventId,
-        body: updateDto.body,
-        subject: updateDto.subject,
-        replyTo: updateDto.replyTo,
-        azureMessageId: azureMessageId,
-        sendEmail: updateDto.sendEmail,
-        visibility: updateDto.visibility,
-        createdByUserId,
-      },
-    });
+    await this.prisma.eventUpdate.create({ data: updateData });
   }
 
   async getUpdatesForEvent(
