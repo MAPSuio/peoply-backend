@@ -8,12 +8,20 @@ import { AzureStorageContainer } from "../src/azure/azure-storage.constants";
 import { needsDownscaling, normalizeImage } from "../src/azure/image-normalize";
 
 /**
- * The two worst images in production decode to 71.7 and 62.2 megapixels, over
- * the ceiling the upload path enforces to protect a 512 MB container. They are
- * exactly the ones that need rewriting, so this job lifts the ceiling and is
- * run where there is memory to spare. Override with IMAGE_MAX_MEGAPIXELS.
+ * Largest image this run will decode, in megapixels.
+ *
+ * This is a memory budget wearing a different unit. Decoding costs roughly
+ * four bytes per pixel, so 25 megapixels is about 100 MB of pixel buffer, and
+ * the service container has 512 MB with the API already living in it. The
+ * default used to be 200, chosen to cover the two worst images in production,
+ * and that was the bug: a 71.7 megapixel PNG needs 273 MB, which killed the
+ * container and took the console session with it. Two runs died on the same
+ * blob before this was understood.
+ *
+ * A skipped image is reported, not silently passed over. Raise this when
+ * running somewhere with memory to spare, which is where those two belong.
  */
-const MAX_MEGAPIXELS = Number(process.env.IMAGE_MAX_MEGAPIXELS ?? 200);
+const MAX_MEGAPIXELS = Number(process.env.IMAGE_MAX_MEGAPIXELS ?? 25);
 
 /**
  * How many blobs to rewrite before stopping, so the work can be taken in
@@ -69,6 +77,8 @@ const DRY_RUN = process.argv.includes("--dry-run");
 interface Totals {
   inspected: number;
   rewritten: number;
+  /** Too many pixels for this run's budget. Expected, not a fault. */
+  tooBig: number;
   failed: number;
   bytesBefore: number;
   bytesAfter: number;
@@ -123,12 +133,19 @@ async function readBlob(
  * Answers whether a blob is oversized from its header alone, so a blob that is
  * already fine is never pulled down in full.
  */
-async function isOversized(container: ContainerClient, blobName: string) {
+async function dimensionsFromHeader(
+  container: ContainerClient,
+  blobName: string,
+) {
   try {
     const header = await readBlob(container, blobName, HEADER_BYTES);
     const metadata = await sharp(header, { limitInputPixels: false }).metadata();
 
-    return needsDownscaling(metadata.width ?? 0, metadata.height ?? 0);
+    if (!metadata.width || !metadata.height) {
+      return null;
+    }
+
+    return { width: metadata.width, height: metadata.height };
   } catch {
     /* Some encoders put the dimensions past the first chunk. Falling back to
        the full download is slower for those, and still correct. */
@@ -136,23 +153,59 @@ async function isOversized(container: ContainerClient, blobName: string) {
   }
 }
 
-async function downscaleBlob(container: ContainerClient, blobName: string) {
-  const oversized = await isOversized(container, blobName);
+class TooManyPixelsError extends Error {
+  constructor(megapixels: number) {
+    super(
+      `${megapixels.toFixed(1)} megapixels needs about ` +
+        `${Math.round(megapixels * 4)} MB to decode, over the ` +
+        `${MAX_MEGAPIXELS} megapixel budget. Re-run with a higher ` +
+        "IMAGE_MAX_MEGAPIXELS somewhere with more memory.",
+    );
+    this.name = "TooManyPixelsError";
+  }
+}
 
-  if (oversized === false) {
-    return null;
+/**
+ * Refuses an image the run cannot afford to decode, from its header alone.
+ *
+ * The check has to happen here rather than inside `normalizeImage`, because by
+ * the time that function runs the blob has already been downloaded and is one
+ * decode away from the memory it cannot have. Deciding on the header means the
+ * bytes are never fetched and the pixels are never materialised.
+ */
+function assertAffordable(dimensions: { width: number; height: number }) {
+  const megapixels = (dimensions.width * dimensions.height) / 1e6;
+
+  if (megapixels > MAX_MEGAPIXELS) {
+    throw new TooManyPixelsError(megapixels);
+  }
+}
+
+async function downscaleBlob(container: ContainerClient, blobName: string) {
+  const fromHeader = await dimensionsFromHeader(container, blobName);
+
+  if (fromHeader) {
+    if (!needsDownscaling(fromHeader.width, fromHeader.height)) {
+      return null;
+    }
+
+    assertAffordable(fromHeader);
   }
 
   const original = await readBlob(container, blobName);
 
-  if (oversized === null) {
+  if (!fromHeader) {
     const metadata = await sharp(original, {
       limitInputPixels: false,
     }).metadata();
+    const width = metadata.width ?? 0;
+    const height = metadata.height ?? 0;
 
-    if (!needsDownscaling(metadata.width ?? 0, metadata.height ?? 0)) {
+    if (!needsDownscaling(width, height)) {
       return null;
     }
+
+    assertAffordable({ width, height });
   }
 
   const blockBlob = container.getBlockBlobClient(blobName);
@@ -167,6 +220,50 @@ async function downscaleBlob(container: ContainerClient, blobName: string) {
   }
 
   return result;
+}
+
+function record(
+  totals: Totals,
+  containerName: string,
+  blobName: string,
+  result: Awaited<ReturnType<typeof downscaleBlob>>,
+) {
+  if (!result) return;
+
+  console.log(
+    `${containerName}/${blobName}\n` +
+      `  ${result.before.width}x${result.before.height} ` +
+      `(${kB(result.before.bytes)}) -> ` +
+      `${result.after.width}x${result.after.height} ` +
+      `(${kB(result.after.bytes)})`,
+  );
+
+  totals.rewritten += 1;
+  totals.bytesBefore += result.before.bytes;
+  totals.bytesAfter += result.after.bytes;
+}
+
+function recordFailure(
+  totals: Totals,
+  containerName: string,
+  blobName: string,
+  error: unknown,
+) {
+  if (error instanceof TooManyPixelsError) {
+    totals.tooBig += 1;
+    console.log(`${containerName}/${blobName}\n  ${error.message}`);
+    return;
+  }
+
+  /* One unreadable blob must not stop the rest. Something that is not an image
+     at all, or is truncated, lands here and is reported rather than aborting a
+     run that is fixing everything else. */
+  totals.failed += 1;
+  console.error(
+    `${containerName}/${blobName}: skipped - ${
+      error instanceof Error ? error.message : error
+    }`,
+  );
 }
 
 async function downscaleContainer(
@@ -187,31 +284,9 @@ async function downscaleContainer(
     totals.inspected += 1;
 
     try {
-      const result = await downscaleBlob(container, blob.name);
-
-      if (!result) continue;
-
-      console.log(
-        `${containerName}/${blob.name}\n` +
-          `  ${result.before.width}x${result.before.height} ` +
-          `(${kB(result.before.bytes)}) -> ` +
-          `${result.after.width}x${result.after.height} ` +
-          `(${kB(result.after.bytes)})`,
-      );
-
-      totals.rewritten += 1;
-      totals.bytesBefore += result.before.bytes;
-      totals.bytesAfter += result.after.bytes;
+      record(totals, containerName, blob.name, await downscaleBlob(container, blob.name));
     } catch (error) {
-      /* One unreadable blob must not stop the rest. Something that is not an
-         image at all, or is truncated, lands here and is reported rather than
-         aborting a run that is fixing everything else. */
-      totals.failed += 1;
-      console.error(
-        `${containerName}/${blob.name}: skipped - ${
-          error instanceof Error ? error.message : error
-        }`,
-      );
+      recordFailure(totals, containerName, blob.name, error);
     }
   }
 }
@@ -232,6 +307,7 @@ async function main() {
   const totals: Totals = {
     inspected: 0,
     rewritten: 0,
+    tooBig: 0,
     failed: 0,
     bytesBefore: 0,
     bytesAfter: 0,
@@ -244,8 +320,17 @@ async function main() {
   console.log(
     `\nInspected ${totals.inspected}, ${
       DRY_RUN ? "would rewrite" : "rewrote"
-    } ${totals.rewritten}, failed ${totals.failed}.`,
+    } ${totals.rewritten}, too big for this run ${totals.tooBig}, failed ${
+      totals.failed
+    }.`,
   );
+
+  if (totals.tooBig > 0) {
+    console.log(
+      `Raise IMAGE_MAX_MEGAPIXELS above ${MAX_MEGAPIXELS} and re-run somewhere ` +
+        "with more memory to take those.",
+    );
+  }
 
   if (totals.rewritten > 0) {
     console.log(`Storage: ${kB(totals.bytesBefore)} -> ${kB(totals.bytesAfter)}`);
