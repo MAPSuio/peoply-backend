@@ -4,8 +4,9 @@ import { Store, SessionData, SessionOptions } from "express-session";
  * The express session exists for exactly one purpose: openid-client's passport
  * strategy keeps the OAuth `state`, `nonce` and PKCE `code_verifier` in
  * `req.session` between the redirect to Vipps/Google and the callback
- * (node_modules/openid-client/lib/passport_strategy.js, which writes
- * `req.session[sessionKey]` on the way out and reads it back on the way in).
+ * (node_modules/openid-client/build/passport.js in v6, which writes
+ * `req.session[sessionKey]` on the way out and reads it back on the way in;
+ * the key defaults to the provider's host).
  *
  * Nothing else in the codebase touches `req.session` — there is no
  * serializeUser/deserializeUser — so ten minutes is a generous ceiling for

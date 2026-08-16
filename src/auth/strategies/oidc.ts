@@ -1,5 +1,5 @@
 import { ConfigService } from "@nestjs/config";
-import { Client, Issuer } from "openid-client";
+import * as client from "openid-client";
 import { Provider } from "../../generated/prisma/client";
 import { CreateUserDto } from "../../users/dto";
 import { UsersService } from "../../users/services";
@@ -18,36 +18,40 @@ export interface OidcProviderKeys {
 }
 
 /**
- * Discovers the provider's endpoints and builds a client for them.
+ * Discovers the provider's endpoints and builds the openid-client v6
+ * Configuration for them - v6 dropped the Issuer/Client classes for this one
+ * object. discovery() derives the well-known URL from the issuer identifier
+ * itself, so unlike v5 the suffix must not be appended here.
  *
  * The module has to await this before constructing the strategy, because the
- * client is a constructor argument to passport's super call.
+ * configuration is a constructor argument to passport's super call.
  */
-export const buildOidcClient = async (
+export const buildOidcConfig = async (
   configService: ConfigService,
   keys: OidcProviderKeys,
 ) => {
-  const trustIssuer = await Issuer.discover(
-    `${process.env[keys.issuerEnvKey]}/.well-known/openid-configuration`,
-  );
+  const issuer = process.env[keys.issuerEnvKey];
 
-  return new trustIssuer.Client({
-    client_id: configService.get<string>(keys.clientIdKey)!,
-    client_secret: configService.get<string>(keys.clientSecretKey)!,
-  });
+  if (!issuer) {
+    throw new Error(`${keys.issuerEnvKey} is not set`);
+  }
+
+  return await client.discovery(
+    new URL(issuer),
+    configService.getOrThrow<string>(keys.clientIdKey),
+    configService.getOrThrow<string>(keys.clientSecretKey),
+  );
 };
 
 /** The options every provider's strategy passes to passport. */
 export const oidcStrategyOptions = (
-  client: Client,
+  config: client.Configuration,
   configService: ConfigService,
   keys: OidcProviderKeys,
 ) => ({
-  client,
-  params: {
-    redirect_uri: configService.get<string>(keys.redirectUriKey),
-    scope: configService.get<string>(keys.scopeKey),
-  },
+  config,
+  scope: configService.getOrThrow<string>(keys.scopeKey),
+  callbackURL: configService.getOrThrow<string>(keys.redirectUriKey),
 });
 
 /**
@@ -71,4 +75,30 @@ export const findOrCreateProviderUser = async (
   }
 
   return await userService.create(createUserDto, provider, sub);
+};
+
+/**
+ * What a strategy's validate() receives from openid-client v6's passport
+ * strategy: the token endpoint response plus its claims()/expiresIn() helpers.
+ */
+export type OidcTokens = client.TokenEndpointResponse &
+  client.TokenEndpointResponseHelpers;
+
+/**
+ * Fetches the userinfo the way v5's client.userinfo(tokenset) did: the
+ * subject from the ID token is required and verified against the response.
+ * Both providers request the openid scope, so an ID token is always present -
+ * a response without one fails here rather than in the field checks after.
+ */
+export const fetchOidcUserinfo = async (
+  config: client.Configuration,
+  tokens: OidcTokens,
+) => {
+  const sub = tokens.claims()?.sub;
+
+  if (!sub) {
+    throw new Error("Token response carried no ID token subject");
+  }
+
+  return await client.fetchUserInfo(config, tokens.access_token, sub);
 };

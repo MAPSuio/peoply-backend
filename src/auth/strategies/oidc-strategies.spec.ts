@@ -1,19 +1,22 @@
-/* openid-client reaches jose, which ships ESM that this jest setup cannot
-   transform — importing it for real fails before a single test runs, which is
-   why the strategies had no tests at all. Only the base class and the
-   discovery entry point are needed here; validate() talks to the client it was
-   handed, and that one is a stub either way. */
-jest.mock("openid-client", () => ({
+/* openid-client v6 ships ESM only, which this jest setup cannot transform —
+   importing it for real fails before a single test runs, which is why the
+   strategies had no tests at all before the mocks. Only the base class and
+   the module functions validate() reaches are needed here. */
+jest.mock("openid-client/passport", () => ({
   Strategy: class {},
-  Issuer: { discover: jest.fn() },
+}));
+jest.mock("openid-client", () => ({
+  discovery: jest.fn(),
+  fetchUserInfo: jest.fn(),
 }));
 
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { Client } from "openid-client";
+import * as client from "openid-client";
 import { Provider } from "../../generated/prisma/client";
 import { UsersService } from "../../users/services";
 import { GoogleStrategy } from "./google.strategy";
+import type { OidcTokens } from "./oidc";
 import { VippsStrategy } from "./vipps.strategy";
 
 /**
@@ -24,15 +27,26 @@ import { VippsStrategy } from "./vipps.strategy";
 describe("OIDC strategies", () => {
   const configService = {
     get: jest.fn(() => "configured"),
+    getOrThrow: jest.fn(() => "configured"),
   } as unknown as ConfigService;
+
+  const config = {} as client.Configuration;
+
+  /** What the v6 passport strategy hands validate(). */
+  const tokens = {
+    access_token: "access-token",
+    claims: () => ({ sub: "sub-1" }),
+  } as unknown as OidcTokens;
 
   let userService: UsersService;
   let existingUser: unknown;
 
-  const clientWith = (userinfo: Record<string, unknown>) =>
-    ({
-      userinfo: jest.fn().mockResolvedValue({ sub: "sub-1", ...userinfo }),
-    }) as unknown as Client;
+  const userinfoWith = (userinfo: Record<string, unknown>) => {
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+      sub: "sub-1",
+      ...userinfo,
+    });
+  };
 
   beforeEach(() => {
     existingUser = null;
@@ -57,15 +71,19 @@ describe("OIDC strategies", () => {
     birthdate: "1995-06-01",
   };
 
-  const google = (claims: Record<string, unknown>) =>
-    new GoogleStrategy(clientWith(claims), userService, configService);
+  const google = (claims: Record<string, unknown>) => {
+    userinfoWith(claims);
+    return new GoogleStrategy(config, userService, configService);
+  };
 
-  const vipps = (claims: Record<string, unknown>) =>
-    new VippsStrategy(clientWith(claims), userService, configService);
+  const vipps = (claims: Record<string, unknown>) => {
+    userinfoWith(claims);
+    return new VippsStrategy(config, userService, configService);
+  };
 
   describe("GoogleStrategy", () => {
     it("creates a user on first login", async () => {
-      await google(googleClaims).validate({} as any);
+      await google(googleClaims).validate(tokens);
 
       expect(userService.create).toHaveBeenCalledWith(
         {
@@ -81,7 +99,7 @@ describe("OIDC strategies", () => {
     it("returns the existing user without creating another", async () => {
       existingUser = { id: "user-1" };
 
-      await expect(google(googleClaims).validate({} as any)).resolves.toEqual({
+      await expect(google(googleClaims).validate(tokens)).resolves.toEqual({
         id: "user-1",
       });
       expect(userService.create).not.toHaveBeenCalled();
@@ -91,7 +109,7 @@ describe("OIDC strategies", () => {
        could otherwise sign in as them. */
     it("refuses an unverified email", async () => {
       await expect(
-        google({ ...googleClaims, email_verified: false }).validate({} as any),
+        google({ ...googleClaims, email_verified: false }).validate(tokens),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
       expect(userService.create).not.toHaveBeenCalled();
@@ -101,15 +119,30 @@ describe("OIDC strategies", () => {
       "refuses a login missing %s",
       async (claim) => {
         await expect(
-          google({ ...googleClaims, [claim]: undefined }).validate({} as any),
+          google({ ...googleClaims, [claim]: undefined }).validate(tokens),
         ).rejects.toThrow("Missing user info");
       },
     );
+
+    /* A token response without an ID token has no verified subject to fetch
+       userinfo for - v5 threw inside client.userinfo, v6 must still refuse. */
+    it("refuses a token response without an ID token", async () => {
+      const strategy = google(googleClaims);
+
+      await expect(
+        strategy.validate({
+          access_token: "access-token",
+          claims: () => undefined,
+        } as unknown as OidcTokens),
+      ).rejects.toThrow("no ID token subject");
+
+      expect(userService.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("VippsStrategy", () => {
     it("creates a user on first login", async () => {
-      await vipps(vippsClaims).validate({} as any);
+      await vipps(vippsClaims).validate(tokens);
 
       expect(userService.create).toHaveBeenCalledWith(
         {
@@ -127,7 +160,7 @@ describe("OIDC strategies", () => {
     it("returns the existing user without creating another", async () => {
       existingUser = { id: "user-1" };
 
-      await expect(vipps(vippsClaims).validate({} as any)).resolves.toEqual({
+      await expect(vipps(vippsClaims).validate(tokens)).resolves.toEqual({
         id: "user-1",
       });
       expect(userService.create).not.toHaveBeenCalled();
@@ -142,7 +175,7 @@ describe("OIDC strategies", () => {
       "birthdate",
     ])("refuses a login missing %s", async (claim) => {
       await expect(
-        vipps({ ...vippsClaims, [claim]: undefined }).validate({} as any),
+        vipps({ ...vippsClaims, [claim]: undefined }).validate(tokens),
       ).rejects.toThrow("Missing user info");
     });
   });

@@ -6,15 +6,15 @@ import {
   oauthSessionOptions,
 } from "./oauth-session";
 
-// What openid-client's passport strategy actually writes into req.session.
+// What openid-client v6's passport strategy actually writes into
+// req.session: {code_verifier, nonce, state} under the provider's host.
 const oauthSession = (expires?: Date) =>
   ({
     cookie: { expires, originalMaxAge: OAUTH_SESSION_TTL_MS },
-    "oidc:api.vipps.no": {
-      state: "s".repeat(43),
-      nonce: "n".repeat(43),
+    "api.vipps.no": {
       code_verifier: "v".repeat(43),
-      response_type: "code",
+      nonce: "n".repeat(43),
+      state: "s".repeat(43),
     },
   }) as unknown as SessionData;
 
@@ -36,7 +36,7 @@ describe("BoundedTtlSessionStore", () => {
     store.set("a", oauthSession());
 
     await expect(get(store, "a")).resolves.toMatchObject({
-      "oidc:api.vipps.no": { state: "s".repeat(43) },
+      "api.vipps.no": { state: "s".repeat(43) },
     });
   });
 
