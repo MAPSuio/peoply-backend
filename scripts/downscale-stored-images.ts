@@ -8,20 +8,28 @@ import { AzureStorageContainer } from "../src/azure/azure-storage.constants";
 import { needsDownscaling, normalizeImage } from "../src/azure/image-normalize";
 
 /**
- * Largest image this run will decode, in megapixels.
+ * Largest image this run will decode, in megapixels. A guard against a
+ * decompression bomb, not a memory budget.
  *
- * This is a memory budget wearing a different unit. Decoding costs roughly
- * four bytes per pixel, so 25 megapixels is about 100 MB of pixel buffer, and
- * the service container has 512 MB with the API already living in it. The
- * default used to be 200, chosen to cover the two worst images in production,
- * and that was the bug: a 71.7 megapixel PNG needs 273 MB, which killed the
- * container and took the console session with it. Two runs died on the same
- * blob before this was understood.
+ * This was 25, on the theory that decoding costs four bytes per pixel and the
+ * 512 MB container could not afford more. That theory was wrong by about a
+ * factor of five. Measured on the largest image in production, an 8134x8813
+ * PNG weighing 1 MB on disk, in an otherwise empty process:
  *
- * A skipped image is reported, not silently passed over. Raise this when
- * running somewhere with memory to spare, which is where those two belong.
+ *   baseline                 69 MB
+ *   after downloading it    113 MB
+ *   after decode + resize   174 MB   (+61 MB, not the +287 MB predicted)
+ *
+ * libvips streams the decode in strips rather than materialising the bitmap,
+ * so per-image cost is modest even at 72 megapixels. What actually exhausted
+ * the container was cumulative retention across hundreds of images - roughly
+ * 230 MB after 40 of them - which no per-image ceiling addresses and which is
+ * why the service was scaled up instead.
+ *
+ * 100 covers every real image in production with room over. Anything past it
+ * is not a photograph anybody meant to upload.
  */
-const MAX_MEGAPIXELS = Number(process.env.IMAGE_MAX_MEGAPIXELS ?? 25);
+const MAX_MEGAPIXELS = Number(process.env.IMAGE_MAX_MEGAPIXELS ?? 100);
 
 /**
  * How many blobs to rewrite before stopping, so the work can be taken in
@@ -156,10 +164,8 @@ async function dimensionsFromHeader(
 class TooManyPixelsError extends Error {
   constructor(megapixels: number) {
     super(
-      `${megapixels.toFixed(1)} megapixels needs about ` +
-        `${Math.round(megapixels * 4)} MB to decode, over the ` +
-        `${MAX_MEGAPIXELS} megapixel budget. Re-run with a higher ` +
-        "IMAGE_MAX_MEGAPIXELS somewhere with more memory.",
+      `${megapixels.toFixed(1)} megapixels, over the ${MAX_MEGAPIXELS} ` +
+        "megapixel ceiling. Raise IMAGE_MAX_MEGAPIXELS to take it.",
     );
     this.name = "TooManyPixelsError";
   }
