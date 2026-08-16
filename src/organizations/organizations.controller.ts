@@ -378,36 +378,35 @@ export class OrganizationsController {
 
     const { status } = updateInvitationDto;
 
-    switch (status) {
-      case InvitationStatus.ACCEPTED:
-      case InvitationStatus.DECLINED:
-      case InvitationStatus.IGNORED:
-        if (invitation.toUserId !== user.id) {
-          throw new UnauthorizedException(
-            "User is not the recipient of the invitation",
-          );
-        }
-        return status === InvitationStatus.ACCEPTED
-          ? this.organizationInvitationsService.acceptInvitation(inviteId)
-          : this.organizationInvitationsService.setInvitationStatus(
-              inviteId,
-              status,
-            );
-      case InvitationStatus.CANCELLED:
-        if (invitation.fromUserId !== user.id) {
-          throw new UnauthorizedException(
-            "User is not the sender of the invitation",
-          );
-        }
-        return this.organizationInvitationsService.setInvitationStatus(
+    const allowedStatuses: InvitationStatus[] = [
+      InvitationStatus.ACCEPTED,
+      InvitationStatus.DECLINED,
+      InvitationStatus.IGNORED,
+      InvitationStatus.CANCELLED,
+    ];
+    if (!allowedStatuses.includes(status)) {
+      throw new BadRequestException(
+        "You can only update to ACCEPTED, DECLINED, IGNORED, or CANCELLED",
+      );
+    }
+
+    /* CANCELLED is the sender withdrawing; the rest are the recipient
+       answering. */
+    const isSender = status === InvitationStatus.CANCELLED;
+    if ((isSender ? invitation.fromUserId : invitation.toUserId) !== user.id) {
+      throw new UnauthorizedException(
+        isSender
+          ? "User is not the sender of the invitation"
+          : "User is not the recipient of the invitation",
+      );
+    }
+
+    return status === InvitationStatus.ACCEPTED
+      ? this.organizationInvitationsService.acceptInvitation(inviteId)
+      : this.organizationInvitationsService.setInvitationStatus(
           inviteId,
           status,
         );
-      default:
-        throw new BadRequestException(
-          "You can only update to ACCEPTED, DECLINED, IGNORED, or CANCELLED",
-        );
-    }
   }
 
   @OrganizationRoles(
