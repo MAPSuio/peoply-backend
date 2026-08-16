@@ -1,12 +1,12 @@
 import {
   Event,
-  EventRegistrationMode,
   Prisma,
   RegStatus,
   Registration,
 } from "../../generated/prisma/client";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { lockEventForSeatChange } from "../event-seat-lock";
+import { assertRegistrationWindowOpen } from "../registration-window";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { buildWaitlistedToGoingHtmlEmail } from "../../util/email";
@@ -109,30 +109,6 @@ export class CommonRegistrationService {
    * wrong time. Skipped for system-initiated changes — see
    * {@link UpdateRegistrationOptions.systemInitiated}.
    */
-  private assertRegistrationIsOpen(event: EventWithRegistrations) {
-    /* One instant for all four comparisons rather than a fresh clock reading
-       per guard. */
-    const now = new Date();
-
-    if (event.endDate && now > event.endDate) {
-      throw new BadRequestException("Event has ended");
-    }
-
-    if (event.regStart && now < event.regStart) {
-      throw new BadRequestException("Registration has not opened yet");
-    }
-
-    if (event.regEnd && now > event.regEnd) {
-      throw new BadRequestException("Registration has closed");
-    }
-
-    if (event.registrationMode !== EventRegistrationMode.PEOPLY) {
-      throw new BadRequestException(
-        "Registration for this event does not happen in Peoply",
-      );
-    }
-  }
-
   private setRegistrationStatus(
     trx: TransactionClient,
     eventId: string,
@@ -343,8 +319,8 @@ export class CommonRegistrationService {
          have: an event whose registration has closed answers with that rather
          than with "no such registration". A missing event skips them, because
          there is nothing to be open or closed. */
-      if (event && !options.systemInitiated) {
-        this.assertRegistrationIsOpen(event);
+      if (!options.systemInitiated) {
+        assertRegistrationWindowOpen(event);
       }
 
       const existingReg = event?.registrations.find(

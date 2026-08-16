@@ -4,13 +4,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
-  EventRegistrationMode,
   InvitationStatus,
   OrganizationRole,
   RegStatus,
 } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
+import { assertRegistrationWindowOpen } from "../../registrations/registration-window";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { createUuid } from "../../util/uuid";
 
@@ -170,23 +170,7 @@ export class EventInvitationsService {
         );
       }
 
-      if (event?.endDate && new Date() > event.endDate) {
-        throw new Error("Event date has already passed");
-      }
-
-      if (event?.regStart && new Date() < event.regStart) {
-        throw new Error("Event registration is not open yet");
-      }
-
-      if (event?.regEnd && new Date() > event.regEnd) {
-        throw new Error("Event registration is closed");
-      }
-
-      if (event?.registrationMode !== EventRegistrationMode.PEOPLY) {
-        throw new Error(
-          "Registration for this event does not happen in Peoply",
-        );
-      }
+      assertRegistrationWindowOpen(event);
 
       const existingRegs = await trx.registration.findMany({
         where: {
@@ -258,23 +242,7 @@ export class EventInvitationsService {
         where: { id: toUserId },
       });
 
-      if (event?.endDate && new Date() > event.endDate) {
-        throw new Error("Event date has already passed");
-      }
-
-      if (event?.regStart && new Date() < event.regStart) {
-        throw new Error("Event registration is not open yet");
-      }
-
-      if (event?.regEnd && new Date() > event.regEnd) {
-        throw new Error("Event registration is closed");
-      }
-
-      if (event?.registrationMode !== EventRegistrationMode.PEOPLY) {
-        throw new Error(
-          "Registration for this event does not happen in Peoply",
-        );
-      }
+      assertRegistrationWindowOpen(event);
 
       if (event?.hasFood && !user?.foodPreference) {
         throw new Error("User has not set food preference");
@@ -317,17 +285,7 @@ export class EventInvitationsService {
         where: { id: eventId },
       });
 
-      if (event?.endDate && new Date() > event.endDate) {
-        throw new Error("Event date has already passed");
-      }
-
-      if (event?.regStart && new Date() < event.regStart) {
-        throw new Error("Event registration is not open yet");
-      }
-
-      if (event?.regEnd && new Date() > event.regEnd) {
-        throw new Error("Event registration is closed");
-      }
+      assertRegistrationWindowOpen(event, { requirePeoplyMode: false });
 
       await trx.eventInvitation.updateMany({
         where: {
