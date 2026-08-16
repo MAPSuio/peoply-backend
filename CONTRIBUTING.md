@@ -191,8 +191,8 @@ The hook needs `node` on `PATH`. Git runs hooks with a minimal environment, so
 under nvm a GUI git client may not find it — commit from a shell where
 `node -v` works.
 
-New behaviour should come with a test. `npm run test:db` and `npm run test:e2e`
-need a running database; `npm test` does not.
+New behaviour should come with a test. `npm test` runs the whole unit suite
+without a database.
 
 ## Database migrations
 

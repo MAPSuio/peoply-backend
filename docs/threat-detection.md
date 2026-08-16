@@ -81,15 +81,6 @@ src/threat-detection/
 | Uten `DISCORD_ALERT_WEBHOOK_URL` | Analyse kjører, alerts logges kun lokalt |
 | Fjern `ThreatDetectionModule` fra `AppModule` | Hele modulen deaktivert |
 
-## Test
-
-```bash
-# Send test-alerts til Discord
-node scripts/test-discord-alerts.js
-
-# Krever DISCORD_ALERT_WEBHOOK_URL i .env eller som env var
-```
-
 ## Discord embed-format
 
 Alerts sendes som Discord embeds med:

@@ -4,15 +4,14 @@
   // Filer som kjøres direkte og ikke importeres av noe: Nest-bootstrap,
   // Prisma-seeds og dev-scriptene. Uten dette rapporteres de som ubrukte
   // filer, og pakkene de bruker som devDependencies i produksjonskode.
-  // De tre siste er entry points jest kjenner, men som fallow ikke kan se:
-  // e2e-specen plukkes av testRegex i test/jest-e2e.json, og setup/teardown
-  // står som globalSetup/globalTeardown i test/jest-database-tls.json. Uten
-  // dem her meldes de som ubrukte filer, og tls-postgres.js drar de to andre.
+  // De to siste er entry points jest kjenner, men som fallow ikke kan se:
+  // setup/teardown står som globalSetup/globalTeardown i
+  // test/jest-database-tls.json. Uten dem her meldes de som ubrukte filer,
+  // og tls-postgres.js drar de to andre.
   "entry": [
     "src/main.ts",
     "prisma/*.ts",
     "scripts/*.js",
-    "test/*.e2e-spec.ts",
     "test/database-tls/global-setup.js",
     "test/database-tls/global-teardown.js",
   ],
@@ -28,10 +27,6 @@
     "cookie-parser",
     // Lastes av Nest CLI gjennom "collection" i nest-cli.json.
     "@nestjs/schematics",
-    // scripts/test-discord-alerts.js gjør `require("dotenv")` inne i en
-    // try/catch og faller tilbake på env satt utenfra. Den er valgfri med
-    // vilje, så den skal ikke stå i package.json.
-    "dotenv",
     // Meldes som test-only fordi ingen produksjonsfil importerer dem direkte.
     // Begge trengs likevel når appen kjører: predeploy:prod kjører
     // `prisma migrate deploy`, og pg er driveren @prisma/adapter-pg åpner

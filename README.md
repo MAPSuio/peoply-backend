@@ -90,8 +90,6 @@ Migrations hit production automatically on deploy — see [`CONTRIBUTING.md`](CO
 
 ```bash
 npm test                   # unit, no database
-npm run test:db            # needs the dev database
-npm run test:e2e           # needs the dev database
 npm run test:smoke         # boots the built app
 npm run test:database-tls  # connects over TLS; starts its own Postgres, needs Docker
 ```
