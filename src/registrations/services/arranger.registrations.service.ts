@@ -15,6 +15,19 @@ import { ArrangerUpdateRegistrationDto } from "../dto";
 import { UserDoesNotExistException } from "../../users/exceptions";
 import { EmailRecipients } from "@azure/communication-email";
 import { EMAIL_DIVIDER, eventEmailFooter } from "../../util/email";
+import { PUBLIC_USER_SELECT } from "../../users/user.select";
+
+/**
+ * The attendee row an arranger sees. Food fields ride along only when the
+ * event serves food and the registration entitles the user to it.
+ */
+const attendeeSelect = (showFood: boolean | undefined) => ({
+  select: {
+    ...PUBLIC_USER_SELECT,
+    foodPreference: !!showFood,
+    userAllergens: showFood ? { select: { allergen: true } } : undefined,
+  },
+});
 
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
@@ -40,22 +53,9 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
         take,
         orderBy: { [orderBy]: orderDirection },
         include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              image: true,
-              foodPreference:
-                searchProps.regStatus === RegStatus.GOING && eventHasFood,
-              userAllergens:
-                searchProps.regStatus === RegStatus.GOING && eventHasFood
-                  ? {
-                      select: { allergen: true },
-                    }
-                  : undefined,
-            },
-          },
+          user: attendeeSelect(
+            searchProps.regStatus === RegStatus.GOING && eventHasFood,
+          ),
         },
       });
     }
@@ -66,19 +66,8 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       where: { eventId: eventId },
       orderBy: { [orderBy]: orderDirection },
       include: {
-        user: new Boolean(searchProps.includeUsers).valueOf()
-          ? {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                image: true,
-                foodPreference: eventHasFood,
-                userAllergens: eventHasFood
-                  ? { select: { allergen: true } }
-                  : undefined,
-              },
-            }
+        user: searchProps.includeUsers
+          ? attendeeSelect(eventHasFood)
           : undefined,
       },
     });
