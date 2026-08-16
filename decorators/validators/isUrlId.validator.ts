@@ -1,27 +1,15 @@
-import {
-  registerDecorator,
-  ValidationOptions,
-  ValidationArguments,
-} from "class-validator";
+import { ValidationOptions } from "class-validator";
+import { createValidator } from "./create.validator";
 
 export function IsUrlId(validationOptions?: ValidationOptions) {
-  return (object: Object, propertyName: string) => {
-    registerDecorator({
+  return createValidator(
+    {
       name: "IsUrlId",
-      target: object.constructor,
-      propertyName: propertyName,
-      options: validationOptions,
-      validator: {
-        validate(_value: any, args: ValidationArguments) {
-          const id = args.value;
-          /* Test if id is minimum 8 capital letters A-Z */
-          const regex = /^[A-Z]{8,}$/;
-          return regex.test(id);
-        },
-        defaultMessage() {
-          return "The id has to be a minimum of 8 capital letters A-Z";
-        },
-      },
-    });
-  };
+      /* Test if id is minimum 8 capital letters A-Z */
+      validate: (value) => /^[A-Z]{8,}$/.test(value as string),
+      defaultMessage: () =>
+        "The id has to be a minimum of 8 capital letters A-Z",
+    },
+    validationOptions,
+  );
 }

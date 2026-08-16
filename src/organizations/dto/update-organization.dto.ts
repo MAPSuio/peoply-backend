@@ -1,3 +1,4 @@
+import { applyDecorators } from "@nestjs/common";
 import { PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import {
@@ -11,6 +12,15 @@ import {
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
 import { CreateOrganizationDto } from "./create-organization.dto";
+
+/** An optional social-media link; a full URL with protocol or null to clear. */
+const SocialUrl = () =>
+  applyDecorators(
+    IsString(),
+    IsUrl({ require_protocol: true }),
+    ApiProperty(),
+    IsOptional(),
+  );
 
 export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {
   @ToBoolean()
@@ -32,39 +42,21 @@ export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {
   @IsOptional()
   urlId?: string | null;
 
-  @IsString()
-  @IsUrl({ require_protocol: true })
-  @ApiProperty()
-  @IsOptional()
+  @SocialUrl()
   websiteUrl?: string | null;
 
-  @IsString()
-  @IsUrl({ require_protocol: true })
-  @ApiProperty()
-  @IsOptional()
+  @SocialUrl()
   instagramUrl?: string | null;
 
-  @IsString()
-  @IsUrl({ require_protocol: true })
-  @ApiProperty()
-  @IsOptional()
+  @SocialUrl()
   facebookUrl?: string | null;
 
-  @IsString()
-  @IsUrl({ require_protocol: true })
-  @ApiProperty()
-  @IsOptional()
+  @SocialUrl()
   tiktokUrl?: string | null;
 
-  @IsString()
-  @IsUrl({ require_protocol: true })
-  @ApiProperty()
-  @IsOptional()
+  @SocialUrl()
   linkedinUrl?: string | null;
 
-  @IsString()
-  @IsUrl({ require_protocol: true })
-  @ApiProperty()
-  @IsOptional()
+  @SocialUrl()
   youtubeUrl?: string | null;
 }

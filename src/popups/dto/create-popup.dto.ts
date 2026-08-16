@@ -1,19 +1,16 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Transform } from "class-transformer";
 import { IsDateString, IsString, MaxLength, MinLength } from "class-validator";
-
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === "string" ? value.trim() : value;
+import { Trim } from "../../../decorators/transformers";
 
 export class CreatePopupDto {
-  @Transform(trim)
+  @Trim()
   @IsString()
   @MinLength(1)
   @MaxLength(120)
   @ApiProperty({ minLength: 1, maxLength: 120 })
   title: string;
 
-  @Transform(trim)
+  @Trim()
   @IsString()
   @MinLength(1)
   @MaxLength(4000)
