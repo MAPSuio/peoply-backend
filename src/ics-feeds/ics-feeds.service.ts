@@ -80,30 +80,19 @@ export class IcsFeedsService {
     const fetchedCalendar = await this.icsFetchService.fetchCalendar(dto.url);
     this.icsParserService.parse(fetchedCalendar.body);
 
+    const feedData = {
+      url: fetchedCalendar.url,
+      syncIntervalMinutes:
+        dto.syncIntervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES,
+      registrationMode: dto.registrationMode ?? EventRegistrationMode.EXTERNAL,
+      enabled: true,
+      disabledAt: null,
+      lastSyncError: null,
+    };
     const feed = await this.prisma.organizationIcsFeed.upsert({
       where: { organizationId: orgId },
-      create: {
-        organizationId: orgId,
-        url: fetchedCalendar.url,
-        syncIntervalMinutes:
-          dto.syncIntervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES,
-        registrationMode:
-          dto.registrationMode ?? EventRegistrationMode.EXTERNAL,
-        enabled: true,
-        disabledAt: null,
-        lastSyncError: null,
-        consecutiveFailures: 0,
-      },
-      update: {
-        url: fetchedCalendar.url,
-        syncIntervalMinutes:
-          dto.syncIntervalMinutes ?? DEFAULT_SYNC_INTERVAL_MINUTES,
-        registrationMode:
-          dto.registrationMode ?? EventRegistrationMode.EXTERNAL,
-        enabled: true,
-        disabledAt: null,
-        lastSyncError: null,
-      },
+      create: { organizationId: orgId, ...feedData, consecutiveFailures: 0 },
+      update: feedData,
     });
 
     await this.syncFeedById(feed.id, fetchedCalendar.body);
@@ -281,6 +270,19 @@ export class IcsFeedsService {
     const externalIds = parsedEvents.map((event) => event.externalId);
 
     for (const parsedEvent of parsedEvents) {
+      const eventData = {
+        title: parsedEvent.title,
+        description: parsedEvent.description,
+        startDate: parsedEvent.startDate,
+        endDate: parsedEvent.endDate,
+        locationName: parsedEvent.locationName,
+        visibility: EventVisibility.PUBLIC,
+        source: EventSource.ICS,
+        registrationMode: feed.registrationMode,
+        readOnly: true,
+        externalUrl: parsedEvent.externalUrl,
+        externalUpdatedAt: parsedEvent.externalUpdatedAt,
+      };
       await this.prisma.event.upsert({
         where: {
           organizationIcsFeedId_externalId: {
@@ -291,19 +293,9 @@ export class IcsFeedsService {
         create: {
           id: createUuid(),
           urlId: await this.generateUniqueUrlId(),
-          title: parsedEvent.title,
-          description: parsedEvent.description,
-          startDate: parsedEvent.startDate,
-          endDate: parsedEvent.endDate,
-          locationName: parsedEvent.locationName,
-          visibility: EventVisibility.PUBLIC,
+          ...eventData,
           hasFood: false,
-          source: EventSource.ICS,
-          registrationMode: feed.registrationMode,
-          readOnly: true,
           externalId: parsedEvent.externalId,
-          externalUrl: parsedEvent.externalUrl,
-          externalUpdatedAt: parsedEvent.externalUpdatedAt,
           organizationIcsFeedId: feed.id,
           eventArrangers: {
             create: {
@@ -312,20 +304,7 @@ export class IcsFeedsService {
             },
           },
         },
-        update: {
-          title: parsedEvent.title,
-          description: parsedEvent.description,
-          startDate: parsedEvent.startDate,
-          endDate: parsedEvent.endDate,
-          locationName: parsedEvent.locationName,
-          visibility: EventVisibility.PUBLIC,
-          source: EventSource.ICS,
-          registrationMode: feed.registrationMode,
-          readOnly: true,
-          externalUrl: parsedEvent.externalUrl,
-          externalUpdatedAt: parsedEvent.externalUpdatedAt,
-          archivedAt: null,
-        },
+        update: { ...eventData, archivedAt: null },
       });
     }
 

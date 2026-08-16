@@ -1,14 +1,14 @@
-import { BadGatewayException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type {
   LocationSearchOptions,
   LocationSearchResponse,
   LocationSearchResult,
 } from "../location-search.types";
+import { fetchJsonWithTimeout } from "./fetch-json";
 import type { LocationSearchProvider } from "./location-search-provider.interface";
 
 const GEONORGE_BASE_URL = "https://ws.geonorge.no/adresser/v1/sok";
 const GEONORGE_DEFAULT_LIMIT = 5;
-const REQUEST_TIMEOUT_MS = 5000;
 
 interface GeonorgeAddressResponse {
   adresser?: GeonorgeAddress[];
@@ -95,30 +95,7 @@ export class GeonorgeAddressProvider implements LocationSearchProvider {
     };
   }
 
-  private async fetchJson<T>(url: string) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new BadGatewayException(
-          `Geonorge address request failed with status ${response.status}`,
-        );
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      if (error instanceof BadGatewayException) {
-        throw error;
-      }
-
-      throw new BadGatewayException("Geonorge address request failed");
-    } finally {
-      clearTimeout(timeout);
-    }
+  private fetchJson<T>(url: string) {
+    return fetchJsonWithTimeout<T>("Geonorge address", url);
   }
 }

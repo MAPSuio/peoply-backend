@@ -24,6 +24,7 @@ import {
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { PUBLIC_USER_PROFILE_SELECT } from "../user.select";
 
 /**
  * Upper bound on the number of rows a name search may load for in-memory
@@ -262,13 +263,7 @@ export class UsersService {
           })),
         }),
       },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        image: true,
-        description: true,
-      },
+      select: PUBLIC_USER_PROFILE_SELECT,
       // Relevance is computed in the service, so pagination must happen after
       // we have ranked the candidate set. The candidate set is capped so a
       // broad query (e.g. a single letter) cannot pull the whole user table

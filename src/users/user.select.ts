@@ -20,3 +20,12 @@ export const PUBLIC_USER_SELECT = {
   lastName: true,
   image: true,
 } satisfies Prisma.UserSelect;
+
+/**
+ * {@link PUBLIC_USER_SELECT} plus the self-written profile text, for the
+ * places a user is shown as a profile rather than as a row in a list.
+ */
+export const PUBLIC_USER_PROFILE_SELECT = {
+  ...PUBLIC_USER_SELECT,
+  description: true,
+} satisfies Prisma.UserSelect;

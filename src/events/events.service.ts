@@ -31,9 +31,10 @@ import {
   RegStatus,
 } from "../generated/prisma/client";
 import { EmailRecipients } from "@azure/communication-email";
+import { EMAIL_DIVIDER, eventEmailFooter } from "../util/email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
-import { createUuid } from "../util/uuid";
+import { createUuid, isUUID } from "../util/uuid";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventAccessService } from "../event-access/event-access.service";
 
@@ -416,12 +417,15 @@ export class EventsService {
     return { ...rest, goingCount: _count.registrations };
   }
 
+  /** Takes either the event's id or its urlId — `GET /events/:id` serves both. */
   async findOneVisibleToUser(
-    eventId: string,
+    idOrUrlId: string,
     userId?: string,
     isArranger = false,
   ) {
-    const event = await this.findOne(eventId);
+    const event = isUUID(idOrUrlId)
+      ? await this.findOne(idOrUrlId)
+      : await this.findOneByUrlId(idOrUrlId);
 
     if (
       !event ||
@@ -432,28 +436,7 @@ export class EventsService {
         isArranger,
       ))
     ) {
-      throw new EventNotFoundException(eventId);
-    }
-
-    return event;
-  }
-
-  async findOneByUrlIdVisibleToUser(
-    urlId: string,
-    userId?: string,
-    isArranger = false,
-  ) {
-    const event = await this.findOneByUrlId(urlId);
-
-    if (
-      !(await this.eventAccess.canView(
-        event.id,
-        event.visibility,
-        userId,
-        isArranger,
-      ))
-    ) {
-      throw new EventNotFoundException(urlId);
+      throw new EventNotFoundException(idOrUrlId);
     }
 
     return event;
@@ -924,8 +907,6 @@ export class EventsService {
        ICS feed. */
     const subject = escapeHtml(updateDto.subject);
     const replyTo = escapeHtml(updateDto.replyTo);
-    const title = escapeHtml(event.title);
-    const urlId = escapeHtml(event.urlId);
 
     return (
       `<h1>${subject}</h1>\n` +
@@ -933,7 +914,7 @@ export class EventsService {
         .split("\n")
         .map((p) => `<p>${escapeHtml(p)}</p>`)
         .join("")}\n` +
-      `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n` +
+      EMAIL_DIVIDER +
       `<p>
       ${
         updateDto.replyTo
@@ -943,12 +924,7 @@ export class EventsService {
           : ""
       }
     </p>` +
-      "<p>" +
-      `Du mottar denne e-posten fordi du har meldt deg på <a href="https://peoply.app/events/${urlId}" target="_blank">"${title}"</a> på Peoply.\n` +
-      "</p>" +
-      "<p>" +
-      `Hvis du ikke vil motta slike e-poster fra arrangøren, kan du endre dette i <a href="https://peoply.app/me/settings" target="_blank">dine innstillinger</a>` +
-      "</p>"
+      eventEmailFooter(event)
     );
   }
 }
