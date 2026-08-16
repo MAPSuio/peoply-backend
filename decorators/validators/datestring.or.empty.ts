@@ -1,31 +1,17 @@
-import {
-  registerDecorator,
-  ValidationOptions,
-  ValidationArguments,
-} from "class-validator";
+import { ValidationOptions } from "class-validator";
+import { createValidator } from "./create.validator";
 
 export function IsDateStringOrEmptyString(
   validationOptions?: ValidationOptions,
 ) {
-  return (object: Object, propertyName: string) => {
-    registerDecorator({
+  return createValidator(
+    {
       name: "IsDateStringOrEmptyString",
-      target: object.constructor,
-      propertyName: propertyName,
-      options: validationOptions,
-      validator: {
-        validate(_value: any, args: ValidationArguments) {
-          if (args.value === "") return true;
-          //check if it is a valid date string
-          if (isNaN(new Date(args.value).getTime())) {
-            return false;
-          }
-          return true;
-        },
-        defaultMessage() {
-          return "This the date must be a valid date string or an empty string";
-        },
-      },
-    });
-  };
+      validate: (value) =>
+        value === "" || !Number.isNaN(new Date(value as string).getTime()),
+      defaultMessage: () =>
+        "This the date must be a valid date string or an empty string",
+    },
+    validationOptions,
+  );
 }

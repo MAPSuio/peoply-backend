@@ -1,27 +1,17 @@
-import {
-  registerDecorator,
-  ValidationArguments,
-  ValidationOptions,
-} from "class-validator";
+import { ValidationOptions } from "class-validator";
+import { createValidator } from "./create.validator";
 
 export function MinDateString(
   minTime: Date,
   validationOptions?: ValidationOptions,
 ) {
-  return (object: Object, propertyName: string) => {
-    registerDecorator({
+  return createValidator(
+    {
       name: "MinDateString",
-      target: object.constructor,
-      propertyName: propertyName,
-      options: validationOptions,
-      validator: {
-        validate(_value: any, args: ValidationArguments) {
-          return minTime < new Date(args.value);
-        },
-        defaultMessage() {
-          return `The date is too early. The date has to be after ${minTime}`;
-        },
-      },
-    });
-  };
+      validate: (value) => minTime < new Date(value as string),
+      defaultMessage: () =>
+        `The date is too early. The date has to be after ${minTime}`,
+    },
+    validationOptions,
+  );
 }

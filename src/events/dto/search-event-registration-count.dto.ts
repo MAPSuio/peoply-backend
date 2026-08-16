@@ -1,10 +1,7 @@
-import { RegStatus } from "../../generated/prisma/client";
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsOptional } from "class-validator";
+import { PickType } from "@nestjs/swagger";
+import { SearchRegistrationDto } from "../../registrations/dto/search-registration.dto";
 
-export class SearchEventRegistrationCountDto {
-  @IsOptional()
-  @IsEnum(RegStatus)
-  @ApiProperty({ required: false })
-  regStatus?: RegStatus;
-}
+export class SearchEventRegistrationCountDto extends PickType(
+  SearchRegistrationDto,
+  ["regStatus"] as const,
+) {}

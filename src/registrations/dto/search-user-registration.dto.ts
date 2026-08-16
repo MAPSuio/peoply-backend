@@ -1,22 +1,9 @@
-import { Prisma, RegStatus } from "../../generated/prisma/client";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsOptional } from "class-validator";
+import { IsOptional } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
-import { PagedQueryDto } from "../../util/paged-query.dto";
+import { SearchRegistrationDto } from "./search-registration.dto";
 
-export class SearchUserRegistrationDto extends PagedQueryDto(
-  Prisma.RegistrationScalarFieldEnum,
-) {
-  @IsOptional()
-  @IsEnum(RegStatus)
-  @ApiProperty({ required: false })
-  regStatus?: RegStatus;
-
-  @IsOptional()
-  @ToBoolean()
-  @ApiProperty({ required: false })
-  attendance?: boolean;
-
+export class SearchUserRegistrationDto extends SearchRegistrationDto {
   @IsOptional()
   @ToBoolean()
   @ApiProperty({ required: false })

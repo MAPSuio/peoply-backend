@@ -1,9 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Transform } from "class-transformer";
 import { IsString, MaxLength, MinLength } from "class-validator";
+import { Trim } from "../../../decorators/transformers";
 
 export class CreateFeedbackDto {
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @Trim()
   @IsString()
   @MinLength(10)
   @MaxLength(2000)

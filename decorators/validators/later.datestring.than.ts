@@ -1,38 +1,27 @@
-import {
-  registerDecorator,
-  ValidationOptions,
-  ValidationArguments,
-} from "class-validator";
+import { ValidationOptions } from "class-validator";
+import { createValidator } from "./create.validator";
 
 export function IsLaterDateStringThan(
   earliestDateVariableName: string,
   validationOptions?: ValidationOptions,
 ) {
-  return (object: Object, propertyName: string) => {
-    registerDecorator({
+  return createValidator(
+    {
       name: "IsLaterDateStringThan",
-      target: object.constructor,
-      propertyName: propertyName,
       constraints: [earliestDateVariableName],
-      options: validationOptions,
-      validator: {
-        validate(_value: any, args: ValidationArguments) {
-          if (args.value === "") return true;
-          const earliestDate = (args.object as any)[earliestDateVariableName];
-          if (!earliestDate) {
-            return true;
-          }
-          const latestDate = args.value;
-          return new Date(earliestDate) <= new Date(latestDate);
-        },
-        defaultMessage() {
-          return (
-            "This the date must be later than the date defined in the column '" +
-            earliestDateVariableName +
-            "'"
-          );
-        },
+      validate: (value, args) => {
+        if (value === "") return true;
+        const earliestDate = (args.object as any)[earliestDateVariableName];
+        if (!earliestDate) {
+          return true;
+        }
+        return new Date(earliestDate) <= new Date(value as string);
       },
-    });
-  };
+      defaultMessage: () =>
+        "This the date must be later than the date defined in the column '" +
+        earliestDateVariableName +
+        "'",
+    },
+    validationOptions,
+  );
 }
