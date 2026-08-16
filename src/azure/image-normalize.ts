@@ -184,13 +184,15 @@ async function encodeDownscaled(
 
 export async function normalizeImage(
   input: Buffer,
-  /* Two images in production decode to 71.7 and 62.2 megapixels while
-     weighing 1.1 and 2.6 MB, which is what a decompression bomb looks like
-     whether or not anyone meant it that way. The service container has 512 MB
-     and the larger of the two needs 273 MB for the pixel buffer alone, so the
-     upload path must refuse them: OOM-killing the API is worse than rejecting
-     an image. The backfill overrides this, because those two are precisely the
-     ones that need fixing, and it can be run somewhere with memory to spare. */
+  /* A decompression-bomb guard. Two images in production decode to 71.7 and
+     62.2 megapixels while weighing 1.1 and 2.6 MB on disk, which is the shape
+     of one whether or not anyone meant it that way.
+
+     Not a memory budget, though it was written as one. libvips streams the
+     decode in strips: the 71.7 megapixel image measured at +61 MB of RSS in an
+     otherwise empty process, not the +287 MB that four-bytes-per-pixel
+     predicts. The ceiling is here to stop something absurd, not to ration
+     memory image by image. */
   maxInputPixels: number = MAX_INPUT_PIXELS,
 ): Promise<NormalizedImage> {
   await assertWithinPixelCeiling(input, maxInputPixels);
