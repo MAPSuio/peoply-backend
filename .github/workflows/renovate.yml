@@ -5,7 +5,7 @@ on:
   issues:
     types: [edited]
   schedule:
-    - cron: "0 3 * * 1"
+    - cron: "0 3 * * *"
 
 concurrency:
   group: renovate

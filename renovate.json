@@ -4,6 +4,7 @@
   "enabledManagers": ["npm", "github-actions"],
   "timezone": "Europe/Oslo",
   "schedule": ["before 6am on Monday"],
+  "rebaseWhen": "behind-base-branch",
   "rangeStrategy": "bump",
   "prConcurrentLimit": 10,
   "semanticCommits": "enabled",
