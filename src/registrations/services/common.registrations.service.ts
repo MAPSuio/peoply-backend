@@ -60,6 +60,32 @@ export class CommonRegistrationService {
     return registration;
   }
 
+  /**
+   * The shared opening of every seat-changing transaction: take the event
+   * lock, load the event with its registrations in waitlist order, and find
+   * the caller's own row. The lock comes first so two concurrent seat
+   * changes cannot both read the same waitlist head.
+   */
+  private async lockAndLoadRegistration(
+    trx: TransactionClient,
+    eventId: string,
+    userId: string,
+  ) {
+    await lockEventForSeatChange(trx, eventId);
+
+    const event = await trx.event.findUnique({
+      where: { id: eventId },
+      include: { registrations: { orderBy: { updatedAt: "asc" } } },
+    });
+
+    const existingReg = event?.registrations.find(
+      (registration) =>
+        registration.eventId === eventId && registration.userId === userId,
+    );
+
+    return { event, existingReg };
+  }
+
   async remove(eventId: string, userId: string) {
     // P2025 from the delete below becomes 404 in PrismaExceptionFilter.
     return await this.prismaService.$transaction(async (trx) => {
@@ -67,12 +93,11 @@ export class CommonRegistrationService {
          waitlist. Two concurrent removals used to read the same
          `waitlisted[0]` and both promote that one person: two seats freed, one
          filled, and the second lost with people still waiting. */
-      await lockEventForSeatChange(trx, eventId);
-
-      const event = await trx.event.findUnique({
-        where: { id: eventId },
-        include: { registrations: { orderBy: { updatedAt: "asc" } } },
-      });
+      const { event, existingReg } = await this.lockAndLoadRegistration(
+        trx,
+        eventId,
+        userId,
+      );
 
       if (event?.regStart && new Date() < event.regStart) {
         throw new Error("Registration is not open yet");
@@ -81,10 +106,6 @@ export class CommonRegistrationService {
       if (event?.regEnd && new Date() > event.regEnd) {
         throw new Error("Registration closed");
       }
-
-      const existingReg = event?.registrations.find(
-        (reg) => reg.userId === userId && reg.eventId === eventId,
-      );
 
       if (!event || !existingReg) {
         throw new ForeignKeyNotFoundException(eventId, userId);
@@ -306,27 +327,19 @@ export class CommonRegistrationService {
          `going.length < capacity`) and frees one (-> NOT_GOING, which promotes
          the head of the waitlist). Both are read-modify-writes on the same
          count, so both need the event held for the duration. */
-      await lockEventForSeatChange(trx, eventId);
+      const { event, existingReg } = await this.lockAndLoadRegistration(
+        trx,
+        eventId,
+        userId,
+      );
 
-      const event = await trx.event.findUnique({
-        where: { id: eventId },
-        include: {
-          registrations: { orderBy: { updatedAt: "asc" } },
-        },
-      });
-
-      /* The guards run before the registration is looked up, as they always
+      /* The guards run before the registration row is checked, as they always
          have: an event whose registration has closed answers with that rather
          than with "no such registration". A missing event skips them, because
          there is nothing to be open or closed. */
       if (!options.systemInitiated) {
         assertRegistrationWindowOpen(event);
       }
-
-      const existingReg = event?.registrations.find(
-        (registration) =>
-          registration.eventId === eventId && registration.userId === userId,
-      );
 
       if (!event || !existingReg) {
         throw new ForeignKeyNotFoundException(eventId, userId);

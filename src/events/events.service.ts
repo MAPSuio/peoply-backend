@@ -27,6 +27,7 @@ import { buildDescriptionSearchQuery } from "../util/search";
 import {
   EventRegistrationMode,
   EventUpdateVisibility,
+  Prisma,
   RegStatus,
 } from "../generated/prisma/client";
 import { EmailRecipients } from "@azure/communication-email";
@@ -489,6 +490,55 @@ export class EventsService {
     return organizationRole !== null;
   }
 
+  /** A capacity below the current GOING count would strand registered attendees. */
+  private async assertCapacityNotBelowGoing(
+    eventId: string,
+    capacity?: number,
+  ) {
+    if (typeof capacity !== "number" || capacity <= 0) {
+      return;
+    }
+
+    const goingCount = await this.prisma.registration.count({
+      where: { eventId, regStatus: RegStatus.GOING },
+    });
+
+    if (capacity < goingCount) {
+      throw new BadRequestException(
+        `Capacity can not be lower than the ${goingCount} registered attendees`,
+      );
+    }
+  }
+
+  /** Replaces the event's categories with `categoryIds`, touching only the diff. */
+  private async syncEventCategories(
+    trx: Prisma.TransactionClient,
+    eventId: string,
+    categoryIds: number[],
+  ) {
+    const oldCategories = await trx.eventCategory.findMany({
+      where: { eventId },
+    });
+
+    const oldCategoriesId = oldCategories.map(
+      (category) => category.categoryId,
+    );
+    const toDelete = oldCategoriesId.filter(
+      (categoryId) => !categoryIds.includes(categoryId),
+    );
+    const toAdd = categoryIds.filter(
+      (categoryId) => !oldCategoriesId.includes(categoryId),
+    );
+
+    await trx.eventCategory.deleteMany({
+      where: { categoryId: { in: toDelete }, eventId },
+    });
+
+    await trx.eventCategory.createMany({
+      data: toAdd.map((categoryId) => ({ categoryId, eventId })),
+    });
+  }
+
   async update(
     updateEventDto: UpdateEventDto,
     id: string,
@@ -519,23 +569,7 @@ export class EventsService {
         );
       }
 
-      if (
-        typeof updateEventDto.capacity === "number" &&
-        updateEventDto.capacity > 0
-      ) {
-        const goingCount = await this.prisma.registration.count({
-          where: {
-            eventId: id,
-            regStatus: RegStatus.GOING,
-          },
-        });
-
-        if (updateEventDto.capacity < goingCount) {
-          throw new BadRequestException(
-            `Capacity can not be lower than the ${goingCount} registered attendees`,
-          );
-        }
-      }
+      await this.assertCapacityNotBelowGoing(id, updateEventDto.capacity);
 
       if (newImage) {
         //upload new image
@@ -573,36 +607,7 @@ export class EventsService {
 
         //update categories if specified
         if (categoryIds) {
-          const oldCategories = await trx.eventCategory.findMany({
-            where: { eventId: event.id },
-          });
-
-          const oldCategoriesId = oldCategories.map(
-            (category) => category.categoryId,
-          );
-
-          const toDelete = oldCategoriesId.filter(
-            (id) => !categoryIds.includes(id),
-          );
-          const toAdd = categoryIds.filter(
-            (id) => !oldCategoriesId.includes(id),
-          );
-
-          await trx.eventCategory.deleteMany({
-            where: {
-              categoryId: {
-                in: toDelete,
-              },
-              eventId: event.id,
-            },
-          });
-
-          await trx.eventCategory.createMany({
-            data: toAdd.map((categoryId) => ({
-              categoryId,
-              eventId: event.id,
-            })),
-          });
+          await this.syncEventCategories(trx, event.id, categoryIds);
         }
 
         if (coOrganizerOrganizationIds !== undefined) {

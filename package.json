@@ -123,10 +123,8 @@
     },
     "@babel/traverse": "^8.0.4",
     "@babel/helpers": "^8.0.0",
-    "@sideway/formula": "^3.0.1",
     "axios": "^1.19.0",
     "brace-expansion": "^5.0.9",
-    "braces": "^3.0.3",
     "cookie": "^0.7.2",
     "cookiejar": "^2.1.4",
     "fast-uri": "^4.1.2",
@@ -138,7 +136,6 @@
     "json5": "^2.2.3",
     "jws": "^4.0.1",
     "lodash": "^4.18.1",
-    "micromatch": "^4.0.8",
     "multer": "^2.2.0",
     "on-headers": "^1.1.0",
     "picomatch": "^4.0.5",
@@ -149,8 +146,6 @@
     "tough-cookie": "^6.0.2",
     "uuid": "^11.1.1",
     "valibot": "^1.4.2",
-    "word-wrap": "^1.2.5",
-    "ws": "^8.21.3",
     "xml2js": "^0.6.2"
   }
 }

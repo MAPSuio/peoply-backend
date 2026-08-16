@@ -1,38 +1,41 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { AuthenticatedGuard } from "../auth/guards";
 import { ModeratorGuard } from "../auth/guards/moderator.guard";
 import { ModerationRangeDto } from "./dto/moderation-range.dto";
-import { ModerationService } from "./moderation.service";
+import { CountableModel, ModerationService } from "./moderation.service";
+
+/** URL segment → model, so the five counter routes stay one handler. */
+const RESOURCE_MODELS: Record<string, CountableModel> = {
+  "new-users": "user",
+  "new-events": "event",
+  "new-orgs": "organization",
+  "new-registrations": "registration",
+  "new-favorites": "favorite",
+};
 
 @Controller("moderation")
 @UseGuards(AuthenticatedGuard, ModeratorGuard)
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 
-  @Get("/info/new-users")
-  async getNewUsersInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.countCreatedWithin("user", days);
-  }
-
-  @Get("/info/new-events")
-  async getNewEventsInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.countCreatedWithin("event", days);
-  }
-
-  @Get("/info/new-orgs")
-  async getNewOrgsInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.countCreatedWithin("organization", days);
-  }
-
-  @Get("/info/new-registrations")
-  async getNewRegistrationsInTheLastDays(
+  @Get("/info/:resource")
+  async getNewInTheLastDays(
+    @Param("resource") resource: string,
     @Query() { days }: ModerationRangeDto,
   ) {
-    return this.moderationService.countCreatedWithin("registration", days);
-  }
-
-  @Get("/info/new-favorites")
-  async getNewFavoritesInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.countCreatedWithin("favorite", days);
+    const model = RESOURCE_MODELS[resource];
+    if (!model) {
+      // Same answer an unknown route gave when each counter was its own
+      // handler, so the URL surface is unchanged.
+      throw new NotFoundException();
+    }
+    return this.moderationService.countCreatedWithin(model, days);
   }
 }

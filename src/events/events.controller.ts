@@ -127,11 +127,12 @@ export class EventsController {
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseInterceptors(IsArrangerInterceptor)
   async findOne(@Req() req: any, @Param("id") id: string) {
-    const user: User | undefined = req.user;
-    const isArranger: boolean | undefined = req.isArranger;
-
     /* both urlId and id are valid here */
-    return this.eventsService.findOneVisibleToUser(id, user?.id, isArranger);
+    return this.eventsService.findOneVisibleToUser(
+      id,
+      req.user?.id,
+      req.isArranger,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -336,10 +337,11 @@ export class EventsController {
   @UseInterceptors(IsArrangerInterceptor)
   @Get(":id/updates")
   async getUpdates(@Req() req: any, @Param("id") id: string) {
-    const user: User | undefined = req.user;
-    const isArranger: boolean | undefined = req.isArranger;
-
-    return this.eventsService.getUpdatesForEvent(id, user?.id, isArranger);
+    return this.eventsService.getUpdatesForEvent(
+      id,
+      req.user?.id,
+      req.isArranger,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
