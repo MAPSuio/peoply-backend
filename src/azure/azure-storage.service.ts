@@ -12,6 +12,7 @@ import { ConfigService } from "@nestjs/config";
 import { randomUUID } from "node:crypto";
 import { AzureStorageContainer } from "./azure-storage.constants";
 import { assertIsImage, extensionFor } from "./image-upload";
+import { normalizeImage } from "./image-normalize";
 
 @Injectable()
 export class AzureStorageService
@@ -57,14 +58,31 @@ export class AzureStorageService
     }
   }
 
+  /**
+   * Every image in every container goes through here - profile pictures and
+   * organization logos via `swapImage`, event images from `EventsService`
+   * directly - so it is the one place a size bound can be applied without
+   * being forgotten at a fourth call site later.
+   */
   async upload(
     fileName: string,
     file: Buffer,
     containerName: AzureStorageContainer,
   ) {
+    const image = await normalizeImage(file);
+
+    if (image.changed) {
+      this.logger.log(
+        `Downscaled ${fileName}: ${image.before.width}x${image.before.height} ` +
+          `(${Math.round(image.before.bytes / 1024)} kB) -> ` +
+          `${image.after.width}x${image.after.height} ` +
+          `(${Math.round(image.after.bytes / 1024)} kB)`,
+      );
+    }
+
     const container = this.getContainerClient(containerName);
     const blockBlobClient = container.getBlockBlobClient(fileName);
-    await blockBlobClient.upload(file, file.length);
+    await blockBlobClient.upload(image.buffer, image.buffer.length);
     return blockBlobClient.url;
   }
 
