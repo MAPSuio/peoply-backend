@@ -25,6 +25,9 @@
     // Brukes i src/main.ts, men via `import cookieParser = require(...)`.
     // Fallow teller ikke den import-formen som bruk.
     "cookie-parser",
+    // Brukes i prisma-exception.filter.integration.spec.ts via samme
+    // `import request = require(...)`-form, som fallow heller ikke ser.
+    "supertest",
     // Lastes av Nest CLI gjennom "collection" i nest-cli.json.
     "@nestjs/schematics",
     // Meldes som test-only fordi ingen produksjonsfil importerer dem direkte.

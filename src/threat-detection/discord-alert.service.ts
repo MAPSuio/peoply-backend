@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { postDiscordWebhook } from "./discord-webhook";
 
-interface EmbedField {
+export interface EmbedField {
   name: string;
   value: string;
   inline?: boolean;

@@ -1,7 +1,10 @@
 import { BadRequestException } from "@nestjs/common";
 import { Event, EventRegistrationMode } from "../generated/prisma/client";
 
-type RegistrationWindow = Pick<Event, "endDate" | "regStart" | "regEnd"> &
+export type RegistrationWindow = Pick<
+  Event,
+  "endDate" | "regStart" | "regEnd"
+> &
   Partial<Pick<Event, "registrationMode">>;
 
 /**
