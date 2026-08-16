@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
-import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "../prisma/prisma.module";
+import { ThreatDetectionModule } from "../threat-detection/threat-detection.module";
 import { FeedbackController } from "./feedback.controller";
 import { FeedbackService } from "./feedback.service";
 
 @Module({
-  imports: [PrismaModule, AuthModule, ConfigModule],
+  imports: [PrismaModule, AuthModule, ThreatDetectionModule],
   controllers: [FeedbackController],
   providers: [FeedbackService],
   exports: [FeedbackService],

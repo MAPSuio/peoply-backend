@@ -6,7 +6,6 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   ChangeRoleDto,
@@ -24,7 +23,7 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { calculateEditDistance } from "../util/string";
 import { createUuid, isUUID } from "../util/uuid";
-import { postDiscordWebhook } from "../threat-detection/discord-webhook";
+import { DiscordAlertService } from "../threat-detection/discord-alert.service";
 import { toDiscordFieldValue } from "../threat-detection/discord-field";
 
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
@@ -44,7 +43,7 @@ export class OrganizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly azureStorageService: AzureStorageService,
-    private readonly config: ConfigService,
+    private readonly discordAlert: DiscordAlertService,
   ) {}
   async create(
     creatorId: string, // id of the user creating the org
@@ -515,9 +514,7 @@ export class OrganizationsService {
       },
     });
 
-    const webhookUrl = this.config.get<string>("DISCORD_ALERT_WEBHOOK_URL");
-
-    if (!webhookUrl) {
+    if (!this.discordAlert.isConfigured) {
       this.logger.warn(
         `Organization ${organization.id} was reported, but DISCORD_ALERT_WEBHOOK_URL is not configured`,
       );
@@ -530,64 +527,38 @@ export class OrganizationsService {
     const frontendUrl = process.env.FRONTEND_URL ?? "https://peoply.app";
     const organizationPath = `/orgs/${organization.urlId ?? organization.id}`;
 
-    try {
-      const response = await postDiscordWebhook(
-        webhookUrl,
-        JSON.stringify({
-          content: "@everyone",
-          allowed_mentions: {
-            parse: ["everyone"],
-          },
-          embeds: [
-            {
-              title: "Forening rapportert",
-              color: 0xffa500,
-              fields: [
-                {
-                  /* The organization's own author chose this. Unbounded, it
-                     made the whole webhook 400 and the report never reached
-                     anyone; unescaped, it could draw convincing extra fields
-                     and appear to name a different organization. */
-                  name: "Forening",
-                  value: toDiscordFieldValue(organization.name),
-                  inline: true,
-                },
-                {
-                  name: "Org-ID",
-                  value: organization.id,
-                  inline: true,
-                },
-                {
-                  name: "Rapportert av",
-                  value: toDiscordFieldValue(
-                    reporter
-                      ? `${reporterName} (${reporter.email})`
-                      : reporterId,
-                  ),
-                },
-                {
-                  name: "Side",
-                  value: `${frontendUrl}${organizationPath}`,
-                },
-              ],
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        }),
-      );
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        this.logger.error(
-          `Organization report Discord webhook responded ${response.statusCode}: ${response.body}`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to send organization report to Discord: ${
-          error instanceof Error ? error.message : error
-        }`,
-      );
-    }
+    await this.discordAlert.send({
+      title: "Forening rapportert",
+      color: 0xffa500,
+      content: "@everyone",
+      context: "Organization report",
+      fields: [
+        {
+          /* The organization's own author chose this. Unbounded, it
+             made the whole webhook 400 and the report never reached
+             anyone; unescaped, it could draw convincing extra fields
+             and appear to name a different organization. */
+          name: "Forening",
+          value: toDiscordFieldValue(organization.name),
+          inline: true,
+        },
+        {
+          name: "Org-ID",
+          value: organization.id,
+          inline: true,
+        },
+        {
+          name: "Rapportert av",
+          value: toDiscordFieldValue(
+            reporter ? `${reporterName} (${reporter.email})` : reporterId,
+          ),
+        },
+        {
+          name: "Side",
+          value: `${frontendUrl}${organizationPath}`,
+        },
+      ],
+    });
 
     return {
       reported: true,

@@ -75,6 +75,11 @@ export class DiscordAlertService implements OnModuleInit {
     }
   }
 
+  /** Whether a webhook is configured; callers that log their own fallback read this. */
+  get isConfigured() {
+    return !!this.webhookUrl;
+  }
+
   async sendAlert(
     title: string,
     fields: EmbedField[],
@@ -86,15 +91,42 @@ export class DiscordAlertService implements OnModuleInit {
         .join(", ")}`,
     );
 
+    await this.send({ title, fields, color, context: "Discord alert" });
+  }
+
+  /**
+   * Posts one embed to the alert webhook. Failures are logged, never thrown —
+   * a Discord outage must not fail the request that triggered the message.
+   * Mentions are opt-in per message via `content`.
+   */
+  async send({
+    title,
+    fields = [],
+    color,
+    description,
+    content,
+    context = "Discord message",
+  }: {
+    title: string;
+    fields?: EmbedField[];
+    color: number;
+    description?: string;
+    content?: string;
+    context?: string;
+  }): Promise<void> {
     if (!this.webhookUrl) return;
 
     const embed = clampEmbed(title, fields);
 
     const body = JSON.stringify({
+      ...(content
+        ? { content, allowed_mentions: { parse: ["everyone"] } }
+        : {}),
       embeds: [
         {
           title: embed.title,
           color,
+          description,
           fields: embed.fields,
           timestamp: new Date().toISOString(),
         },
@@ -106,17 +138,15 @@ export class DiscordAlertService implements OnModuleInit {
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
         this.logger.error(
-          `Discord webhook responded ${res.statusCode}: ${res.body}`,
+          `${context} webhook responded ${res.statusCode}: ${res.body}`,
         );
         return;
       }
 
-      this.logger.log(`Discord alert sent: ${title}`);
+      this.logger.log(`${context} sent: ${title}`);
     } catch (err) {
       this.logger.error(
-        `Failed to send Discord alert: ${
-          err instanceof Error ? err.message : err
-        }`,
+        `Failed to send ${context}: ${err instanceof Error ? err.message : err}`,
       );
     }
   }
