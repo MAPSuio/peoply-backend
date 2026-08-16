@@ -16,6 +16,7 @@
     "prebuild": "rimraf dist",
     "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
+    "images:downscale": "node dist/scripts/downscale-stored-images.js",
     "predeploy:prod": "npm run prisma:deploy && node dist/prisma/seed.js",
     "format": "biome format --write",
     "dev": "node scripts/run-dev.js",
@@ -70,7 +71,8 @@
     "prisma": "^7.9.1",
     "reflect-metadata": "^0.2.2",
     "rimraf": "^6.1.3",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "sharp": "0.35.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
