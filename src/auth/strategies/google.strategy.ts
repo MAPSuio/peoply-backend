@@ -1,8 +1,8 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import { Configuration } from "openid-client";
-import { Strategy } from "openid-client/passport";
+import { Configuration, randomState } from "openid-client";
+import { AuthenticateOptions, Strategy } from "openid-client/passport";
 import { Provider } from "../../generated/prisma/client";
 import { UsersService } from "../../users/services";
 import {
@@ -13,6 +13,7 @@ import {
   OidcProviderKeys,
   OidcTokens,
 } from "./oidc";
+import { withAuthorizationState } from "./authorization-state";
 
 const GOOGLE_KEYS: OidcProviderKeys = {
   issuerEnvKey: "GOOGLE_OIDC_ISSUER",
@@ -32,6 +33,18 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     configService: ConfigService,
   ) {
     super(oidcStrategyOptions(config, configService, GOOGLE_KEYS));
+  }
+
+  /* See withAuthorizationState: v6 omits `state` for providers that
+     advertise PKCE, and this one rejects the request without it. */
+  authorizationRequestParams<TOptions extends AuthenticateOptions>(
+    req: Parameters<Strategy["authorizationRequestParams"]>[0],
+    options: TOptions,
+  ) {
+    return withAuthorizationState(
+      super.authorizationRequestParams(req, options),
+      randomState,
+    );
   }
 
   async validate(tokens: OidcTokens): Promise<any> {
