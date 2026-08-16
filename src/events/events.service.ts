@@ -336,14 +336,34 @@ export class EventsService {
         eventCategories: {
           select: { category: { select: { name: true } } },
         },
+        /* Mirrors findOneByUrlId. Without it every card in a list had to ask
+           `GET /events/:id/registration-count` for itself, so one front page
+           was ten extra round trips and `GET /events` with 30 cards was
+           thirty, all against a 100-request-per-minute limit.
+
+           `take` bounds this to a page of events, and the count rides along
+           with a query the endpoint already makes rather than adding a
+           request per row. */
+        _count: {
+          select: {
+            registrations: { where: { regStatus: RegStatus.GOING } },
+          },
+        },
       },
       orderBy: {
         [orderBy]: orderDirection,
       },
     });
 
+    /* Same swap findOneByUrlId does: `_count` is Prisma's shape, not the
+       API's, so callers see `goingCount` and never the underscore. */
+    const withGoingCount = events.map(({ _count, ...event }) => ({
+      ...event,
+      goingCount: _count.registrations,
+    }));
+
     if (searchProps.title) {
-      return events
+      return withGoingCount
         .map((event) => {
           const titleEditDistance = calculateEditDistance(
             searchProps.title!,
@@ -357,7 +377,7 @@ export class EventsService {
         .sort((a, b) => a.titleEditDistance - b.titleEditDistance)
         .map((event) => event.event);
     }
-    return events;
+    return withGoingCount;
   }
 
   async findOne(eventId: string) {
