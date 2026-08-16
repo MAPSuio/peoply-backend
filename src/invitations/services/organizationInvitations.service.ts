@@ -279,35 +279,20 @@ export class OrganizationInvitationsService {
     });
   }
 
-  async declineInvitation(invitationId: string) {
+  /**
+   * DECLINED and IGNORED by the recipient, CANCELLED by the sender — the row
+   * update is the same for all three. Accepting has its own path.
+   */
+  async setInvitationStatus(
+    invitationId: string,
+    invitationStatus: InvitationStatus,
+  ) {
     return this.prisma.organizationInvitation.update({
       where: {
         id: invitationId,
       },
       data: {
-        invitationStatus: InvitationStatus.DECLINED,
-      },
-    });
-  }
-
-  async ignoreInvitation(invitationId: string) {
-    return this.prisma.organizationInvitation.update({
-      where: {
-        id: invitationId,
-      },
-      data: {
-        invitationStatus: InvitationStatus.IGNORED,
-      },
-    });
-  }
-
-  async cancelInvitation(invitationId: string) {
-    return this.prisma.organizationInvitation.update({
-      where: {
-        id: invitationId,
-      },
-      data: {
-        invitationStatus: InvitationStatus.CANCELLED,
+        invitationStatus,
       },
     });
   }

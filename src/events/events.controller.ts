@@ -32,7 +32,6 @@ import { OrganizationRoles } from "../../decorators/organizationRoles.decorator"
 import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
 import { AuthenticatedGuard } from "../auth/guards";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
-import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
 import { IsArrangerInterceptor } from "../auth/interceptors/isArranger.interceptor";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
@@ -126,7 +125,7 @@ export class EventsController {
 
   @Get(":id")
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseInterceptors(AuthenticatedInterceptor, IsArrangerInterceptor)
+  @UseInterceptors(IsArrangerInterceptor)
   async findOne(@Req() req: any, @Param("id") id: string) {
     const user: User | undefined = req.user;
     const isArranger: boolean | undefined = req.isArranger;
@@ -189,7 +188,7 @@ export class EventsController {
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseInterceptors(AuthenticatedInterceptor, IsArrangerInterceptor)
+  @UseInterceptors(IsArrangerInterceptor)
   @Get(":id/registration-count")
   async getRegistrationCount(
     @Req() req: any,
@@ -334,7 +333,7 @@ export class EventsController {
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseInterceptors(AuthenticatedInterceptor, IsArrangerInterceptor)
+  @UseInterceptors(IsArrangerInterceptor)
   @Get(":id/updates")
   async getUpdates(@Req() req: any, @Param("id") id: string) {
     const user: User | undefined = req.user;

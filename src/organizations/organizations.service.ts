@@ -163,6 +163,19 @@ export class OrganizationsService {
     });
   }
 
+  /** Looks an organization up by id or urlId, and 404s when it is missing. */
+  async findByRefOrThrow(orgIdOrUrlId: string) {
+    const org = isUUID(orgIdOrUrlId)
+      ? await this.findOne(orgIdOrUrlId)
+      : await this.findOneByUrlId(orgIdOrUrlId);
+
+    if (!org) {
+      throw new OrganizationDoesNotExistException(orgIdOrUrlId);
+    }
+
+    return org;
+  }
+
   async update(
     org: Organization,
     updateOrganizationDto: UpdateOrganizationDto,
@@ -241,24 +254,13 @@ export class OrganizationsService {
       });
     } catch (error) {
       // Kept for the cleanup only: the image is uploaded before the update,
-      // so a failure would leave it orphaned. It is now awaited and guarded —
-      // the previous call was fire-and-forget, so a storage failure surfaced
-      // as an unhandled rejection instead of a log line.
+      // so a failure would leave it orphaned.
       if (imageFileName) {
-        try {
-          await this.azureStorageService.delete(
-            imageFileName.slice(imageFileName.lastIndexOf("/") + 1),
-            AzureStorageContainer.ORGANIZATION_IMAGES,
-          );
-        } catch (cleanupError) {
-          this.logger.warn(
-            `Organization ${org.id} update failed and the uploaded image could not be removed: ${
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : cleanupError
-            }`,
-          );
-        }
+        await this.azureStorageService.deleteUploadedImageQuietly(
+          imageFileName,
+          AzureStorageContainer.ORGANIZATION_IMAGES,
+          `Organization ${org.id} update`,
+        );
       }
 
       throw error;
@@ -683,15 +685,7 @@ export class OrganizationsService {
   }
 
   async getFollowers(orgId: string) {
-    let org: Organization | null;
-    if (isUUID(orgId)) {
-      org = await this.findOne(orgId);
-    } else {
-      org = await this.findOneByUrlId(orgId);
-    }
-    if (!org) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
+    const org = await this.findByRefOrThrow(orgId);
 
     return await this.prisma.arrangerFollower.findMany({
       where: {

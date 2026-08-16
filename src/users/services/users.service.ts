@@ -445,24 +445,13 @@ export class UsersService {
       });
     } catch (error) {
       // Kept for the cleanup only: the image is uploaded before the update,
-      // so a failure would leave it orphaned. It is now awaited and guarded —
-      // the previous call was fire-and-forget, so a storage failure surfaced
-      // as an unhandled rejection instead of a log line.
+      // so a failure would leave it orphaned.
       if (imageFileName) {
-        try {
-          await this.azureStorageService.delete(
-            imageFileName,
-            AzureStorageContainer.PROFILE_IMAGES,
-          );
-        } catch (cleanupError) {
-          this.logger.warn(
-            `User update failed and the uploaded image ${imageFileName} could not be removed: ${
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : cleanupError
-            }`,
-          );
-        }
+        await this.azureStorageService.deleteUploadedImageQuietly(
+          imageFileName,
+          AzureStorageContainer.PROFILE_IMAGES,
+          "User update",
+        );
       }
 
       throw error;

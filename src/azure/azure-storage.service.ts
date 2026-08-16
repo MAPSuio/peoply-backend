@@ -1,4 +1,9 @@
-import { HttpException, Injectable, OnModuleInit } from "@nestjs/common";
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from "@nestjs/common";
 import {
   BlobServiceClient,
   StorageSharedKeyCredential,
@@ -13,6 +18,7 @@ export class AzureStorageService
   extends BlobServiceClient
   implements OnModuleInit
 {
+  private readonly logger = new Logger(AzureStorageService.name);
   private readonly skipInit: boolean;
 
   constructor(configService: ConfigService) {
@@ -66,6 +72,29 @@ export class AzureStorageService
     const container = this.getContainerClient(containerName);
     const blockBlobClient = container.getBlockBlobClient(fileName);
     await blockBlobClient.delete();
+  }
+
+  /**
+   * Best-effort removal of an image that a failed write orphaned. Never
+   * throws: the caller is about to rethrow the error that got it here, and a
+   * storage failure must not replace that — it becomes a warn instead.
+   * Takes a bare blob name or a full URL.
+   */
+  async deleteUploadedImageQuietly(
+    nameOrUrl: string,
+    containerName: AzureStorageContainer,
+    context: string,
+  ) {
+    const fileName = nameOrUrl.slice(nameOrUrl.lastIndexOf("/") + 1);
+    try {
+      await this.delete(fileName, containerName);
+    } catch (cleanupError) {
+      this.logger.warn(
+        `${context} failed and the uploaded image ${fileName} could not be removed: ${
+          cleanupError instanceof Error ? cleanupError.message : cleanupError
+        }`,
+      );
+    }
   }
 
   async replace(
