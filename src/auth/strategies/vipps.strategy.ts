@@ -1,14 +1,17 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import { Configuration } from "openid-client";
+import { Strategy } from "openid-client/passport";
 import { Provider } from "../../generated/prisma/client";
-import { Strategy, Client, UserinfoResponse, TokenSet } from "openid-client";
 import { UsersService } from "../../users/services";
 import {
-  buildOidcClient,
+  buildOidcConfig,
+  fetchOidcUserinfo,
   findOrCreateProviderUser,
   oidcStrategyOptions,
   OidcProviderKeys,
+  OidcTokens,
 } from "./oidc";
 
 const VIPPS_KEYS: OidcProviderKeys = {
@@ -19,24 +22,20 @@ const VIPPS_KEYS: OidcProviderKeys = {
   scopeKey: "VIPPS_OIDC_LOGIN_SCOPE",
 };
 
-export const buildVippsClient = (configService: ConfigService) =>
-  buildOidcClient(configService, VIPPS_KEYS);
+export const buildVippsConfig = (configService: ConfigService) =>
+  buildOidcConfig(configService, VIPPS_KEYS);
 
 export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
-  client: Client;
-
   constructor(
-    client: Client,
-    private userService: UsersService,
+    private readonly config: Configuration,
+    private readonly userService: UsersService,
     configService: ConfigService,
   ) {
-    super(oidcStrategyOptions(client, configService, VIPPS_KEYS));
-
-    this.client = client;
+    super(oidcStrategyOptions(config, configService, VIPPS_KEYS));
   }
 
-  async validate(tokenset: TokenSet): Promise<any> {
-    const userinfo: UserinfoResponse = await this.client.userinfo(tokenset);
+  async validate(tokens: OidcTokens): Promise<any> {
+    const userinfo = await fetchOidcUserinfo(this.config, tokens);
 
     const {
       email,

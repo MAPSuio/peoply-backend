@@ -1,14 +1,17 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import { Configuration } from "openid-client";
+import { Strategy } from "openid-client/passport";
 import { Provider } from "../../generated/prisma/client";
-import { Strategy, Client, UserinfoResponse, TokenSet } from "openid-client";
 import { UsersService } from "../../users/services";
 import {
-  buildOidcClient,
+  buildOidcConfig,
+  fetchOidcUserinfo,
   findOrCreateProviderUser,
   oidcStrategyOptions,
   OidcProviderKeys,
+  OidcTokens,
 } from "./oidc";
 
 const GOOGLE_KEYS: OidcProviderKeys = {
@@ -19,24 +22,20 @@ const GOOGLE_KEYS: OidcProviderKeys = {
   scopeKey: "GOOGLE_OIDC_LOGIN_SCOPE",
 };
 
-export const buildGoogleClient = (configService: ConfigService) =>
-  buildOidcClient(configService, GOOGLE_KEYS);
+export const buildGoogleConfig = (configService: ConfigService) =>
+  buildOidcConfig(configService, GOOGLE_KEYS);
 
 export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
-  client: Client;
-
   constructor(
-    client: Client,
-    private userService: UsersService,
+    private readonly config: Configuration,
+    private readonly userService: UsersService,
     configService: ConfigService,
   ) {
-    super(oidcStrategyOptions(client, configService, GOOGLE_KEYS));
-
-    this.client = client;
+    super(oidcStrategyOptions(config, configService, GOOGLE_KEYS));
   }
 
-  async validate(tokenset: TokenSet): Promise<any> {
-    const userinfo: UserinfoResponse = await this.client.userinfo(tokenset);
+  async validate(tokens: OidcTokens): Promise<any> {
+    const userinfo = await fetchOidcUserinfo(this.config, tokens);
 
     const {
       email,
@@ -59,7 +58,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       this.userService,
       Provider.GOOGLE,
       userinfo.sub,
-      { email, firstName, lastName },
+      {
+        email,
+        firstName,
+        lastName,
+      },
     );
   }
 }

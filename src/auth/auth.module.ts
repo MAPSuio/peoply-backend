@@ -17,8 +17,8 @@ import { UsersService } from "../users/services";
 import { getTokenExpirySeconds } from "./token-expiry";
 import {
   AccessStrategy,
-  buildVippsClient,
-  buildGoogleClient,
+  buildVippsConfig,
+  buildGoogleConfig,
   VippsStrategy,
   GoogleStrategy,
   RefreshStrategy,
@@ -31,8 +31,8 @@ const VippsStrategyFactory = {
     userService: UsersService,
     configService: ConfigService,
   ) => {
-    const client = await buildVippsClient(configService); // secret sauce! build the dynamic client before injecting it into the strategy for use in the constructor super call.
-    const strategy = new VippsStrategy(client, userService, configService);
+    const config = await buildVippsConfig(configService); // secret sauce! discover the provider configuration before injecting it into the strategy for use in the constructor super call.
+    const strategy = new VippsStrategy(config, userService, configService);
     return strategy;
   },
   inject: [UsersService, ConfigService],
@@ -44,8 +44,8 @@ const GoogleStrategyFactory = {
     userService: UsersService,
     configService: ConfigService,
   ) => {
-    const client = await buildGoogleClient(configService); // secret sauce! build the dynamic client before injecting it into the strategy for use in the constructor super call.
-    const strategy = new GoogleStrategy(client, userService, configService);
+    const config = await buildGoogleConfig(configService); // secret sauce! discover the provider configuration before injecting it into the strategy for use in the constructor super call.
+    const strategy = new GoogleStrategy(config, userService, configService);
     return strategy;
   },
   inject: [UsersService, ConfigService],
