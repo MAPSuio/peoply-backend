@@ -54,10 +54,28 @@ per sidevisning skal det ikke veldig mange samtidige besøkende til før grensen
 nås av helt normal trafikk. Det har ikke slått ut ennå (ingen 429 i loggen), men
 det er en felle som utløses av at det går bra, ikke av at det går dårlig.
 
-`CLOUDFLARE_ORIGIN_SECRET` er ikke satt i app-spec-en, så
-`cameThroughCloudflare()` returnerer `true` og headeren *ville* blitt brukt om
-den var der. Den kommer altså ikke frem. Neste steg er å finne ut hvor den blir
-borte mellom Cloudflare og containeren, ikke å skru på hemmeligheten.
+Årsaken er at det er to Cloudflare-lag i kjeden, ikke ett:
+
+```
+bruker → Cloudflare (peoply.app) → Cloudflare (DigitalOcean) → App Platform → container
+```
+
+`whale-app-yksnk.ondigitalocean.app` slår opp til 172.66.0.96 og 162.159.140.98
+og svarer med `server: cloudflare` og `cf-ray`. App Platform fronter altså hver
+app med sin egen Cloudflare. Den overskriver `CF-Connecting-IP` med IP-en som
+koblet seg til den, og det er vår egen Cloudflare-edge. Headeren blir ikke
+strippet, den blir skrevet over av en Cloudflare vi ikke styrer.
+
+Det betyr også at `CLOUDFLARE_ORIGIN_SECRET` ikke løser dette. Hemmeligheten
+avgjør om vi *stoler på* headeren, ikke hva som står i den.
+
+Den ekte klient-IP-en må derfor hentes fra `X-Forwarded-For`. Med to proxy-lag
+er `trust proxy 1` for lavt: Express teller hopp fra appen og utover, så den
+lander på det innerste Cloudflare-laget. Før det endres må det verifiseres hva
+som faktisk kommer frem, siden en klient kan sende sin egen `X-Forwarded-For`
+og Cloudflare legger til bakerst i stedet for å erstatte. Å plukke det første
+elementet i blinde ville gjort headeren forfalskbar igjen, altså nøyaktig den
+bypassen `client-ip.ts` finnes for å lukke.
 
 ### Oppsett av origin-hemmeligheten
 
