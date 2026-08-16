@@ -4,8 +4,6 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
-  IsEnum,
-  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -16,14 +14,10 @@ import {
 import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
 import { IsUrlId } from "../../../decorators/validators/isUrlId.validator";
-import { PrismaOrderDirections } from "../../prisma/prisma.constants";
-import { PaginationDto } from "../../util/pagination.dto";
+import { PagedQueryDto } from "../../util/paged-query.dto";
 import { Prisma } from "../../generated/prisma/client";
 
-/** The Event table's own columns — the only things Prisma may be told to sort by. */
-const EVENT_SCALAR_FIELDS = Object.keys(Prisma.EventScalarFieldEnum);
-
-export class SearchEventDto extends PaginationDto {
+export class SearchEventDto extends PagedQueryDto(Prisma.EventScalarFieldEnum) {
   @IsOptional()
   @IsString()
   @IsUrlId()
@@ -87,35 +81,4 @@ export class SearchEventDto extends PaginationDto {
   @IsBoolean()
   @ApiProperty()
   featured?: boolean;
-
-  /* Reached `findAll` as `orderBy: { [orderBy]: orderDirection }` with nothing
-     but @IsString() in the way, so any non-column name - a relation such as
-     `eventArrangers`, or anything at all - made Prisma raise a validation error
-     that PrismaExceptionFilter does not catch. `GET /events` needs no cookie,
-     so that was an unauthenticated 500 and log noise on demand.
-
-     Checked against Prisma's own list of scalar columns rather than a
-     hand-written one, so it cannot drift from the schema. The registration
-     services do the same job with a dummy object; this is the same idea
-     without a literal to keep in sync. */
-  @IsOptional()
-  @IsString()
-  @IsIn(EVENT_SCALAR_FIELDS, {
-    message: `orderBy must be one of the event's own columns`,
-  })
-  @ApiProperty({ required: false, enum: EVENT_SCALAR_FIELDS })
-  orderBy?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsEnum(PrismaOrderDirections, {
-    message:
-      "Must be either one of the values: '" +
-      PrismaOrderDirections.ASC +
-      "' or '" +
-      PrismaOrderDirections.DESC +
-      "'",
-  })
-  @ApiProperty({ required: false })
-  orderDirection?: string;
 }

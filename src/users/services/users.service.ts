@@ -226,8 +226,8 @@ export class UsersService {
     }
   }
 
-  async findAll(searchProps: SearchUserDto = {}, skip = 0, take = 10) {
-    const { name } = searchProps;
+  async findAll(searchProps: SearchUserDto = {}) {
+    const { name, skip = 0, take = 10 } = searchProps;
     const normalizedName = name ? normalizeWhitespace(name) : "";
     const nameTokens = normalizedName
       ? normalizedName.split(" ").filter(Boolean)

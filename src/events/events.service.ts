@@ -247,13 +247,14 @@ export class EventsService {
     }
   }
 
-  async findAll(
-    searchProps: SearchEventDto = {},
-    skip = 0,
-    take = 10,
-    orderBy = "startDate",
-    orderDirection = "asc",
-  ) {
+  async findAll(searchProps: SearchEventDto = {}) {
+    const {
+      skip = 0,
+      take = 10,
+      orderBy = "startDate",
+      orderDirection = "asc",
+    } = searchProps;
+
     const descriptionSearch = searchProps.description
       ? buildDescriptionSearchQuery(searchProps.description)
       : undefined;

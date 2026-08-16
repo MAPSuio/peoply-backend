@@ -121,13 +121,7 @@ export class EventsController {
   // for private events
   @Get()
   async findAll(@Query() query: SearchEventDto) {
-    return this.eventsService.findAll(
-      query,
-      query.skip,
-      query.take,
-      query.orderBy,
-      query.orderDirection,
-    );
+    return this.eventsService.findAll(query);
   }
 
   @Get(":id")
@@ -198,12 +192,7 @@ export class EventsController {
     @Query() query: SearchEventRegistrationDto,
     @Param("id") id: string,
   ) {
-    return this.arrangerRegistrationService.findAll(
-      query,
-      id,
-      query.skip,
-      query.take,
-    );
+    return this.arrangerRegistrationService.findAll(query, id);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)

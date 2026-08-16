@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import {
   Event,
   EventVisibility,
@@ -10,7 +10,6 @@ import {
 } from "../../events/dto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CommonRegistrationService } from "./common.registrations.service";
-import { Registration } from "../../generated/prisma/client";
 import { EventNotFoundException } from "../../events/exceptions";
 import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
@@ -27,27 +26,13 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     super(prismaService, azureCommunicationService);
   }
 
-  async findAll(
-    searchProps: SearchEventRegistrationDto,
-    eventId: string,
-    skip = 0,
-    take = 10,
-    orderBy: keyof Registration = "updatedAt",
-    orderDirection: "asc" | "desc" = "asc",
-  ) {
-    /* create a dummy object to type check runtime */
-    const dummy: Registration = {
-      eventId: "",
-      userId: "",
-      regStatus: RegStatus.GOING,
-      formAnswer: "",
-      updatedAt: new Date(),
-      createdAt: new Date(),
-    };
-    /* Check if orderBy is a key of Registration */
-    if (!Object.keys(dummy).includes(orderBy)) {
-      throw new BadRequestException(`${orderBy} is not a key of Registration`);
-    }
+  async findAll(searchProps: SearchEventRegistrationDto, eventId: string) {
+    const {
+      skip = 0,
+      take = 10,
+      orderBy = "updatedAt",
+      orderDirection = "asc",
+    } = searchProps;
 
     const eventHasFood = (
       await this.prismaService.event.findUnique({

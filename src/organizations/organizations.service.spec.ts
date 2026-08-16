@@ -159,7 +159,7 @@ describe("OrganizationsService", () => {
   it("filters public organization lists to approved organizations", async () => {
     prisma.organization.findMany.mockResolvedValueOnce([]);
 
-    await service.findAll({}, 0, 10);
+    await service.findAll({});
 
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -173,7 +173,7 @@ describe("OrganizationsService", () => {
   it("lists all organizations for MAPS admin views", async () => {
     prisma.organization.findMany.mockResolvedValueOnce([]);
 
-    await service.findAllIncludingUnapproved({}, 0, 10);
+    await service.findAllIncludingUnapproved({});
 
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

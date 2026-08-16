@@ -2,6 +2,7 @@ import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
 import { SearchEventDto } from "../events/dto/search-event.dto";
 import { SearchEventRegistrationDto } from "../events/dto/search-event-registration.dto";
+import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
 import { SearchOrganizationDto } from "../organizations/dto/search-organization.dto";
 import { SearchUserRegistrationDto } from "../registrations/dto/search-user-registration.dto";
 import { SearchUserDto } from "../users/dto/search-user.dto";
@@ -10,9 +11,31 @@ import { MAX_PAGE_SIZE } from "./pagination";
 const searchDtos = [
   ["SearchEventDto", SearchEventDto],
   ["SearchEventRegistrationDto", SearchEventRegistrationDto],
+  ["SearchFavoritesDto", SearchFavoritesDto],
   ["SearchOrganizationDto", SearchOrganizationDto],
   ["SearchUserRegistrationDto", SearchUserRegistrationDto],
   ["SearchUserDto", SearchUserDto],
+] as const;
+
+/* The DTOs that let the caller pick a sort column, each with a column that is
+   a scalar on its model and a name that is a relation on it — the exact shape
+   that made Prisma 500 when orderBy validation was a per-service dummy object
+   (and the favorites copy had drifted onto the wrong model). */
+const pagedQueryDtos = [
+  ["SearchEventDto", SearchEventDto, "startDate", "eventArrangers"],
+  [
+    "SearchEventRegistrationDto",
+    SearchEventRegistrationDto,
+    "regStatus",
+    "user",
+  ],
+  ["SearchFavoritesDto", SearchFavoritesDto, "createdAt", "event"],
+  [
+    "SearchUserRegistrationDto",
+    SearchUserRegistrationDto,
+    "regStatus",
+    "event",
+  ],
 ] as const;
 
 // Query params arrive as strings, so mirror what the global ValidationPipe
@@ -79,8 +102,8 @@ describe.each(searchDtos)("%s take bounds", (_name, dto) => {
 });
 
 // `skip` is an offset, so 0 is the first page and every paginating client sends
-// it. These run across all five DTOs because the bug they cover was one DTO
-// drifting from the other four rather than a rule being wrong everywhere.
+// it. These run across all the search DTOs because the bug they cover was one
+// DTO drifting from the others rather than a rule being wrong everywhere.
 describe.each(searchDtos)("%s skip bounds", (_name, dto) => {
   it("accepts skip=0, the first page", () => {
     expect(validateSkip(dto, "0")).toHaveLength(0);
@@ -102,3 +125,50 @@ describe.each(searchDtos)("%s skip bounds", (_name, dto) => {
     expect(validateSync(plainToInstance(dto, {}))).toHaveLength(0);
   });
 });
+
+describe.each(pagedQueryDtos)(
+  "%s orderBy",
+  (_name, dto, scalarColumn, relationName) => {
+    const validate = (query: Record<string, string>) =>
+      validateSync(plainToInstance(dto, query));
+
+    it(`accepts the model's own column "${scalarColumn}"`, () => {
+      expect(validate({ orderBy: scalarColumn })).toHaveLength(0);
+    });
+
+    it("accepts updatedAt, the service default", () => {
+      expect(validate({ orderBy: "updatedAt" })).toHaveLength(0);
+    });
+
+    it(`rejects the relation "${relationName}"`, () => {
+      const errors = validate({ orderBy: relationName });
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe("orderBy");
+      expect(errors[0].constraints).toHaveProperty("isIn");
+    });
+
+    it("rejects a name that is no column at all", () => {
+      const errors = validate({ orderBy: "definitelyNotAColumn" });
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe("orderBy");
+    });
+
+    it("allows orderBy to be omitted", () => {
+      expect(validate({})).toHaveLength(0);
+    });
+
+    it("accepts orderDirection asc and desc", () => {
+      expect(validate({ orderDirection: "asc" })).toHaveLength(0);
+      expect(validate({ orderDirection: "desc" })).toHaveLength(0);
+    });
+
+    it("rejects any other orderDirection", () => {
+      const errors = validate({ orderDirection: "sideways" });
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].property).toBe("orderDirection");
+    });
+  },
+);

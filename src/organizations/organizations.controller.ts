@@ -82,20 +82,14 @@ export class OrganizationsController {
   /* endpoint to GET all orgs */
   @Get()
   async findAll(@Query() query: SearchOrganizationDto) {
-    const { skip, take } = query;
-    return this.organizationsService.findAll(query, skip, take);
+    return this.organizationsService.findAll(query);
   }
 
   @UseGuards(AuthenticatedGuard)
   @Get("/admin/all")
   async findAllAdmin(@Req() req: any, @Query() query: SearchOrganizationDto) {
-    const { skip, take } = query;
     await this.administrationService.ensureAccess(req.user.id);
-    return this.organizationsService.findAllIncludingUnapproved(
-      query,
-      skip,
-      take,
-    );
+    return this.organizationsService.findAllIncludingUnapproved(query);
   }
 
   @UseGuards(AuthenticatedGuard)

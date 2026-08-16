@@ -99,8 +99,7 @@ export class UsersController {
   @UseGuards(AuthenticatedGuard)
   @Get()
   async findAll(@Query() query: SearchUserDto) {
-    const { skip, take } = query;
-    return this.userService.findAll(query, skip, take);
+    return this.userService.findAll(query);
   }
 
   @Get(":id")
@@ -128,12 +127,7 @@ export class UsersController {
     @Query() query: SearchUserRegistrationDto,
     @Param("userId") id: string,
   ) {
-    return this.userRegistrationService.findAll(
-      query,
-      id,
-      query.skip,
-      query.take,
-    );
+    return this.userRegistrationService.findAll(query, id);
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)

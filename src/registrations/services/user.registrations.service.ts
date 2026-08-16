@@ -10,7 +10,6 @@ import {
   EventRegistrationMode,
   EventVisibility,
   RegStatus,
-  Registration,
 } from "../../generated/prisma/client";
 import { EventAccessService } from "../../event-access/event-access.service";
 import { EventNotFoundException } from "../../events/exceptions";
@@ -112,27 +111,13 @@ export class UserRegistrationService extends CommonRegistrationService {
     });
   }
 
-  async findAll(
-    searchProps: SearchUserRegistrationDto,
-    userId: string,
-    skip = 0,
-    take = 10,
-    orderBy: keyof Registration = "updatedAt",
-    orderDirection: "asc" | "desc" = "asc",
-  ) {
-    /* create a dummy object to type check runtime */
-    const dummy: Registration = {
-      eventId: "",
-      userId: "",
-      regStatus: RegStatus.GOING,
-      formAnswer: "",
-      updatedAt: new Date(),
-      createdAt: new Date(),
-    };
-    /* Check if orderBy is a key of Registration */
-    if (!Object.keys(dummy).includes(orderBy)) {
-      throw new BadRequestException(`${orderBy} is not a key of Registration`);
-    }
+  async findAll(searchProps: SearchUserRegistrationDto, userId: string) {
+    const {
+      skip = 0,
+      take = 10,
+      orderBy = "updatedAt",
+      orderDirection = "asc",
+    } = searchProps;
 
     const registrations = await this.prismaService.registration.findMany({
       skip,
