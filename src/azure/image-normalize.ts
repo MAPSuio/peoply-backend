@@ -21,7 +21,25 @@ const JPEG_QUALITY = 82;
  * CPU and the memory. A decompression bomb is small on the wire and enormous
  * once decoded, so this is the limit that actually protects the process.
  */
-const MAX_INPUT_PIXELS = 50_000_000;
+export const MAX_INPUT_PIXELS = 50_000_000;
+
+/**
+ * Thrown instead of sharp's raw error when an image decodes to more pixels
+ * than the caller allows, so the upload path can answer 400 with something a
+ * person can act on rather than 500 with a stack trace.
+ */
+export class ImageTooLargeError extends Error {
+  constructor(
+    readonly megapixels: number,
+    readonly limit: number,
+  ) {
+    super(
+      `Image is ${megapixels.toFixed(1)} megapixels, which is over the ` +
+        `${(limit / 1e6).toFixed(0)} megapixel limit.`,
+    );
+    this.name = "ImageTooLargeError";
+  }
+}
 
 export interface ImageDimensions {
   width: number;
@@ -54,7 +72,11 @@ export function needsDownscaling(width: number, height: number) {
  * grow rather than shrink. `stats()` decodes the image to answer this, so it
  * only runs when there is an alpha channel to ask about.
  */
-async function usesTransparency(input: Buffer, hasAlpha: boolean | undefined) {
+async function usesTransparency(
+  input: Buffer,
+  hasAlpha: boolean | undefined,
+  maxInputPixels: number,
+) {
   if (!hasAlpha) {
     return false;
   }
@@ -110,9 +132,26 @@ async function usesTransparency(input: Buffer, hasAlpha: boolean | undefined) {
  * touch anything: an image inside the limit keeps whatever metadata it came
  * with, because re-encoding it to strip a tag would cost more than the tag.
  */
-export async function normalizeImage(input: Buffer): Promise<NormalizedImage> {
+export async function normalizeImage(
+  input: Buffer,
+  /* Two images in production decode to 71.7 and 62.2 megapixels while
+     weighing 1.1 and 2.6 MB, which is what a decompression bomb looks like
+     whether or not anyone meant it that way. The service container has 512 MB
+     and the larger of the two needs 273 MB for the pixel buffer alone, so the
+     upload path must refuse them: OOM-killing the API is worse than rejecting
+     an image. The backfill overrides this, because those two are precisely the
+     ones that need fixing, and it can be run somewhere with memory to spare. */
+  maxInputPixels: number = MAX_INPUT_PIXELS,
+): Promise<NormalizedImage> {
+  const probe = await sharp(input, { limitInputPixels: false }).metadata();
+  const megapixels = ((probe.width ?? 0) * (probe.height ?? 0)) / 1e6;
+
+  if (megapixels * 1e6 > maxInputPixels) {
+    throw new ImageTooLargeError(megapixels, maxInputPixels);
+  }
+
   const metadata = await sharp(input, {
-    limitInputPixels: MAX_INPUT_PIXELS,
+    limitInputPixels: maxInputPixels,
   }).metadata();
 
   const before: ImageDimensions = {
@@ -136,9 +175,13 @@ export async function normalizeImage(input: Buffer): Promise<NormalizedImage> {
     };
   }
 
-  const keepAlpha = await usesTransparency(input, metadata.hasAlpha);
+  const keepAlpha = await usesTransparency(
+    input,
+    metadata.hasAlpha,
+    maxInputPixels,
+  );
 
-  const pipeline = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
+  const pipeline = sharp(input, { limitInputPixels: maxInputPixels })
     .rotate()
     /* No `withoutEnlargement`: the guard above means at least one edge is
        already over the limit, so `inside` can only shrink. */

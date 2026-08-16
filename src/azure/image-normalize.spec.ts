@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import {
+  ImageTooLargeError,
   MAX_IMAGE_EDGE_PX,
   needsDownscaling,
   normalizeImage,
@@ -175,5 +176,47 @@ describe("needsDownscaling", () => {
     [200, 200, false],
   ])("%ix%i -> %s", (width, height, expected) => {
     expect(needsDownscaling(width, height)).toBe(expected);
+  });
+});
+
+/**
+ * Two images in production decode to 71.7 and 62.2 megapixels while weighing
+ * 1.1 and 2.6 MB. That shape passes a byte limit and still needs 273 MB
+ * decoded, which the 512 MB service container does not have.
+ */
+describe("normalizeImage pixel ceiling", () => {
+  const wide = (width: number, height: number) =>
+    sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
+    }).png();
+
+  it("refuses an image that decodes past the ceiling", async () => {
+    const input = await wide(4000, 4000).toBuffer();
+
+    await expect(normalizeImage(input, 8_000_000)).rejects.toThrow(
+      ImageTooLargeError,
+    );
+  });
+
+  it("says how big it was and what the limit is", async () => {
+    const input = await wide(4000, 4000).toBuffer();
+
+    await expect(normalizeImage(input, 8_000_000)).rejects.toThrow(
+      /16\.0 megapixels.*8 megapixel limit/,
+    );
+  });
+
+  /* The backfill raises the ceiling precisely so it can rewrite those two. */
+  it("processes the same image when the caller allows the pixels", async () => {
+    const input = await wide(4000, 4000).toBuffer();
+
+    const result = await normalizeImage(input, 50_000_000);
+
+    expect(result.after.width).toBe(MAX_IMAGE_EDGE_PX);
   });
 });
