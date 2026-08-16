@@ -8,7 +8,7 @@ import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
 
-type PublicEventsOptions = {
+export type PublicEventsOptions = {
   fromDate?: Date;
   take?: number;
 };

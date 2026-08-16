@@ -46,7 +46,7 @@ const INVITATION_INCLUDE = {
 } as const;
 
 /** The Prisma surface this service needs, so it can run inside a transaction. */
-type CoOrganizerPrisma = Pick<
+export type CoOrganizerPrisma = Pick<
   PrismaService,
   "eventCoOrganizerInvitation" | "eventArranger" | "organization"
 >;
