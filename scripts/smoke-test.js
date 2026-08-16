@@ -33,6 +33,52 @@ function request(url) {
   });
 }
 
+function redirectFor(url) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(url, (res) => {
+      res.resume();
+      resolve({ status: res.statusCode || 0, location: res.headers.location });
+    });
+
+    req.on("error", reject);
+  });
+}
+
+/**
+ * Checks the shape of the authorization request the app would send a user to.
+ *
+ * `GET /auth/login` answering 302 proves only that we replied. It does not say
+ * whether the provider will accept what we built, and reading it as "login
+ * works" is exactly how three defects reached production in one day.
+ *
+ * Two of the three are visible right here, in our own redirect, without
+ * calling the provider at all. openid-client v6 omits `state` for a provider
+ * that advertises PKCE; Vipps requires it and answers a request without one by
+ * sending the user to an error page. A missing `code_challenge` would mean
+ * PKCE had silently stopped being applied.
+ */
+async function assertAuthorizationRequest() {
+  for (const path of ["/auth/login", "/auth/login/google"]) {
+    const { status, location } = await redirectFor(`${BASE_URL}${path}`);
+
+    if (status !== 302 || !location) {
+      throw new Error(`${path} answered HTTP ${status} without a redirect`);
+    }
+
+    const params = new URL(location).searchParams;
+
+    for (const required of ["state", "code_challenge", "redirect_uri"]) {
+      if (!params.get(required)) {
+        throw new Error(
+          `${path} built an authorization request with no ${required}: ${location}`,
+        );
+      }
+    }
+
+    console.log(`${path} -> 302 with state, PKCE and redirect_uri`);
+  }
+}
+
 async function waitForServer() {
   const startedAt = Date.now();
 
@@ -62,6 +108,8 @@ async function assertServing() {
 
     console.log(`${url} -> HTTP ${status}`);
   }
+
+  await assertAuthorizationRequest();
 }
 
 async function main() {
