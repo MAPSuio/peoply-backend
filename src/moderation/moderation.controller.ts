@@ -11,28 +11,28 @@ export class ModerationController {
 
   @Get("/info/new-users")
   async getNewUsersInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.getNumberOfNewUsers(days);
+    return this.moderationService.countCreatedWithin("user", days);
   }
 
   @Get("/info/new-events")
   async getNewEventsInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.getNumberOfNewEvents(days);
+    return this.moderationService.countCreatedWithin("event", days);
   }
 
   @Get("/info/new-orgs")
   async getNewOrgsInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.getNumberOfNewOrgs(days);
+    return this.moderationService.countCreatedWithin("organization", days);
   }
 
   @Get("/info/new-registrations")
   async getNewRegistrationsInTheLastDays(
     @Query() { days }: ModerationRangeDto,
   ) {
-    return this.moderationService.getNumberOfNewRegistrations(days);
+    return this.moderationService.countCreatedWithin("registration", days);
   }
 
   @Get("/info/new-favorites")
   async getNewFavoritesInTheLastDays(@Query() { days }: ModerationRangeDto) {
-    return this.moderationService.getNumberOfNewFavorites(days);
+    return this.moderationService.countCreatedWithin("favorite", days);
   }
 }

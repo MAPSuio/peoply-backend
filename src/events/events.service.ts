@@ -3,7 +3,6 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -46,8 +45,6 @@ import { EventAccessService } from "../event-access/event-access.service";
 const MAX_EMAIL_UPDATES_PER_DAY = 5;
 @Injectable()
 export class EventsService {
-  private readonly logger = new Logger(EventsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
@@ -230,18 +227,11 @@ export class EventsService {
       // so a failed transaction would otherwise orphan it in blob storage.
       // The Prisma code mapping that used to live here is gone —
       // PrismaExceptionFilter turns P2003 into 400 and P2002 into 409.
-      try {
-        if (eventImage) {
-          await this.azureStorageService.delete(
-            eventImageFileName,
-            AzureStorageContainer.EVENT_IMAGES,
-          );
-        }
-      } catch (cleanupError) {
-        this.logger.warn(
-          `Event creation failed and the uploaded image ${eventImageFileName} could not be removed: ${
-            cleanupError instanceof Error ? cleanupError.message : cleanupError
-          }`,
+      if (eventImage) {
+        await this.azureStorageService.deleteUploadedImageQuietly(
+          eventImageFileName,
+          AzureStorageContainer.EVENT_IMAGES,
+          "Event creation",
         );
       }
       throw error;
@@ -646,24 +636,13 @@ export class EventsService {
       });
     } catch (error) {
       // Kept for the cleanup only: the replacement image is uploaded before
-      // the transaction, so a failure would leave it orphaned. The cleanup is
-      // now guarded — an unguarded delete that threw replaced the real error
-      // with the storage error and hid why the update failed.
+      // the transaction, so a failure would leave it orphaned.
       if (newImageUrl) {
-        try {
-          await this.azureStorageService.delete(
-            newImageUrl.slice(newImageUrl.lastIndexOf("/") + 1),
-            AzureStorageContainer.EVENT_IMAGES,
-          );
-        } catch (cleanupError) {
-          this.logger.warn(
-            `Event ${id} update failed and the uploaded image could not be removed: ${
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : cleanupError
-            }`,
-          );
-        }
+        await this.azureStorageService.deleteUploadedImageQuietly(
+          newImageUrl,
+          AzureStorageContainer.EVENT_IMAGES,
+          `Event ${id} update`,
+        );
       }
 
       throw error;

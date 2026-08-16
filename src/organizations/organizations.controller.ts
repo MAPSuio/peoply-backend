@@ -35,7 +35,6 @@ import { CreateOrganizationInvitationDto } from "../invitations/dto/create-organ
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
 import { OrganizationInvitationsService } from "../invitations/services/organizationInvitations.service";
-import { isUUID } from "../util/uuid";
 import {
   ChangeOwnerDto,
   ChangeRoleDescriptionDTO,
@@ -108,17 +107,7 @@ export class OrganizationsController {
 
   @Get("/:orgId")
   async getOrganization(@Param("orgId") orgId: string) {
-    const org = isUUID(orgId)
-      ? await this.organizationsService.findOne(orgId)
-      : await this.organizationsService.findOneByUrlId(orgId);
-
-    // findOne returns null rather than raising, so this is the real
-    // not-found path. The catch that used to wrap it tested for P2001,
-    // which Prisma never raises here.
-    if (!org) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
-    return org;
+    return this.organizationsService.findByRefOrThrow(orgId);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
@@ -182,13 +171,8 @@ export class OrganizationsController {
     @Req() req: any,
     @Param("orgId") orgId: string,
   ) {
-    const organization = isUUID(orgId)
-      ? await this.organizationsService.findOne(orgId)
-      : await this.organizationsService.findOneByUrlId(orgId);
-
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
+    const organization =
+      await this.organizationsService.findByRefOrThrow(orgId);
 
     return this.organizationsService.getOrganizationReportStatus(
       req.user.id,
@@ -199,13 +183,8 @@ export class OrganizationsController {
   @UseGuards(AuthenticatedGuard)
   @Post(":orgId/report")
   async reportOrganization(@Req() req: any, @Param("orgId") orgId: string) {
-    const organization = isUUID(orgId)
-      ? await this.organizationsService.findOne(orgId)
-      : await this.organizationsService.findOneByUrlId(orgId);
-
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
+    const organization =
+      await this.organizationsService.findByRefOrThrow(orgId);
 
     return this.organizationsService.reportOrganization(
       req.user.id,
@@ -218,37 +197,18 @@ export class OrganizationsController {
     @Param("orgId") orgId: string,
     @Res() res: any,
   ) {
-    const organization = isUUID(orgId)
-      ? await this.organizationsService.findOne(orgId)
-      : await this.organizationsService.findOneByUrlId(orgId);
-
-    if (!organization) {
-      throw new OrganizationDoesNotExistException(orgId);
-    }
-
-    const arrangerId = organization.arrangerId;
-    if (!arrangerId) {
-      const emptyCalendar = createOrganizationCalendarIcs(
-        organization,
-        [],
-        process.env.FRONTEND_URL,
-      );
-
-      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="${getOrganizationCalendarFileName(organization)}"`,
-      );
-      return res.status(200).send(emptyCalendar);
-    }
+    const organization =
+      await this.organizationsService.findByRefOrThrow(orgId);
 
     /* The date floor belongs in the query: fetching every event this
        organization has ever run only to drop the past ones in JS is what made
        this endpoint grow without bound. */
-    const eventRelations =
-      await this.eventArrangersService.findAllPublicWithEvents(arrangerId, {
-        fromDate: new Date(),
-      });
+    const eventRelations = organization.arrangerId
+      ? await this.eventArrangersService.findAllPublicWithEvents(
+          organization.arrangerId,
+          { fromDate: new Date() },
+        )
+      : [];
     const seen = new Set<string>();
     const events = eventRelations
       .map(({ event }: { event: any }) => event)
@@ -416,36 +376,32 @@ export class OrganizationsController {
       );
     }
 
-    switch (updateInvitationDto.status) {
+    const { status } = updateInvitationDto;
+
+    switch (status) {
       case InvitationStatus.ACCEPTED:
-        if (invitation.toUserId === user.id) {
-          return this.organizationInvitationsService.acceptInvitation(inviteId);
-        }
-        throw new UnauthorizedException(
-          "User is not the recipient of the invitation",
-        );
       case InvitationStatus.DECLINED:
-        if (invitation.toUserId === user.id) {
-          return this.organizationInvitationsService.declineInvitation(
-            inviteId,
+      case InvitationStatus.IGNORED:
+        if (invitation.toUserId !== user.id) {
+          throw new UnauthorizedException(
+            "User is not the recipient of the invitation",
           );
         }
-        throw new UnauthorizedException(
-          "User is not the recipient of the invitation",
-        );
-      case InvitationStatus.IGNORED:
-        if (invitation.toUserId === user.id) {
-          return this.organizationInvitationsService.ignoreInvitation(inviteId);
-        }
-        throw new UnauthorizedException(
-          "User is not the recipient of the invitation",
-        );
+        return status === InvitationStatus.ACCEPTED
+          ? this.organizationInvitationsService.acceptInvitation(inviteId)
+          : this.organizationInvitationsService.setInvitationStatus(
+              inviteId,
+              status,
+            );
       case InvitationStatus.CANCELLED:
-        if (invitation.fromUserId === user.id) {
-          return this.organizationInvitationsService.cancelInvitation(inviteId);
+        if (invitation.fromUserId !== user.id) {
+          throw new UnauthorizedException(
+            "User is not the sender of the invitation",
+          );
         }
-        throw new UnauthorizedException(
-          "User is not the sender of the invitation",
+        return this.organizationInvitationsService.setInvitationStatus(
+          inviteId,
+          status,
         );
       default:
         throw new BadRequestException(

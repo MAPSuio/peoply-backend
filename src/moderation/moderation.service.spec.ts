@@ -6,28 +6,28 @@ import { ModerationService } from "./moderation.service";
  * day window is the same arithmetic it always was.
  */
 describe("ModerationService", () => {
-  const counters = [
-    ["getNumberOfNewUsers", "user"],
-    ["getNumberOfNewEvents", "event"],
-    ["getNumberOfNewOrgs", "organization"],
-    ["getNumberOfNewRegistrations", "registration"],
-    ["getNumberOfNewFavorites", "favorite"],
+  const models = [
+    "user",
+    "event",
+    "organization",
+    "registration",
+    "favorite",
   ] as const;
 
   const buildPrisma = () =>
     Object.fromEntries(
-      counters.map(([, model]) => [model, { count: jest.fn(async () => 7) }]),
+      models.map((model) => [model, { count: jest.fn(async () => 7) }]),
     ) as any;
 
-  it.each(counters)("%s counts on the %s model", async (method, model) => {
+  it.each(models)("counts on the %s model", async (model) => {
     const prisma = buildPrisma();
     const service = new ModerationService(prisma);
 
-    await expect(service[method](30)).resolves.toBe(7);
+    await expect(service.countCreatedWithin(model, 30)).resolves.toBe(7);
 
     expect(prisma[model].count).toHaveBeenCalledTimes(1);
     // Every other model was left alone.
-    for (const [, other] of counters.filter(([, name]) => name !== model)) {
+    for (const other of models.filter((name) => name !== model)) {
       expect(prisma[other].count).not.toHaveBeenCalled();
     }
   });
@@ -36,7 +36,7 @@ describe("ModerationService", () => {
     const prisma = buildPrisma();
     const before = Date.now();
 
-    await new ModerationService(prisma).getNumberOfNewUsers(30);
+    await new ModerationService(prisma).countCreatedWithin("user", 30);
 
     const { gte } = prisma.user.count.mock.calls[0][0].where.createdAt;
     const expected = before - 30 * 24 * 60 * 60 * 1000;
@@ -50,7 +50,7 @@ describe("ModerationService", () => {
     const prisma = buildPrisma();
     const before = Date.now();
 
-    await new ModerationService(prisma).getNumberOfNewEvents(0);
+    await new ModerationService(prisma).countCreatedWithin("event", 0);
 
     const { gte } = prisma.event.count.mock.calls[0][0].where.createdAt;
 

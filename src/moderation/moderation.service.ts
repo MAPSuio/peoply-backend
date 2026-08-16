@@ -3,10 +3,18 @@ import { PrismaService } from "../prisma/prisma.service";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** The models the moderation counters may count over. */
+export type CountableModel =
+  | "user"
+  | "event"
+  | "organization"
+  | "registration"
+  | "favorite";
+
 /**
- * The part of a Prisma model delegate this service uses. Structural rather
- * than a union of the five concrete delegates, so adding a sixth counter does
- * not mean touching a type as well.
+ * The part of a Prisma model delegate this service uses. Structural because
+ * the union of the five concrete delegates' `count` signatures is not
+ * callable as one.
  */
 interface CountableByCreatedAt {
   count(args: { where: { createdAt: { gte: Date } } }): Promise<number>;
@@ -17,31 +25,12 @@ export class ModerationService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Rows created within the last `days` days, counted at call time. */
-  private countCreatedWithin(model: CountableByCreatedAt, days: number) {
-    return model.count({
+  countCreatedWithin(model: CountableModel, days: number) {
+    const delegate: CountableByCreatedAt = this.prisma[model];
+    return delegate.count({
       where: {
         createdAt: { gte: new Date(Date.now() - days * MILLISECONDS_PER_DAY) },
       },
     });
-  }
-
-  async getNumberOfNewUsers(days: number) {
-    return await this.countCreatedWithin(this.prisma.user, days);
-  }
-
-  async getNumberOfNewEvents(days: number) {
-    return await this.countCreatedWithin(this.prisma.event, days);
-  }
-
-  async getNumberOfNewOrgs(days: number) {
-    return await this.countCreatedWithin(this.prisma.organization, days);
-  }
-
-  async getNumberOfNewRegistrations(days: number) {
-    return await this.countCreatedWithin(this.prisma.registration, days);
-  }
-
-  async getNumberOfNewFavorites(days: number) {
-    return await this.countCreatedWithin(this.prisma.favorite, days);
   }
 }
