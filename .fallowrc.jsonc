@@ -2,8 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
 
   // Filer som kjøres direkte og ikke importeres av noe: Nest-bootstrap,
-  // Prisma-seeds og dev-scriptene. Uten dette rapporteres de som ubrukte
-  // filer, og pakkene de bruker som devDependencies i produksjonskode.
+  // Prisma-seeds, dev-scriptene og engangsjobbene under scripts/ — som
+  // downscale-stored-images.ts, kjørt via npm run images:downscale. Uten
+  // dette rapporteres de som ubrukte filer, og pakkene de bruker som
+  // devDependencies i produksjonskode.
   // De to siste er entry points jest kjenner, men som fallow ikke kan se:
   // setup/teardown står som globalSetup/globalTeardown i
   // test/jest-database-tls.json. Uten dem her meldes de som ubrukte filer,
@@ -12,6 +14,7 @@
     "src/main.ts",
     "prisma/*.ts",
     "scripts/*.js",
+    "scripts/*.ts",
     "test/database-tls/global-setup.js",
     "test/database-tls/global-teardown.js",
   ],

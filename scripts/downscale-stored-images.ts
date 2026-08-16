@@ -1,13 +1,11 @@
 import {
   BlobServiceClient,
+  ContainerClient,
   StorageSharedKeyCredential,
 } from "@azure/storage-blob";
 import sharp from "sharp";
 import { AzureStorageContainer } from "../src/azure/azure-storage.constants";
-import {
-  needsDownscaling,
-  normalizeImage,
-} from "../src/azure/image-normalize";
+import { needsDownscaling, normalizeImage } from "../src/azure/image-normalize";
 
 /**
  * Rewrites images that were stored before uploads were bounded.
@@ -30,6 +28,14 @@ import {
  */
 
 const DRY_RUN = process.argv.includes("--dry-run");
+
+interface Totals {
+  inspected: number;
+  rewritten: number;
+  failed: number;
+  bytesBefore: number;
+  bytesAfter: number;
+}
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -55,6 +61,83 @@ async function toBuffer(stream: NodeJS.ReadableStream) {
   return Buffer.concat(chunks);
 }
 
+/**
+ * Rewrites one blob if it is larger than the frontend will ever display.
+ *
+ * Returns the byte counts when it rewrote something, and `null` when the blob
+ * was already fine. Throws only for a blob it could not read at all, which the
+ * caller reports without stopping the run.
+ */
+async function downscaleBlob(container: ContainerClient, blobName: string) {
+  const blockBlob = container.getBlockBlobClient(blobName);
+  const download = await blockBlob.download();
+  const original = await toBuffer(
+    download.readableStreamBody as NodeJS.ReadableStream,
+  );
+  const metadata = await sharp(original).metadata();
+
+  if (!needsDownscaling(metadata.width ?? 0, metadata.height ?? 0)) {
+    return null;
+  }
+
+  const result = await normalizeImage(original);
+
+  if (!result.changed) {
+    return null;
+  }
+
+  if (!DRY_RUN) {
+    await blockBlob.upload(result.buffer, result.buffer.length);
+  }
+
+  return result;
+}
+
+async function downscaleContainer(
+  client: BlobServiceClient,
+  containerName: AzureStorageContainer,
+  totals: Totals,
+) {
+  const container = client.getContainerClient(containerName);
+
+  if (!(await container.exists())) {
+    console.log(`${containerName}: does not exist, skipping`);
+    return;
+  }
+
+  for await (const blob of container.listBlobsFlat()) {
+    totals.inspected += 1;
+
+    try {
+      const result = await downscaleBlob(container, blob.name);
+
+      if (!result) continue;
+
+      console.log(
+        `${containerName}/${blob.name}\n` +
+          `  ${result.before.width}x${result.before.height} ` +
+          `(${kB(result.before.bytes)}) -> ` +
+          `${result.after.width}x${result.after.height} ` +
+          `(${kB(result.after.bytes)})`,
+      );
+
+      totals.rewritten += 1;
+      totals.bytesBefore += result.before.bytes;
+      totals.bytesAfter += result.after.bytes;
+    } catch (error) {
+      /* One unreadable blob must not stop the rest. Something that is not an
+         image at all, or is truncated, lands here and is reported rather than
+         aborting a run that is fixing everything else. */
+      totals.failed += 1;
+      console.error(
+        `${containerName}/${blob.name}: skipped - ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
+  }
+}
+
 async function main() {
   const account = requireEnv("AZURE_STORAGE_ACCOUNT");
   const client = new BlobServiceClient(
@@ -68,83 +151,29 @@ async function main() {
       : "Rewriting oversized images in place.\n",
   );
 
-  let inspected = 0;
-  let rewritten = 0;
-  let failed = 0;
-  let bytesBefore = 0;
-  let bytesAfter = 0;
+  const totals: Totals = {
+    inspected: 0,
+    rewritten: 0,
+    failed: 0,
+    bytesBefore: 0,
+    bytesAfter: 0,
+  };
 
   for (const containerName of Object.values(AzureStorageContainer)) {
-    const container = client.getContainerClient(containerName);
-
-    if (!(await container.exists())) {
-      console.log(`${containerName}: does not exist, skipping`);
-      continue;
-    }
-
-    for await (const blob of container.listBlobsFlat()) {
-      inspected += 1;
-      const blockBlob = container.getBlockBlobClient(blob.name);
-
-      try {
-        const download = await blockBlob.download();
-        const original = await toBuffer(
-          download.readableStreamBody as NodeJS.ReadableStream,
-        );
-        const metadata = await sharp(original).metadata();
-        const width = metadata.width ?? 0;
-        const height = metadata.height ?? 0;
-
-        if (!needsDownscaling(width, height)) {
-          continue;
-        }
-
-        const result = await normalizeImage(original);
-
-        if (!result.changed) {
-          continue;
-        }
-
-        console.log(
-          `${containerName}/${blob.name}\n` +
-            `  ${result.before.width}x${result.before.height} ` +
-            `(${kB(result.before.bytes)}) -> ` +
-            `${result.after.width}x${result.after.height} ` +
-            `(${kB(result.after.bytes)})`,
-        );
-
-        bytesBefore += result.before.bytes;
-        bytesAfter += result.after.bytes;
-        rewritten += 1;
-
-        if (!DRY_RUN) {
-          await blockBlob.upload(result.buffer, result.buffer.length);
-        }
-      } catch (error) {
-        failed += 1;
-        /* One unreadable blob must not stop the rest. A blob that is not an
-           image at all, or is truncated, lands here and is reported rather
-           than aborting a run that is fixing everything else. */
-        console.error(
-          `${containerName}/${blob.name}: skipped - ${
-            error instanceof Error ? error.message : error
-          }`,
-        );
-      }
-    }
+    await downscaleContainer(client, containerName, totals);
   }
 
   console.log(
-    `\nInspected ${inspected}, ${
+    `\nInspected ${totals.inspected}, ${
       DRY_RUN ? "would rewrite" : "rewrote"
-    } ${rewritten}, failed ${failed}.`,
+    } ${totals.rewritten}, failed ${totals.failed}.`,
   );
 
-  if (rewritten > 0) {
-    console.log(`Storage: ${kB(bytesBefore)} -> ${kB(bytesAfter)}`);
+  if (totals.rewritten > 0) {
+    console.log(`Storage: ${kB(totals.bytesBefore)} -> ${kB(totals.bytesAfter)}`);
   }
 
-  if (failed > 0) {
+  if (totals.failed > 0) {
     process.exitCode = 1;
   }
 }
