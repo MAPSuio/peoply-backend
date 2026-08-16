@@ -36,12 +36,44 @@ export const buildOidcConfig = async (
     throw new Error(`${keys.issuerEnvKey} is not set`);
   }
 
-  return await client.discovery(
-    new URL(issuer),
-    configService.getOrThrow<string>(keys.clientIdKey),
-    configService.getOrThrow<string>(keys.clientSecretKey),
-  );
+  try {
+    return await client.discovery(
+      new URL(issuer),
+      configService.getOrThrow<string>(keys.clientIdKey),
+      configService.getOrThrow<string>(keys.clientSecretKey),
+    );
+  } catch (error) {
+    const discovered = discoveredIssuer(error);
+
+    if (discovered === undefined || discovered === issuer) {
+      throw error;
+    }
+
+    throw new Error(
+      `${keys.issuerEnvKey} is "${issuer}", but the provider's discovery ` +
+        `document says its issuer is "${discovered}". These have to match ` +
+        `exactly. Set ${keys.issuerEnvKey}="${discovered}".`,
+    );
+  }
 };
+
+/**
+ * The `issuer` openid-client read out of the discovery document, when it
+ * rejected it for not matching the identifier we asked for.
+ *
+ * v5 fetched whatever URL it was handed and never compared identifiers, so
+ * this variable only had to be a prefix that `/.well-known/...` could be
+ * pasted onto. v6 compares it against the document's own `issuer` and refuses
+ * to boot when they differ by so much as a trailing slash, which is exactly
+ * how Vipps publishes theirs. Every previously valid value became a boot
+ * crash whose message names neither the variable nor what to set it to.
+ */
+function discoveredIssuer(error: unknown) {
+  const issuer = (error as { cause?: { body?: { issuer?: unknown } } })?.cause
+    ?.body?.issuer;
+
+  return typeof issuer === "string" ? issuer : undefined;
+}
 
 /** The options every provider's strategy passes to passport. */
 export const oidcStrategyOptions = (
