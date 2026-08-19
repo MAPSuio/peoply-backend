@@ -8,10 +8,10 @@ import { UsersService } from "../../users/services";
 import {
   buildOidcConfig,
   fetchOidcUserinfo,
-  findOrCreateProviderUser,
   oidcStrategyOptions,
   OidcProviderKeys,
   OidcTokens,
+  resolveProviderUser,
 } from "./oidc";
 import { withAuthorizationState } from "./authorization-state";
 
@@ -71,7 +71,7 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
       throw new UnauthorizedException("Missing user info");
     }
 
-    return await findOrCreateProviderUser(
+    return await resolveProviderUser(
       this.userService,
       Provider.VIPPS,
       userinfo.sub,

@@ -33,7 +33,7 @@ import { UserDoesNotExistException } from "./exceptions";
 import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
-import { User, UserSeenUpdateType } from "../generated/prisma/client";
+import { Provider, User, UserSeenUpdateType } from "../generated/prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
 import { SearchUserDto } from "./dto/search-user.dto";
@@ -58,10 +58,36 @@ export class UsersController {
   @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
+    const [permissions, providers] = await Promise.all([
+      this.administrationService.getPermissions(req.user.id),
+      // Self view only: the settings page decides link/unlink affordances
+      // from this. PUBLIC_USER_SELECT deliberately stays provider-free.
+      this.userService.getLinkedProviders(req.user.id),
+    ]);
+
     return {
       ...withoutRefreshTokenId(req.user),
-      ...(await this.administrationService.getPermissions(req.user.id)),
+      ...permissions,
+      providers,
     };
+  }
+
+  /**
+   * Unlinking is reversible by design — relinking is one OIDC round trip in
+   * settings — but the service refuses to remove the last provider: with no
+   * password fallback that would be a permanent lockout, not an unlink.
+   */
+  @UseGuards(AuthenticatedGuard)
+  @Delete("me/providers/:provider")
+  async unlinkProvider(
+    @Req() req: any,
+    @Param("provider", new ParseEnumPipe(Provider)) provider: Provider,
+  ) {
+    this.authService.assertTrustedOrigin(req.headers, {
+      allowMissingOrigin: true,
+    });
+
+    await this.userService.unlinkProvider(req.user.id, provider);
   }
 
   @UseGuards(AuthenticatedGuard)

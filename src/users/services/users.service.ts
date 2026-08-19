@@ -1,7 +1,13 @@
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   OrganizationRole,
   Provider,
@@ -33,6 +39,10 @@ import { PUBLIC_USER_PROFILE_SELECT } from "../user.select";
  * page a client may ask for, or the best matches never reach the page.
  */
 const USER_SEARCH_CANDIDATE_LIMIT = MAX_PAGE_SIZE * 5;
+
+const isDuplicateUniqueValue = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === PrismaError.DuplicateUniqueValue;
 
 const SEARCH_VARIANT_REPLACEMENTS = [
   ["aa", "å"],
@@ -340,6 +350,134 @@ export class UsersService {
         lastName: true,
       },
       take: 20,
+    });
+  }
+
+  async getLinkedProviders(userId: string) {
+    return this.prisma.providerUser.findMany({
+      where: { id: userId },
+      select: { provider: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  async findByPhone(phone: string) {
+    return this.prisma.user.findUnique({ where: { phone } });
+  }
+
+  /**
+   * Attaches a provider identity to an existing user. The caller is
+   * responsible for having proven ownership of both sides — the identity by
+   * the OIDC login itself, the user by their session or a confirm re-auth.
+   *
+   * A Vipps profile backfills phone and birthDate onto accounts that lack
+   * them (Google supplies neither), but never overwrites, and leaves phone
+   * alone when the number already belongs to someone else — a link must not
+   * fail or steal data over a column that is merely nice to have.
+   */
+  async linkProvider(
+    userId: string,
+    provider: Provider,
+    sub: string,
+    profile?: CreateUserDto,
+  ) {
+    try {
+      await this.prisma.providerUser.create({
+        data: { provider, sub, id: userId },
+      });
+    } catch (error) {
+      /* Raced double-links and "this account already holds an identity from
+         that provider" both land here via the unique indexes — conflicts the
+         caller can explain, not internal errors. */
+      if (isDuplicateUniqueValue(error)) {
+        throw new ConflictException("Provider already linked");
+      }
+      throw error;
+    }
+
+    /* Deliberately after — not inside a transaction with — the link: the
+       backfill is best-effort, and losing a race for the phone number must
+       neither roll the link back nor masquerade as "Provider already
+       linked". */
+    if (provider === Provider.VIPPS && profile) {
+      await this.backfillVippsProfile(userId, profile);
+    }
+  }
+
+  /** The profile fields a Vipps link may fill in, never overwrite or steal. */
+  private async backfillVippsProfile(userId: string, profile: CreateUserDto) {
+    const backfill = await this.vippsBackfillValues(userId, profile);
+
+    if (Object.keys(backfill).length === 0) {
+      return;
+    }
+
+    try {
+      await this.prisma.user.update({ where: { id: userId }, data: backfill });
+    } catch (error) {
+      if (!isDuplicateUniqueValue(error)) {
+        throw error;
+      }
+      // Somebody claimed the phone between the check and the write. The
+      // field stays empty; the link itself already succeeded.
+      this.logger.warn(
+        `Skipped profile backfill for user ${userId}: value already in use`,
+      );
+    }
+  }
+
+  private async vippsBackfillValues(userId: string, profile: CreateUserDto) {
+    const backfill: { phone?: string; birthDate?: string } = {};
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return backfill;
+    }
+
+    if (!user.phone && profile.phone) {
+      const phoneOwner = await this.prisma.user.findUnique({
+        where: { phone: profile.phone },
+      });
+      if (!phoneOwner) backfill.phone = profile.phone;
+    }
+
+    if (!user.birthDate && profile.birthDate) {
+      backfill.birthDate = profile.birthDate;
+    }
+
+    return backfill;
+  }
+
+  async unlinkProvider(userId: string, provider: Provider) {
+    await this.prisma.$transaction(async (trx) => {
+      /* Count-then-delete runs at READ COMMITTED, so two concurrent unlinks
+         of DIFFERENT providers would both count 2, delete different rows and
+         commit — leaving zero login methods and a permanently locked-out
+         account. Locking the user row serializes unlinks per user. */
+      await trx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+
+      const linked = await trx.providerUser.count({ where: { id: userId } });
+
+      // Zero rows is "nothing to unlink", not "you would lock yourself out".
+      if (linked === 0) {
+        throw new NotFoundException(`${provider} is not linked to this user`);
+      }
+
+      /* There is no password fallback: the provider rows are the only way
+         into the account, so the last one must stay. */
+      if (linked === 1) {
+        throw new ForbiddenException(
+          "Cannot remove the last login method of an account",
+        );
+      }
+
+      const { count } = await trx.providerUser.deleteMany({
+        where: { id: userId, provider },
+      });
+
+      if (count === 0) {
+        throw new NotFoundException(`${provider} is not linked to this user`);
+      }
     });
   }
 

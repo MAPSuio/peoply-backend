@@ -35,6 +35,13 @@ describe("AuthController session cookies", () => {
     rotateRefreshTokenId: jest.fn().mockResolvedValue(undefined),
   } as unknown as UsersService;
 
+  /** A callback request whose subject resolved to an existing user. */
+  const callbackReq = () => ({
+    user: { status: "existing", user },
+    session: { destroy: jest.fn((cb?: () => void) => cb?.()) },
+    cookies: {},
+  });
+
   const configService = {
     get: jest.fn((key: string) =>
       key === "VIPPS_OIDC_POST_LOGIN_REDIRECT_URI"
@@ -103,14 +110,14 @@ describe("AuthController session cookies", () => {
   };
 
   it("sets both cookies on the Vipps callback", async () => {
-    await controller.loginCallback({ user }, res);
+    await controller.loginCallback(callbackReq(), res);
 
     expectSessionCookies();
     expect(res.redirect).toHaveBeenCalledWith("https://peoply.app/vipps");
   });
 
   it("sets both cookies on the Google callback", async () => {
-    await controller.loginGoogleCallback({ user }, res);
+    await controller.loginGoogleCallback(callbackReq(), res);
 
     expectSessionCookies();
     expect(res.redirect).toHaveBeenCalledWith("https://peoply.app/google");
@@ -119,13 +126,13 @@ describe("AuthController session cookies", () => {
   it("redirects to the empty string when the provider has no redirect configured", async () => {
     (configService.get as jest.Mock).mockReturnValue(undefined);
 
-    await controller.loginCallback({ user }, res);
+    await controller.loginCallback(callbackReq(), res);
 
     expect(res.redirect).toHaveBeenCalledWith("");
   });
 
   it("drops the passport session cookie on the way out of a callback", async () => {
-    await controller.loginCallback({ user }, res);
+    await controller.loginCallback(callbackReq(), res);
 
     expect(cleared).toEqual([["connect.sid", undefined]]);
   });
