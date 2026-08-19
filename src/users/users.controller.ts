@@ -58,12 +58,17 @@ export class UsersController {
   @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
-    return {
-      ...withoutRefreshTokenId(req.user),
-      ...(await this.administrationService.getPermissions(req.user.id)),
+    const [permissions, providers] = await Promise.all([
+      this.administrationService.getPermissions(req.user.id),
       // Self view only: the settings page decides link/unlink affordances
       // from this. PUBLIC_USER_SELECT deliberately stays provider-free.
-      providers: await this.userService.getLinkedProviders(req.user.id),
+      this.userService.getLinkedProviders(req.user.id),
+    ]);
+
+    return {
+      ...withoutRefreshTokenId(req.user),
+      ...permissions,
+      providers,
     };
   }
 

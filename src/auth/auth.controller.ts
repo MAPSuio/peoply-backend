@@ -30,6 +30,7 @@ import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFi
 import { GoogleGuard } from "./guards/google.guard";
 import { UsersService } from "../users/services";
 import { extractRequestOrigin } from "./auth-origin";
+import { CreateUserDto } from "../users/dto";
 import { takeLinkUserId, takePendingLink } from "./link-session";
 import { isLoopbackAddress } from "./local-auth";
 import { OidcResolution } from "./strategies/oidc";
@@ -214,6 +215,27 @@ export class AuthController {
   }
 
   /**
+   * linkProvider with its only expected failure folded into the redirect
+   * outcome: the account already holding an identity from that provider is a
+   * conflict the frontend explains, not an internal error. A failed link
+   * never fails the login the person just proved.
+   */
+  private async tryLinkProvider(
+    userId: string,
+    provider: Provider,
+    sub: string,
+    profile?: CreateUserDto,
+  ): Promise<Record<string, string>> {
+    try {
+      await this.usersService.linkProvider(userId, provider, sub, profile);
+      return { linked: provider };
+    } catch (error) {
+      if (!(error instanceof ConflictException)) throw error;
+      return { link_error: "in_use" };
+    }
+  }
+
+  /**
    * What an OIDC callback's resolution becomes. Three modes, in order:
    *
    * 1. Link intent in the session (settings-initiated): attach the identity
@@ -238,66 +260,36 @@ export class AuthController {
     const linkUserId = takeLinkUserId(req.session);
 
     if (linkUserId) {
-      if (!this.accessCookieMatches(req, linkUserId)) {
-        this.destroyOauthSession(req, res);
-        return this.redirectToFrontend(res, redirectUriConfigKey, {
-          link_error: "expired",
-        });
-      }
-
-      if (resolution.status === "existing") {
-        this.destroyOauthSession(req, res);
-        return this.redirectToFrontend(
-          res,
-          redirectUriConfigKey,
-          resolution.user.id === linkUserId
+      const outcome = !this.accessCookieMatches(req, linkUserId)
+        ? { link_error: "expired" }
+        : resolution.status === "existing"
+          ? resolution.user.id === linkUserId
             ? { linked: provider }
-            : { link_error: "in_use" },
-        );
-      }
+            : { link_error: "in_use" }
+          : await this.tryLinkProvider(
+              linkUserId,
+              provider,
+              resolution.sub,
+              resolution.profile,
+            );
 
-      let outcome: Record<string, string>;
-      try {
-        await this.usersService.linkProvider(
-          linkUserId,
-          provider,
-          resolution.sub,
-          resolution.profile,
-        );
-        outcome = { linked: provider };
-      } catch (error) {
-        // The account already holds another identity from this provider.
-        if (!(error instanceof ConflictException)) throw error;
-        outcome = { link_error: "in_use" };
-      }
       this.destroyOauthSession(req, res);
       return this.redirectToFrontend(res, redirectUriConfigKey, outcome);
     }
 
     if (resolution.status === "existing") {
       const pending = takePendingLink(req.session);
-      const params: Record<string, string> = {};
 
-      if (pending) {
-        if (pending.matchedUserId !== resolution.user.id) {
-          params.link_error = "wrong_user";
-        } else {
-          try {
-            await this.usersService.linkProvider(
+      const params = !pending
+        ? {}
+        : pending.matchedUserId !== resolution.user.id
+          ? { link_error: "wrong_user" }
+          : await this.tryLinkProvider(
               resolution.user.id,
               pending.provider,
               pending.sub,
               pending.profile,
             );
-            params.linked = pending.provider;
-          } catch (error) {
-            /* The account already holds an identity from that provider — the
-               link fails, the login the person just proved does not. */
-            if (!(error instanceof ConflictException)) throw error;
-            params.link_error = "in_use";
-          }
-        }
-      }
 
       return this.completeLogin(
         req,

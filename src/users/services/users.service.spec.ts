@@ -501,13 +501,22 @@ describe("UsersService", () => {
 
   describe("unlinkProvider", () => {
     const buildPrisma = (count: number, deleted: number) => {
+      const order: string[] = [];
       const trx = {
+        $queryRaw: jest.fn(async () => {
+          order.push("lock");
+          return [];
+        }),
         providerUser: {
-          count: jest.fn().mockResolvedValue(count),
+          count: jest.fn(async () => {
+            order.push("count");
+            return count;
+          }),
           deleteMany: jest.fn().mockResolvedValue({ count: deleted }),
         },
       };
       return {
+        order,
         trx,
         prisma: {
           $transaction: jest.fn(async (cb: any) => cb(trx)),
@@ -524,6 +533,19 @@ describe("UsersService", () => {
       expect(trx.providerUser.deleteMany).toHaveBeenCalledWith({
         where: { id: "user-1", provider: "GOOGLE" },
       });
+    });
+
+    /* Count-then-delete at READ COMMITTED is racy: two concurrent unlinks of
+       DIFFERENT providers both count 2, delete different rows and commit —
+       zero login methods left. The per-user row lock serializes them. */
+    it("locks the user row before counting", async () => {
+      const { prisma, trx, order } = buildPrisma(2, 1);
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await service.unlinkProvider("user-1", "GOOGLE" as any);
+
+      expect(trx.$queryRaw).toHaveBeenCalled();
+      expect(order.slice(0, 2)).toEqual(["lock", "count"]);
     });
 
     /* Removing the only provider row locks the account out for good: there is

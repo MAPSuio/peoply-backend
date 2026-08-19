@@ -428,6 +428,12 @@ export class UsersService {
 
   async unlinkProvider(userId: string, provider: Provider) {
     await this.prisma.$transaction(async (trx) => {
+      /* Count-then-delete runs at READ COMMITTED, so two concurrent unlinks
+         of DIFFERENT providers would both count 2, delete different rows and
+         commit — leaving zero login methods and a permanently locked-out
+         account. Locking the user row serializes unlinks per user. */
+      await trx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+
       const linked = await trx.providerUser.count({ where: { id: userId } });
 
       /* There is no password fallback: the provider rows are the only way
