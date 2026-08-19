@@ -353,4 +353,177 @@ describe("UsersService", () => {
       expect(order).toEqual([]);
     });
   });
+
+  describe("getLinkedProviders", () => {
+    it("lists the user's providers with when they were linked", async () => {
+      const rows = [
+        { provider: "VIPPS", createdAt: new Date("2024-01-01") },
+        { provider: "GOOGLE", createdAt: new Date("2026-08-19") },
+      ];
+      const prisma = {
+        providerUser: { findMany: jest.fn().mockResolvedValue(rows) },
+      } as any;
+
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(service.getLinkedProviders("user-1")).resolves.toEqual(rows);
+      expect(prisma.providerUser.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "user-1" } }),
+      );
+    });
+  });
+
+  describe("linkProvider", () => {
+    const vippsProfile = {
+      email: "ola@example.com",
+      phone: "+4712345678",
+      firstName: "Ola",
+      lastName: "Nordmann",
+      birthDate: new Date("1995-06-01").toISOString(),
+    };
+
+    const buildPrisma = (user: Record<string, unknown>, phoneOwner?: any) => {
+      const trx = {
+        providerUser: { create: jest.fn().mockResolvedValue({}) },
+        user: {
+          findUnique: jest.fn(async ({ where }: any) =>
+            where.id ? user : (phoneOwner ?? null),
+          ),
+          update: jest.fn().mockResolvedValue({}),
+        },
+      };
+      return {
+        trx,
+        prisma: {
+          $transaction: jest.fn(async (cb: any) => cb(trx)),
+        } as any,
+      };
+    };
+
+    it("creates the provider row for the user", async () => {
+      const { prisma, trx } = buildPrisma({ id: "user-1", phone: null });
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await service.linkProvider("user-1", "GOOGLE" as any, "sub-g");
+
+      expect(trx.providerUser.create).toHaveBeenCalledWith({
+        data: { provider: "GOOGLE", sub: "sub-g", id: "user-1" },
+      });
+      expect(trx.user.update).not.toHaveBeenCalled();
+    });
+
+    it("backfills phone and birthDate when linking Vipps onto a bare account", async () => {
+      const { prisma, trx } = buildPrisma({
+        id: "user-1",
+        phone: null,
+        birthDate: null,
+      });
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await service.linkProvider(
+        "user-1",
+        "VIPPS" as any,
+        "sub-v",
+        vippsProfile,
+      );
+
+      expect(trx.providerUser.create).toHaveBeenCalledWith({
+        data: { provider: "VIPPS", sub: "sub-v", id: "user-1" },
+      });
+      expect(trx.user.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: {
+          phone: vippsProfile.phone,
+          birthDate: vippsProfile.birthDate,
+        },
+      });
+    });
+
+    it("skips the phone backfill when the number belongs to someone else", async () => {
+      const { prisma, trx } = buildPrisma(
+        { id: "user-1", phone: null, birthDate: null },
+        { id: "someone-else" },
+      );
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await service.linkProvider(
+        "user-1",
+        "VIPPS" as any,
+        "sub-v",
+        vippsProfile,
+      );
+
+      expect(trx.user.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { birthDate: vippsProfile.birthDate },
+      });
+    });
+
+    it("never overwrites profile fields the user already has", async () => {
+      const { prisma, trx } = buildPrisma({
+        id: "user-1",
+        phone: "+4799999999",
+        birthDate: new Date("1990-01-01"),
+      });
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await service.linkProvider(
+        "user-1",
+        "VIPPS" as any,
+        "sub-v",
+        vippsProfile,
+      );
+
+      expect(trx.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("unlinkProvider", () => {
+    const buildPrisma = (count: number, deleted: number) => {
+      const trx = {
+        providerUser: {
+          count: jest.fn().mockResolvedValue(count),
+          deleteMany: jest.fn().mockResolvedValue({ count: deleted }),
+        },
+      };
+      return {
+        trx,
+        prisma: {
+          $transaction: jest.fn(async (cb: any) => cb(trx)),
+        } as any,
+      };
+    };
+
+    it("deletes the provider row when another login method remains", async () => {
+      const { prisma, trx } = buildPrisma(2, 1);
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await service.unlinkProvider("user-1", "GOOGLE" as any);
+
+      expect(trx.providerUser.deleteMany).toHaveBeenCalledWith({
+        where: { id: "user-1", provider: "GOOGLE" },
+      });
+    });
+
+    /* Removing the only provider row locks the account out for good: there is
+       no password fallback, and dev-login is loopback-gated. */
+    it("refuses to remove the last login method", async () => {
+      const { prisma, trx } = buildPrisma(1, 1);
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(
+        service.unlinkProvider("user-1", "VIPPS" as any),
+      ).rejects.toThrow("last login method");
+      expect(trx.providerUser.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("404s when the provider was not linked", async () => {
+      const { prisma } = buildPrisma(2, 0);
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(
+        service.unlinkProvider("user-1", "GOOGLE" as any),
+      ).rejects.toThrow("not linked");
+    });
+  });
 });

@@ -161,6 +161,10 @@ model ProviderUser {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@id([sub, provider])
+  // One identity per provider per user keeps "unlink Google" unambiguous.
+  // Its leading column also serves the "list this user's providers" lookup,
+  // which the primary key (led by sub) cannot.
+  @@unique([id, provider])
   @@map("provider_users")
 }
 

@@ -8,9 +8,11 @@ import { Store, SessionData, SessionOptions } from "express-session";
  * `req.session[sessionKey]` on the way out and reads it back on the way in;
  * the key defaults to the provider's host).
  *
- * Nothing else in the codebase touches `req.session` — there is no
- * serializeUser/deserializeUser — so ten minutes is a generous ceiling for
- * "click login, authenticate at the IdP, come back".
+ * Account linking keeps two more keys here (see auth/link-session.ts): the
+ * link intent and the pending link, both scoped to the same short-lived
+ * flow. There is still no serializeUser/deserializeUser, and ten minutes —
+ * rolling, see below — remains the ceiling for "click, authenticate at the
+ * IdP, come back".
  */
 export const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000;
 
@@ -166,6 +168,11 @@ export function oauthSessionOptions(
     secret,
     resave: false,
     saveUninitialized: false,
+    /* The account-linking handshake spans two full IdP round trips plus
+       however long the user reads the confirm modal. Without rolling, the
+       browser's cookie expires ten minutes after the FIRST redirect and the
+       second half of the flow silently loses the pending link. */
+    rolling: true,
     store: new BoundedTtlSessionStore(),
     cookie: {
       httpOnly: true,

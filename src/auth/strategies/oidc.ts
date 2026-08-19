@@ -1,6 +1,6 @@
 import { ConfigService } from "@nestjs/config";
 import * as client from "openid-client";
-import { Provider } from "../../generated/prisma/client";
+import { Provider, User } from "../../generated/prisma/client";
 import { CreateUserDto } from "../../users/dto";
 import { UsersService } from "../../users/services";
 
@@ -99,26 +99,33 @@ export const oidcStrategyOptions = (
 });
 
 /**
- * Looks the user up by the provider's subject identifier and creates them on
- * first login.
+ * What a strategy's validate() resolves the provider's subject to. Passport
+ * puts this on `req.user`, and the callback decides what it becomes: a login,
+ * a link onto the session user, or a pending link behind the confirm modal.
  *
- * Creating may fail because the phone or email already belongs to an existing
- * user. We could connect the accounts when both match, or something similar;
- * as it stands a Vipps user is separate from a potential Google user.
+ * The strategies used to create the user right here, but a strategy has no
+ * request — it cannot tell a first-time signup from a settings-initiated
+ * "attach this identity to the logged-in user", so the decision had to move
+ * to where the session is.
  */
-export const findOrCreateProviderUser = async (
+export type OidcResolution =
+  | { status: "existing"; user: User }
+  | { status: "new"; provider: Provider; sub: string; profile: CreateUserDto };
+
+/** Looks the user up by the provider's subject identifier. Never creates. */
+export const resolveProviderUser = async (
   userService: UsersService,
   provider: Provider,
   sub: string,
-  createUserDto: CreateUserDto,
-) => {
+  profile: CreateUserDto,
+): Promise<OidcResolution> => {
   const user = await userService.findByProviderSub(provider, sub);
 
   if (user) {
-    return user;
+    return { status: "existing", user };
   }
 
-  return await userService.create(createUserDto, provider, sub);
+  return { status: "new", provider, sub, profile };
 };
 
 /**

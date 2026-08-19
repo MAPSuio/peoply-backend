@@ -180,6 +180,14 @@ describe("oauthSessionOptions", () => {
     expect(oauthSessionOptions("secret", true).saveUninitialized).toBe(false);
   });
 
+  /* The pending-link handshake spans two full IdP round trips plus however
+     long the user stares at the confirm modal. Without rolling, the browser's
+     cookie expires 10 minutes after the FIRST redirect and the second half of
+     the flow silently loses the session. */
+  it("rolls the cookie so multi-trip flows get the full ttl per hop", () => {
+    expect(oauthSessionOptions("secret", true).rolling).toBe(true);
+  });
+
   it("uses the bounded store rather than the default MemoryStore", () => {
     expect(oauthSessionOptions("secret", true).store).toBeInstanceOf(
       BoundedTtlSessionStore,

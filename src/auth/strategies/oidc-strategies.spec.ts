@@ -23,6 +23,11 @@ import { VippsStrategy } from "./vipps.strategy";
  * `validate` is what turns a set of claims from the provider into a user, so
  * the checks in it are the whole of what stops a login from someone the
  * provider never confirmed.
+ *
+ * Since account linking, validate() no longer creates users: it resolves the
+ * subject to either the existing user or a "new identity" carrying the
+ * profile, and the callback decides what that identity becomes — a login, a
+ * link onto the session user, or a pending link behind the confirm modal.
  */
 describe("OIDC strategies", () => {
   const configService = {
@@ -82,25 +87,26 @@ describe("OIDC strategies", () => {
   };
 
   describe("GoogleStrategy", () => {
-    it("creates a user on first login", async () => {
-      await google(googleClaims).validate(tokens);
-
-      expect(userService.create).toHaveBeenCalledWith(
-        {
+    it("resolves an unknown subject to a new identity without creating a user", async () => {
+      await expect(google(googleClaims).validate(tokens)).resolves.toEqual({
+        status: "new",
+        provider: Provider.GOOGLE,
+        sub: "sub-1",
+        profile: {
           email: "ola@example.com",
           firstName: "Ola",
           lastName: "Nordmann",
         },
-        Provider.GOOGLE,
-        "sub-1",
-      );
+      });
+      expect(userService.create).not.toHaveBeenCalled();
     });
 
-    it("returns the existing user without creating another", async () => {
+    it("resolves a known subject to the existing user", async () => {
       existingUser = { id: "user-1" };
 
       await expect(google(googleClaims).validate(tokens)).resolves.toEqual({
-        id: "user-1",
+        status: "existing",
+        user: { id: "user-1" },
       });
       expect(userService.create).not.toHaveBeenCalled();
     });
@@ -141,27 +147,28 @@ describe("OIDC strategies", () => {
   });
 
   describe("VippsStrategy", () => {
-    it("creates a user on first login", async () => {
-      await vipps(vippsClaims).validate(tokens);
-
-      expect(userService.create).toHaveBeenCalledWith(
-        {
+    it("resolves an unknown subject to a new identity without creating a user", async () => {
+      await expect(vipps(vippsClaims).validate(tokens)).resolves.toEqual({
+        status: "new",
+        provider: Provider.VIPPS,
+        sub: "sub-1",
+        profile: {
           email: "ola@example.com",
           phone: "+4712345678",
           firstName: "Ola",
           lastName: "Nordmann",
           birthDate: new Date("1995-06-01").toISOString(),
         },
-        Provider.VIPPS,
-        "sub-1",
-      );
+      });
+      expect(userService.create).not.toHaveBeenCalled();
     });
 
-    it("returns the existing user without creating another", async () => {
+    it("resolves a known subject to the existing user", async () => {
       existingUser = { id: "user-1" };
 
       await expect(vipps(vippsClaims).validate(tokens)).resolves.toEqual({
-        id: "user-1",
+        status: "existing",
+        user: { id: "user-1" },
       });
       expect(userService.create).not.toHaveBeenCalled();
     });

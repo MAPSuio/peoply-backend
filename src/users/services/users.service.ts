@@ -1,7 +1,12 @@
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   OrganizationRole,
   Provider,
@@ -340,6 +345,83 @@ export class UsersService {
         lastName: true,
       },
       take: 20,
+    });
+  }
+
+  async getLinkedProviders(userId: string) {
+    return this.prisma.providerUser.findMany({
+      where: { id: userId },
+      select: { provider: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  async findByPhone(phone: string) {
+    return this.prisma.user.findUnique({ where: { phone } });
+  }
+
+  /**
+   * Attaches a provider identity to an existing user. The caller is
+   * responsible for having proven ownership of both sides — the identity by
+   * the OIDC login itself, the user by their session or a confirm re-auth.
+   *
+   * A Vipps profile backfills phone and birthDate onto accounts that lack
+   * them (Google supplies neither), but never overwrites, and leaves phone
+   * alone when the number already belongs to someone else — a link must not
+   * fail or steal data over a column that is merely nice to have.
+   */
+  async linkProvider(
+    userId: string,
+    provider: Provider,
+    sub: string,
+    profile?: CreateUserDto,
+  ) {
+    await this.prisma.$transaction(async (trx) => {
+      const backfill: { phone?: string; birthDate?: string } = {};
+
+      if (provider === Provider.VIPPS && profile) {
+        const user = await trx.user.findUnique({ where: { id: userId } });
+
+        if (user && !user.phone && profile.phone) {
+          const phoneOwner = await trx.user.findUnique({
+            where: { phone: profile.phone },
+          });
+          if (!phoneOwner) backfill.phone = profile.phone;
+        }
+        if (user && !user.birthDate && profile.birthDate) {
+          backfill.birthDate = profile.birthDate;
+        }
+      }
+
+      await trx.providerUser.create({
+        data: { provider, sub, id: userId },
+      });
+
+      if (Object.keys(backfill).length > 0) {
+        await trx.user.update({ where: { id: userId }, data: backfill });
+      }
+    });
+  }
+
+  async unlinkProvider(userId: string, provider: Provider) {
+    await this.prisma.$transaction(async (trx) => {
+      const linked = await trx.providerUser.count({ where: { id: userId } });
+
+      /* There is no password fallback: the provider rows are the only way
+         into the account, so the last one must stay. */
+      if (linked <= 1) {
+        throw new ForbiddenException(
+          "Cannot remove the last login method of an account",
+        );
+      }
+
+      const { count } = await trx.providerUser.deleteMany({
+        where: { id: userId, provider },
+      });
+
+      if (count === 0) {
+        throw new NotFoundException(`${provider} is not linked to this user`);
+      }
     });
   }
 

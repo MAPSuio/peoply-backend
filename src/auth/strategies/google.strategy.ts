@@ -8,10 +8,10 @@ import { UsersService } from "../../users/services";
 import {
   buildOidcConfig,
   fetchOidcUserinfo,
-  findOrCreateProviderUser,
   oidcStrategyOptions,
   OidcProviderKeys,
   OidcTokens,
+  resolveProviderUser,
 } from "./oidc";
 import { withAuthorizationState } from "./authorization-state";
 
@@ -72,7 +72,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       throw new UnauthorizedException("Email not verified");
     }
 
-    return await findOrCreateProviderUser(
+    return await resolveProviderUser(
       this.userService,
       Provider.GOOGLE,
       userinfo.sub,

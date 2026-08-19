@@ -14,16 +14,24 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
-import { User } from "../generated/prisma/client";
+import { Provider, User } from "../generated/prisma/client";
 
 import { AuthService } from "./auth.service";
 import { ConfigService } from "@nestjs/config";
-import { AuthenticatedGuard, VippsGuard, RefreshGuard } from "./guards";
+import {
+  AuthenticatedGuard,
+  ClearLinkIntentGuard,
+  LinkIntentGuard,
+  VippsGuard,
+  RefreshGuard,
+} from "./guards";
 import { RedirectOnUnauthorizedFilter } from "./filters/redirectOnUnauthorizedFilter.filter";
 import { GoogleGuard } from "./guards/google.guard";
 import { UsersService } from "../users/services";
 import { extractRequestOrigin } from "./auth-origin";
+import { takeLinkUserId, takePendingLink } from "./link-session";
 import { isLoopbackAddress } from "./local-auth";
+import { OidcResolution } from "./strategies/oidc";
 import { withoutRefreshTokenId } from "../users/user.response";
 
 @Controller("auth")
@@ -138,23 +146,186 @@ export class AuthController {
   }
 
   /**
-   * The tail every OIDC provider's callback shares: the session cookies, and a
-   * redirect back to whichever frontend URL that provider is configured with.
+   * Redirect back to the provider's configured frontend URL, with the
+   * outcome of the callback as query params the frontend branches on:
+   * `link_prompt`/`link_with` (show the confirm modal), `linked` (a link
+   * succeeded) or `link_error`. Never any PII — providers only.
    */
-  private async completeOidcLogin(
-    req: any,
+  private redirectToFrontend(
     res: Response,
     redirectUriConfigKey: string,
+    params: Record<string, string> = {},
   ) {
-    res.clearCookie("connect.sid"); // no need to send this
+    const base = this.configService.get<string>(redirectUriConfigKey) ?? "";
+    const query = new URLSearchParams(params).toString();
 
-    const user = await this.usersService.ensureRefreshTokenId(req.user.id);
+    return res.redirect(query ? `${base}?${query}` : base);
+  }
+
+  /**
+   * The oauth session has served its purpose once a callback concludes — with
+   * one exception: the pending-link branch, whose whole handshake is carried
+   * by this very session, leaves it alive.
+   */
+  private destroyOauthSession(req: any, res: Response) {
+    req.session?.destroy?.(() => {});
+    res.clearCookie("connect.sid");
+  }
+
+  /**
+   * The tail every completed OIDC login shares: the session cookies, and a
+   * redirect back to whichever frontend URL that provider is configured with.
+   */
+  private async completeLogin(
+    req: any,
+    res: Response,
+    userId: string,
+    redirectUriConfigKey: string,
+    params: Record<string, string> = {},
+  ) {
+    this.destroyOauthSession(req, res);
+
+    const user = await this.usersService.ensureRefreshTokenId(userId);
 
     this.issueSessionCookies(res, user);
 
-    const redirectURI = this.configService.get<string>(redirectUriConfigKey);
+    return this.redirectToFrontend(res, redirectUriConfigKey, params);
+  }
 
-    return res.redirect(redirectURI ? redirectURI : "");
+  /**
+   * Whether the access cookie riding on this request belongs to `userId`.
+   * The link intent was written by an authenticated request, but the callback
+   * arrives a whole IdP round trip later — this is what proves the browser
+   * still holds the same session, rather than someone else's intent.
+   */
+  private accessCookieMatches(req: any, userId: string) {
+    const access = req.cookies?.access;
+
+    if (!access) {
+      return false;
+    }
+
+    try {
+      return this.authService.validateJWT(access)?.sub === userId;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * What an OIDC callback's resolution becomes. Three modes, in order:
+   *
+   * 1. Link intent in the session (settings-initiated): attach the identity
+   *    to the intent's user. No cookies are issued — that user is already
+   *    logged in.
+   * 2. The subject resolved to an existing user: a plain login, which also
+   *    consumes a pending link when that user is the one it was waiting for.
+   * 3. An unknown identity: create the user — unless its email belongs to an
+   *    existing account, in which case nothing is created and nobody is
+   *    logged in; the identity is parked in the session as a pending link and
+   *    the frontend shows the "log in with your existing provider to link"
+   *    modal. Owning an email at one provider is not proof of owning the
+   *    account behind it at the other.
+   */
+  private async completeOidcCallback(
+    req: any,
+    res: Response,
+    provider: Provider,
+    redirectUriConfigKey: string,
+  ) {
+    const resolution: OidcResolution = req.user;
+    const linkUserId = takeLinkUserId(req.session);
+
+    if (linkUserId) {
+      if (!this.accessCookieMatches(req, linkUserId)) {
+        this.destroyOauthSession(req, res);
+        return this.redirectToFrontend(res, redirectUriConfigKey, {
+          link_error: "expired",
+        });
+      }
+
+      if (resolution.status === "existing") {
+        this.destroyOauthSession(req, res);
+        return this.redirectToFrontend(
+          res,
+          redirectUriConfigKey,
+          resolution.user.id === linkUserId
+            ? { linked: provider }
+            : { link_error: "in_use" },
+        );
+      }
+
+      await this.usersService.linkProvider(
+        linkUserId,
+        provider,
+        resolution.sub,
+        resolution.profile,
+      );
+      this.destroyOauthSession(req, res);
+      return this.redirectToFrontend(res, redirectUriConfigKey, {
+        linked: provider,
+      });
+    }
+
+    if (resolution.status === "existing") {
+      const pending = takePendingLink(req.session);
+      const params: Record<string, string> = {};
+
+      if (pending) {
+        if (pending.matchedUserId === resolution.user.id) {
+          await this.usersService.linkProvider(
+            resolution.user.id,
+            pending.provider,
+            pending.sub,
+            pending.profile,
+          );
+          params.linked = pending.provider;
+        } else {
+          params.link_error = "wrong_user";
+        }
+      }
+
+      return this.completeLogin(
+        req,
+        res,
+        resolution.user.id,
+        redirectUriConfigKey,
+        params,
+      );
+    }
+
+    const { sub, profile } = resolution;
+
+    const emailOwner = await this.usersService.findByEmail(profile.email);
+    if (emailOwner) {
+      req.session.pendingLink = {
+        provider,
+        sub,
+        profile,
+        matchedUserId: emailOwner.id,
+      };
+      const linkWith = (
+        await this.usersService.getLinkedProviders(emailOwner.id)
+      )
+        .map((linked) => linked.provider)
+        .join(",");
+
+      return this.redirectToFrontend(res, redirectUriConfigKey, {
+        link_prompt: provider,
+        link_with: linkWith,
+      });
+    }
+
+    if (profile.phone && (await this.usersService.findByPhone(profile.phone))) {
+      this.destroyOauthSession(req, res);
+      return this.redirectToFrontend(res, redirectUriConfigKey, {
+        link_error: "phone_in_use",
+      });
+    }
+
+    const created = await this.usersService.create(profile, provider, sub);
+
+    return this.completeLogin(req, res, created.id, redirectUriConfigKey);
   }
 
   private async createLocalAuthSession(
@@ -182,14 +353,30 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @UseGuards(VippsGuard)
+  @UseGuards(ClearLinkIntentGuard, VippsGuard)
   @Get("/login")
   async login() {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @UseGuards(GoogleGuard)
+  @UseGuards(ClearLinkIntentGuard, GoogleGuard)
   @Get("/login/google")
   async loginGoogle() {}
+
+  /* The link endpoints are the login endpoints with an intent: guard order is
+     load-bearing. AuthenticatedGuard puts the user on the request,
+     LinkIntentGuard writes the intent into the session, and the provider
+     guard never returns — it ends in the redirect to the IdP. */
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @UseGuards(AuthenticatedGuard, LinkIntentGuard, VippsGuard)
+  @UseFilters(RedirectOnUnauthorizedFilter)
+  @Get("/link")
+  async linkVipps() {}
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @UseGuards(AuthenticatedGuard, LinkIntentGuard, GoogleGuard)
+  @UseFilters(RedirectOnUnauthorizedFilter)
+  @Get("/link/google")
+  async linkGoogle() {}
 
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @UseGuards(RefreshGuard)
@@ -263,9 +450,10 @@ export class AuthController {
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/callback")
   async loginCallback(@Req() req: any, @Res() res: Response) {
-    return await this.completeOidcLogin(
+    return await this.completeOidcCallback(
       req,
       res,
+      Provider.VIPPS,
       "VIPPS_OIDC_POST_LOGIN_REDIRECT_URI",
     );
   }
@@ -274,9 +462,10 @@ export class AuthController {
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/callback/google")
   async loginGoogleCallback(@Req() req: any, @Res() res: Response) {
-    return await this.completeOidcLogin(
+    return await this.completeOidcCallback(
       req,
       res,
+      Provider.GOOGLE,
       "GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI",
     );
   }
