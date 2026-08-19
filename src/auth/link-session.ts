@@ -14,30 +14,31 @@ export interface PendingLink {
   matchedUserId: string;
 }
 
-declare module "express-session" {
-  interface SessionData {
-    /** Settings-initiated link: attach the next callback's identity to this user. */
-    linkUserId?: string;
-    /** Login-time collision waiting for the owner to re-authenticate. */
-    pendingLink?: PendingLink;
-  }
+/** The link state account linking keeps in the express oauth session. */
+export interface LinkSessionKeys {
+  /** Settings-initiated link: attach the next callback's identity to this user. */
+  linkUserId?: string;
+  /** Login-time collision waiting for the owner to re-authenticate. */
+  pendingLink?: PendingLink;
 }
 
-/**
+declare module "express-session" {
+  // biome-ignore lint/suspicious/noEmptyInterface: declaration merging.
+  interface SessionData extends LinkSessionKeys {}
+}
+
+/*
  * The link keys are single-use by nature — a consumed intent that lingers
  * would turn some later, unrelated login into a link. Hence read-and-delete.
  */
-type LinkSession =
-  | { linkUserId?: string; pendingLink?: PendingLink }
-  | undefined;
 
-export const takeLinkUserId = (session: LinkSession) => {
+export const takeLinkUserId = (session: LinkSessionKeys | undefined) => {
   const linkUserId = session?.linkUserId;
   if (session) delete session.linkUserId;
   return linkUserId;
 };
 
-export const takePendingLink = (session: LinkSession) => {
+export const takePendingLink = (session: LinkSessionKeys | undefined) => {
   const pendingLink = session?.pendingLink;
   if (session) delete session.pendingLink;
   return pendingLink;

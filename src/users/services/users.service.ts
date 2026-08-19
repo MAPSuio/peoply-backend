@@ -400,21 +400,10 @@ export class UsersService {
     profile?: CreateUserDto,
   ) {
     await this.prisma.$transaction(async (trx) => {
-      const backfill: { phone?: string; birthDate?: string } = {};
-
-      if (provider === Provider.VIPPS && profile) {
-        const user = await trx.user.findUnique({ where: { id: userId } });
-
-        if (user && !user.phone && profile.phone) {
-          const phoneOwner = await trx.user.findUnique({
-            where: { phone: profile.phone },
-          });
-          if (!phoneOwner) backfill.phone = profile.phone;
-        }
-        if (user && !user.birthDate && profile.birthDate) {
-          backfill.birthDate = profile.birthDate;
-        }
-      }
+      const backfill =
+        provider === Provider.VIPPS && profile
+          ? await this.vippsBackfill(trx, userId, profile)
+          : {};
 
       await trx.providerUser.create({
         data: { provider, sub, id: userId },
@@ -424,6 +413,33 @@ export class UsersService {
         await trx.user.update({ where: { id: userId }, data: backfill });
       }
     });
+  }
+
+  /** The profile fields a Vipps link may fill in, never overwrite or steal. */
+  private async vippsBackfill(
+    trx: Prisma.TransactionClient,
+    userId: string,
+    profile: CreateUserDto,
+  ) {
+    const backfill: { phone?: string; birthDate?: string } = {};
+
+    const user = await trx.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return backfill;
+    }
+
+    if (!user.phone && profile.phone) {
+      const phoneOwner = await trx.user.findUnique({
+        where: { phone: profile.phone },
+      });
+      if (!phoneOwner) backfill.phone = profile.phone;
+    }
+
+    if (!user.birthDate && profile.birthDate) {
+      backfill.birthDate = profile.birthDate;
+    }
+
+    return backfill;
   }
 
   async unlinkProvider(userId: string, provider: Provider) {

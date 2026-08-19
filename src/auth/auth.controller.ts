@@ -260,36 +260,22 @@ export class AuthController {
     const linkUserId = takeLinkUserId(req.session);
 
     if (linkUserId) {
-      const outcome = !this.accessCookieMatches(req, linkUserId)
-        ? { link_error: "expired" }
-        : resolution.status === "existing"
-          ? resolution.user.id === linkUserId
-            ? { linked: provider }
-            : { link_error: "in_use" }
-          : await this.tryLinkProvider(
-              linkUserId,
-              provider,
-              resolution.sub,
-              resolution.profile,
-            );
+      const outcome = await this.linkIntentOutcome(
+        req,
+        provider,
+        resolution,
+        linkUserId,
+      );
 
       this.destroyOauthSession(req, res);
       return this.redirectToFrontend(res, redirectUriConfigKey, outcome);
     }
 
     if (resolution.status === "existing") {
-      const pending = takePendingLink(req.session);
-
-      const params = !pending
-        ? {}
-        : pending.matchedUserId !== resolution.user.id
-          ? { link_error: "wrong_user" }
-          : await this.tryLinkProvider(
-              resolution.user.id,
-              pending.provider,
-              pending.sub,
-              pending.profile,
-            );
+      const params = await this.confirmPendingLink(
+        req.session,
+        resolution.user,
+      );
 
       return this.completeLogin(
         req,
@@ -300,7 +286,65 @@ export class AuthController {
       );
     }
 
-    const { sub, profile } = resolution;
+    return this.loginNewIdentity(req, res, resolution, redirectUriConfigKey);
+  }
+
+  /** Mode 1: what a settings-initiated link intent resolves to. */
+  private async linkIntentOutcome(
+    req: any,
+    provider: Provider,
+    resolution: OidcResolution,
+    linkUserId: string,
+  ): Promise<Record<string, string>> {
+    if (!this.accessCookieMatches(req, linkUserId)) {
+      return { link_error: "expired" };
+    }
+
+    if (resolution.status === "existing") {
+      return resolution.user.id === linkUserId
+        ? { linked: provider }
+        : { link_error: "in_use" };
+    }
+
+    return this.tryLinkProvider(
+      linkUserId,
+      resolution.provider,
+      resolution.sub,
+      resolution.profile,
+    );
+  }
+
+  /** Mode 2's tail: a pending link the logging-in user may be the owner of. */
+  private async confirmPendingLink(
+    session: any,
+    user: User,
+  ): Promise<Record<string, string>> {
+    const pending = takePendingLink(session);
+
+    if (!pending) {
+      return {};
+    }
+
+    if (pending.matchedUserId !== user.id) {
+      return { link_error: "wrong_user" };
+    }
+
+    return this.tryLinkProvider(
+      user.id,
+      pending.provider,
+      pending.sub,
+      pending.profile,
+    );
+  }
+
+  /** Mode 3: an identity nobody has seen before. */
+  private async loginNewIdentity(
+    req: any,
+    res: Response,
+    resolution: Extract<OidcResolution, { status: "new" }>,
+    redirectUriConfigKey: string,
+  ) {
+    const { provider, sub, profile } = resolution;
 
     const emailOwner = await this.usersService.findByEmail(profile.email);
     if (emailOwner) {
