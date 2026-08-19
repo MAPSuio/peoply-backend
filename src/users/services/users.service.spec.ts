@@ -1,3 +1,4 @@
+import { Prisma } from "../../generated/prisma/client";
 import { UsersService } from "./users.service";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
 
@@ -457,6 +458,26 @@ describe("UsersService", () => {
         where: { id: "user-1" },
         data: { birthDate: vippsProfile.birthDate },
       });
+    });
+
+    /* Raced double-links and "account already has a Google identity with a
+       different sub" both surface as P2002 on the new unique index — that is
+       a conflict the callback can explain, not a 500. */
+    it("turns a duplicate-link P2002 into a conflict", async () => {
+      const { prisma, trx } = buildPrisma({ id: "user-1", phone: null });
+      const duplicate = Object.assign(
+        new Prisma.PrismaClientKnownRequestError("duplicate", {
+          code: "P2002",
+          clientVersion: "test",
+        }),
+        {},
+      );
+      (trx.providerUser.create as jest.Mock).mockRejectedValue(duplicate);
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(
+        service.linkProvider("user-1", "GOOGLE" as any, "sub-g"),
+      ).rejects.toThrow("already linked");
     });
 
     it("never overwrites profile fields the user already has", async () => {

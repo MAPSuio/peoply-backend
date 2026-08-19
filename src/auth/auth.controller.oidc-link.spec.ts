@@ -1,3 +1,4 @@
+import { ConflictException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Response } from "express";
 import { Provider } from "../generated/prisma/client";
@@ -96,6 +97,7 @@ describe("AuthController OIDC callback linking", () => {
     (usersService.findByPhone as jest.Mock).mockResolvedValue(null);
     (usersService.findById as jest.Mock).mockResolvedValue({ id: "linker-1" });
     (usersService.create as jest.Mock).mockResolvedValue(user);
+    (usersService.linkProvider as jest.Mock).mockResolvedValue(undefined);
     (usersService.getLinkedProviders as jest.Mock).mockResolvedValue([
       { provider: Provider.VIPPS, createdAt: new Date() },
     ]);
@@ -244,6 +246,26 @@ describe("AuthController OIDC callback linking", () => {
       expect(sessionCookiesIssued()).toBe(true);
       expect(redirectedTo()).toBe(
         "https://peoply.app/login/callback?linked=GOOGLE",
+      );
+    });
+
+    /* The matched account can already hold an identity from the same
+       provider under a different sub — the unique index turns that into a
+       conflict, and the user still deserves their login. */
+    it("reports in_use but still logs in when the account already has that provider", async () => {
+      session.pendingLink = { ...pending };
+      (usersService.linkProvider as jest.Mock).mockRejectedValue(
+        new ConflictException("Provider already linked"),
+      );
+
+      await controller.loginCallback(
+        { user: { status: "existing", user }, session, cookies: {} },
+        res,
+      );
+
+      expect(sessionCookiesIssued()).toBe(true);
+      expect(redirectedTo()).toBe(
+        "https://peoply.app/login/callback?link_error=in_use",
       );
     });
 

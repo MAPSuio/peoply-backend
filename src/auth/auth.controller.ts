@@ -2,6 +2,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   NotFoundException,
@@ -255,16 +256,22 @@ export class AuthController {
         );
       }
 
-      await this.usersService.linkProvider(
-        linkUserId,
-        provider,
-        resolution.sub,
-        resolution.profile,
-      );
+      let outcome: Record<string, string>;
+      try {
+        await this.usersService.linkProvider(
+          linkUserId,
+          provider,
+          resolution.sub,
+          resolution.profile,
+        );
+        outcome = { linked: provider };
+      } catch (error) {
+        // The account already holds another identity from this provider.
+        if (!(error instanceof ConflictException)) throw error;
+        outcome = { link_error: "in_use" };
+      }
       this.destroyOauthSession(req, res);
-      return this.redirectToFrontend(res, redirectUriConfigKey, {
-        linked: provider,
-      });
+      return this.redirectToFrontend(res, redirectUriConfigKey, outcome);
     }
 
     if (resolution.status === "existing") {
@@ -272,16 +279,23 @@ export class AuthController {
       const params: Record<string, string> = {};
 
       if (pending) {
-        if (pending.matchedUserId === resolution.user.id) {
-          await this.usersService.linkProvider(
-            resolution.user.id,
-            pending.provider,
-            pending.sub,
-            pending.profile,
-          );
-          params.linked = pending.provider;
-        } else {
+        if (pending.matchedUserId !== resolution.user.id) {
           params.link_error = "wrong_user";
+        } else {
+          try {
+            await this.usersService.linkProvider(
+              resolution.user.id,
+              pending.provider,
+              pending.sub,
+              pending.profile,
+            );
+            params.linked = pending.provider;
+          } catch (error) {
+            /* The account already holds an identity from that provider — the
+               link fails, the login the person just proved does not. */
+            if (!(error instanceof ConflictException)) throw error;
+            params.link_error = "in_use";
+          }
         }
       }
 

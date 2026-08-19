@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomUUID } from "node:crypto";
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -371,6 +372,28 @@ export class UsersService {
    * fail or steal data over a column that is merely nice to have.
    */
   async linkProvider(
+    userId: string,
+    provider: Provider,
+    sub: string,
+    profile?: CreateUserDto,
+  ) {
+    try {
+      await this.linkProviderInTransaction(userId, provider, sub, profile);
+    } catch (error) {
+      /* Raced double-links and "this account already holds an identity from
+         that provider" both land here via the unique indexes — conflicts the
+         caller can explain, not internal errors. */
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === PrismaError.DuplicateUniqueValue
+      ) {
+        throw new ConflictException("Provider already linked");
+      }
+      throw error;
+    }
+  }
+
+  private async linkProviderInTransaction(
     userId: string,
     provider: Provider,
     sub: string,
