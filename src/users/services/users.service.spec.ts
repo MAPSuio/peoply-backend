@@ -588,5 +588,16 @@ describe("UsersService", () => {
         service.unlinkProvider("user-1", "GOOGLE" as any),
       ).rejects.toThrow("not linked");
     });
+
+    /* Zero rows means "nothing to unlink", not "you would lock yourself
+       out" — the last-method refusal is reserved for exactly one row. */
+    it("404s rather than refusing when the user has no providers at all", async () => {
+      const { prisma } = buildPrisma(0, 0);
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(
+        service.unlinkProvider("user-1", "GOOGLE" as any),
+      ).rejects.toThrow("not linked");
+    });
   });
 });

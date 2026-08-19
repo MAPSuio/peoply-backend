@@ -458,9 +458,14 @@ export class UsersService {
 
       const linked = await trx.providerUser.count({ where: { id: userId } });
 
+      // Zero rows is "nothing to unlink", not "you would lock yourself out".
+      if (linked === 0) {
+        throw new NotFoundException(`${provider} is not linked to this user`);
+      }
+
       /* There is no password fallback: the provider rows are the only way
          into the account, so the last one must stay. */
-      if (linked <= 1) {
+      if (linked === 1) {
         throw new ForbiddenException(
           "Cannot remove the last login method of an account",
         );

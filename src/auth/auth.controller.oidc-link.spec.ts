@@ -202,6 +202,26 @@ describe("AuthController OIDC callback linking", () => {
       expect(cleared).toEqual([]);
     });
 
+    /* The unique index allows one identity per provider per user, so a
+       pending link for a provider the account already has can only ever end
+       in in_use — report the dead end before the round trip, not after. */
+    it("reports a dead end when the account already has the incoming provider", async () => {
+      (usersService.getLinkedProviders as jest.Mock).mockResolvedValue([
+        { provider: Provider.GOOGLE, createdAt: new Date() },
+        { provider: Provider.VIPPS, createdAt: new Date() },
+      ]);
+
+      await controller.loginGoogleCallback(
+        { user: newGoogleIdentity, session, cookies: {} },
+        res,
+      );
+
+      expect(session.pendingLink).toBeUndefined();
+      expect(redirectedTo()).toBe(
+        "https://peoply.app/login/callback?link_error=email_in_use",
+      );
+    });
+
     /* Only dev-seeded accounts can lack provider rows, but a pending link
        nobody can ever confirm would strand the person in a modal loop. */
     it("reports a dead end when the matched account has no providers", async () => {
