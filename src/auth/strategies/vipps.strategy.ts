@@ -1,7 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import { Configuration, randomState } from "openid-client";
+import { ClientSecretBasic, Configuration, randomState } from "openid-client";
 import { AuthenticateOptions, Strategy } from "openid-client/passport";
 import { Provider } from "../../generated/prisma/client";
 import { UsersService } from "../../users/services";
@@ -24,7 +24,14 @@ const VIPPS_KEYS: OidcProviderKeys = {
 };
 
 export const buildVippsConfig = (configService: ConfigService) =>
-  buildOidcConfig(configService, VIPPS_KEYS);
+  /* Vipps registers our client for Basic. Their Login API guide gives the
+     token request as `Authorization: Basic {Client Credentials}`, where "the
+     Client Credentials is a base 64 encoded string consisting of the
+     client_id and secret joined by `:`". Sending the credentials as form
+     parameters instead gets the token exchange rejected with
+     `invalid_client`: "There's an issue with the client
+     authentication_method." */
+  buildOidcConfig(configService, VIPPS_KEYS, ClientSecretBasic);
 
 export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
   constructor(

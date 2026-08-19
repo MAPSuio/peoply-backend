@@ -1,7 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import { Configuration, randomState } from "openid-client";
+import { ClientSecretPost, Configuration, randomState } from "openid-client";
 import { AuthenticateOptions, Strategy } from "openid-client/passport";
 import { Provider } from "../../generated/prisma/client";
 import { UsersService } from "../../users/services";
@@ -24,7 +24,12 @@ const GOOGLE_KEYS: OidcProviderKeys = {
 };
 
 export const buildGoogleConfig = (configService: ConfigService) =>
-  buildOidcConfig(configService, GOOGLE_KEYS);
+  /* Google supports both Basic and Post, but its token endpoint does not
+     urldecode Basic credentials, while oauth4webapi percent-encodes them as
+     RFC 6749 requires. The `-` and `.` in every Google client id arrive as
+     `%2D`/`%2E`, and Google rejects the exchange with `invalid_client`:
+     "The OAuth client was not found." */
+  buildOidcConfig(configService, GOOGLE_KEYS, ClientSecretPost);
 
 export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   constructor(
