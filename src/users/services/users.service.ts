@@ -40,6 +40,10 @@ import { PUBLIC_USER_PROFILE_SELECT } from "../user.select";
  */
 const USER_SEARCH_CANDIDATE_LIMIT = MAX_PAGE_SIZE * 5;
 
+const isDuplicateUniqueValue = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === PrismaError.DuplicateUniqueValue;
+
 const SEARCH_VARIANT_REPLACEMENTS = [
   ["aa", "å"],
   ["ae", "æ"],
@@ -378,58 +382,60 @@ export class UsersService {
     profile?: CreateUserDto,
   ) {
     try {
-      await this.linkProviderInTransaction(userId, provider, sub, profile);
+      await this.prisma.providerUser.create({
+        data: { provider, sub, id: userId },
+      });
     } catch (error) {
       /* Raced double-links and "this account already holds an identity from
          that provider" both land here via the unique indexes — conflicts the
          caller can explain, not internal errors. */
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === PrismaError.DuplicateUniqueValue
-      ) {
+      if (isDuplicateUniqueValue(error)) {
         throw new ConflictException("Provider already linked");
       }
       throw error;
     }
-  }
 
-  private async linkProviderInTransaction(
-    userId: string,
-    provider: Provider,
-    sub: string,
-    profile?: CreateUserDto,
-  ) {
-    await this.prisma.$transaction(async (trx) => {
-      const backfill =
-        provider === Provider.VIPPS && profile
-          ? await this.vippsBackfill(trx, userId, profile)
-          : {};
-
-      await trx.providerUser.create({
-        data: { provider, sub, id: userId },
-      });
-
-      if (Object.keys(backfill).length > 0) {
-        await trx.user.update({ where: { id: userId }, data: backfill });
-      }
-    });
+    /* Deliberately after — not inside a transaction with — the link: the
+       backfill is best-effort, and losing a race for the phone number must
+       neither roll the link back nor masquerade as "Provider already
+       linked". */
+    if (provider === Provider.VIPPS && profile) {
+      await this.backfillVippsProfile(userId, profile);
+    }
   }
 
   /** The profile fields a Vipps link may fill in, never overwrite or steal. */
-  private async vippsBackfill(
-    trx: Prisma.TransactionClient,
-    userId: string,
-    profile: CreateUserDto,
-  ) {
+  private async backfillVippsProfile(userId: string, profile: CreateUserDto) {
+    const backfill = await this.vippsBackfillValues(userId, profile);
+
+    if (Object.keys(backfill).length === 0) {
+      return;
+    }
+
+    try {
+      await this.prisma.user.update({ where: { id: userId }, data: backfill });
+    } catch (error) {
+      if (!isDuplicateUniqueValue(error)) {
+        throw error;
+      }
+      // Somebody claimed the phone between the check and the write. The
+      // field stays empty; the link itself already succeeded.
+      this.logger.warn(
+        `Skipped profile backfill for user ${userId}: value already in use`,
+      );
+    }
+  }
+
+  private async vippsBackfillValues(userId: string, profile: CreateUserDto) {
     const backfill: { phone?: string; birthDate?: string } = {};
 
-    const user = await trx.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return backfill;
     }
 
     if (!user.phone && profile.phone) {
-      const phoneOwner = await trx.user.findUnique({
+      const phoneOwner = await this.prisma.user.findUnique({
         where: { phone: profile.phone },
       });
       if (!phoneOwner) backfill.phone = profile.phone;

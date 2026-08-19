@@ -383,8 +383,10 @@ describe("UsersService", () => {
       birthDate: new Date("1995-06-01").toISOString(),
     };
 
+    /* Linking and backfill are deliberately NOT one transaction: a phone
+       uniqueness race on the backfill must never roll back the link itself. */
     const buildPrisma = (user: Record<string, unknown>, phoneOwner?: any) => {
-      const trx = {
+      const db = {
         providerUser: { create: jest.fn().mockResolvedValue({}) },
         user: {
           findUnique: jest.fn(async ({ where }: any) =>
@@ -393,12 +395,7 @@ describe("UsersService", () => {
           update: jest.fn().mockResolvedValue({}),
         },
       };
-      return {
-        trx,
-        prisma: {
-          $transaction: jest.fn(async (cb: any) => cb(trx)),
-        } as any,
-      };
+      return { trx: db, prisma: db as any };
     };
 
     it("creates the provider row for the user", async () => {
@@ -478,6 +475,29 @@ describe("UsersService", () => {
       await expect(
         service.linkProvider("user-1", "GOOGLE" as any, "sub-g"),
       ).rejects.toThrow("already linked");
+    });
+
+    /* The backfill is best-effort: losing a race for the phone number keeps
+       the link and just leaves the field empty, and must never surface as
+       "Provider already linked". */
+    it("keeps the link when the phone backfill loses a uniqueness race", async () => {
+      const { prisma, trx } = buildPrisma({
+        id: "user-1",
+        phone: null,
+        birthDate: null,
+      });
+      (trx.user.update as jest.Mock).mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("phone taken", {
+          code: "P2002",
+          clientVersion: "test",
+        }),
+      );
+      const service = new UsersService(prisma, {} as any, {} as any);
+
+      await expect(
+        service.linkProvider("user-1", "VIPPS" as any, "sub-v", vippsProfile),
+      ).resolves.toBeUndefined();
+      expect(trx.providerUser.create).toHaveBeenCalled();
     });
 
     it("never overwrites profile fields the user already has", async () => {

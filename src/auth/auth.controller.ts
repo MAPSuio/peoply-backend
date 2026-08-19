@@ -348,17 +348,28 @@ export class AuthController {
 
     const emailOwner = await this.usersService.findByEmail(profile.email);
     if (emailOwner) {
+      const linkWith = (
+        await this.usersService.getLinkedProviders(emailOwner.id)
+      )
+        .map((linked) => linked.provider)
+        .join(",");
+
+      /* An account with no provider rows (dev seeds only) has nothing to
+         confirm with — parking a pending link nobody can ever satisfy would
+         strand the person in the modal. */
+      if (!linkWith) {
+        this.destroyOauthSession(req, res);
+        return this.redirectToFrontend(res, redirectUriConfigKey, {
+          link_error: "email_in_use",
+        });
+      }
+
       req.session.pendingLink = {
         provider,
         sub,
         profile,
         matchedUserId: emailOwner.id,
       };
-      const linkWith = (
-        await this.usersService.getLinkedProviders(emailOwner.id)
-      )
-        .map((linked) => linked.provider)
-        .join(",");
 
       return this.redirectToFrontend(res, redirectUriConfigKey, {
         link_prompt: provider,

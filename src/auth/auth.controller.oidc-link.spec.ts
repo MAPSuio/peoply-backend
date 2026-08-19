@@ -202,6 +202,23 @@ describe("AuthController OIDC callback linking", () => {
       expect(cleared).toEqual([]);
     });
 
+    /* Only dev-seeded accounts can lack provider rows, but a pending link
+       nobody can ever confirm would strand the person in a modal loop. */
+    it("reports a dead end when the matched account has no providers", async () => {
+      (usersService.getLinkedProviders as jest.Mock).mockResolvedValue([]);
+
+      await controller.loginGoogleCallback(
+        { user: newGoogleIdentity, session, cookies: {} },
+        res,
+      );
+
+      expect(session.pendingLink).toBeUndefined();
+      expect(sessionCookiesIssued()).toBe(false);
+      expect(redirectedTo()).toBe(
+        "https://peoply.app/login/callback?link_error=email_in_use",
+      );
+    });
+
     it("reports a phone-only collision instead of creating a duplicate", async () => {
       (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
       (usersService.findByPhone as jest.Mock).mockResolvedValue({
