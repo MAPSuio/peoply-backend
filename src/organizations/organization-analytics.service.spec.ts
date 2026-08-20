@@ -86,7 +86,7 @@ describe("OrganizationAnalyticsService", () => {
     expect(result.followers.net30d).toBe(1);
   });
 
-  it("returns dailyNet as 30 zero-filled ascending UTC days ending today", async () => {
+  it("returns dailyNet as zero-filled ascending UTC days ending today", async () => {
     prisma.arrangerFollowerEvent.findMany.mockResolvedValue([
       { action: "FOLLOW", createdAt: new Date("2026-08-20T08:00:00Z") },
       { action: "FOLLOW", createdAt: new Date("2026-08-19T23:59:59Z") },
@@ -94,7 +94,7 @@ describe("OrganizationAnalyticsService", () => {
       { action: "UNFOLLOW", createdAt: new Date("2026-07-25T12:00:00Z") },
     ]);
 
-    const { dailyNet } = (await service.getAnalytics("org-1")).followers;
+    const { dailyNet } = (await service.getAnalytics("org-1", "30d")).followers;
 
     expect(dailyNet).toHaveLength(30);
     expect(dailyNet[0].date).toBe("2026-07-22");
@@ -112,19 +112,13 @@ describe("OrganizationAnalyticsService", () => {
     }
   });
 
-  it("passes gross-30d and member windows to prisma counts", async () => {
+  it("keeps the follower gross window fixed at 30 days", async () => {
     await service.getAnalytics("org-1");
 
     const grossCall = prisma.arrangerFollower.count.mock.calls.find(
       ([args]: any[]) => args.where.createdAt,
     );
     expect(grossCall[0].where.createdAt.gte).toEqual(
-      new Date(NOW.getTime() - 30 * 24 * 3_600_000),
-    );
-    const memberWindowCall = prisma.userOrganizationRole.count.mock.calls.find(
-      ([args]: any[]) => args.where.createdAt,
-    );
-    expect(memberWindowCall[0].where.createdAt.gte).toEqual(
       new Date(NOW.getTime() - 30 * 24 * 3_600_000),
     );
   });
@@ -304,7 +298,7 @@ describe("OrganizationAnalyticsService", () => {
     });
   });
 
-  it("scopes the event query to the arranger, a 12-month window and unarchived events", async () => {
+  it("scopes the event query to the arranger, the period window and unarchived events", async () => {
     await service.getAnalytics("org-1");
 
     const [args] = prisma.event.findMany.mock.calls[0];
@@ -313,8 +307,52 @@ describe("OrganizationAnalyticsService", () => {
     });
     expect(args.where.archivedAt).toBeNull();
     expect(args.where.startDate.lte).toEqual(NOW);
-    expect(args.where.startDate.gte).toEqual(new Date("2025-08-20T12:00:00Z"));
+    // The default period is one year.
+    expect(args.where.startDate.gte).toEqual(
+      new Date(NOW.getTime() - 365 * 24 * 3_600_000),
+    );
     expect(args.orderBy).toEqual({ startDate: "asc" });
+  });
+
+  it("windows the event and member queries by the requested period", async () => {
+    await service.getAnalytics("org-1", "7d");
+
+    const [eventArgs] = prisma.event.findMany.mock.calls[0];
+    expect(eventArgs.where.startDate.gte).toEqual(
+      new Date(NOW.getTime() - 7 * 24 * 3_600_000),
+    );
+    const memberWindowCall = prisma.userOrganizationRole.count.mock.calls.find(
+      ([args]: any[]) => args.where.createdAt,
+    );
+    expect(memberWindowCall[0].where.createdAt.gte).toEqual(
+      new Date(NOW.getTime() - 7 * 24 * 3_600_000),
+    );
+  });
+
+  it("sizes dailyNet to the period, capped at one year", async () => {
+    const week = await service.getAnalytics("org-1", "7d");
+    expect(week.followers.dailyNet).toHaveLength(7);
+    expect(week.period).toBe("7d");
+
+    const day = await service.getAnalytics("org-1", "24h");
+    expect(day.followers.dailyNet).toHaveLength(1);
+
+    const year = await service.getAnalytics("org-1", "1y");
+    expect(year.followers.dailyNet).toHaveLength(365);
+  });
+
+  it("keeps the fixed net windows even for long periods", async () => {
+    const hours = (n: number) => new Date(NOW.getTime() - n * 3_600_000);
+    prisma.arrangerFollowerEvent.findMany.mockResolvedValue([
+      { action: "FOLLOW", createdAt: hours(1) },
+      { action: "FOLLOW", createdAt: hours(100 * 24) },
+    ]);
+
+    const result = await service.getAnalytics("org-1", "1y");
+
+    expect(result.followers.net24h).toBe(1);
+    expect(result.followers.net30d).toBe(1);
+    expect(result.followers.netPeriod).toBe(2);
   });
 
   it("only fetches GOING, NOT_GOING and WAITLISTED registrations for the fetched events", async () => {
@@ -349,7 +387,7 @@ describe("OrganizationAnalyticsService", () => {
       net30d: 0,
       gross30d: 0,
     });
-    expect(payload.members).toEqual({ total: 0, new30d: 0 });
+    expect(payload.members).toEqual({ total: 0, newInPeriod: 0 });
     expect(payload.events.items).toEqual([]);
     expect(payload.events.averageGoing).toBeNull();
     expect(payload.events.averageFillRate).toBeNull();

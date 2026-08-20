@@ -47,6 +47,7 @@ import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationsService } from "./organizations.service";
 import { OrganizationAnalyticsService } from "./organization-analytics.service";
+import { OrganizationAnalyticsQueryDto } from "./dto/organization-analytics.query";
 import {
   createOrganizationCalendarIcs,
   getOrganizationCalendarFileName,
@@ -421,8 +422,11 @@ export class OrganizationsController {
   )
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/analytics")
-  async getAnalytics(@Param("orgId") orgId: string) {
-    return this.organizationAnalyticsService.getAnalytics(orgId);
+  async getAnalytics(
+    @Param("orgId") orgId: string,
+    @Query() query: OrganizationAnalyticsQueryDto,
+  ) {
+    return this.organizationAnalyticsService.getAnalytics(orgId, query.period);
   }
 
   @OrganizationRoles(

@@ -7,10 +7,14 @@ import {
   OrganizationAnalyticsResponse,
   TimeOfDayBucket,
 } from "./dto/organization-analytics.response";
+import {
+  ANALYTICS_PERIOD_DAYS,
+  AnalyticsPeriod,
+  DEFAULT_ANALYTICS_PERIOD,
+} from "./dto/organization-analytics.query";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
-const DAILY_NET_DAYS = 30;
-const EVENT_WINDOW_MONTHS = 12;
+const FIXED_NET_WINDOW_DAYS = 30;
 const LAST_MINUTE_MILLISECONDS = 48 * 60 * 60 * 1000;
 
 /* The product speaks Norwegian and the orgs plan their events in local time,
@@ -268,40 +272,55 @@ function audienceAggregates(
   };
 }
 
-function followerNets(followerEvents: FollowerEventRow[], now: Date) {
+const deltaOf = (followerEvent: FollowerEventRow): number =>
+  followerEvent.action === FollowAction.FOLLOW ? 1 : -1;
+
+const netWithin = (
+  followerEvents: FollowerEventRow[],
+  now: Date,
+  days: number,
+): number =>
+  followerEvents.reduce(
+    (net, followerEvent) =>
+      now.getTime() - followerEvent.createdAt.getTime() <=
+      days * MILLISECONDS_PER_DAY
+        ? net + deltaOf(followerEvent)
+        : net,
+    0,
+  );
+
+function dailyNetBuckets(
+  followerEvents: FollowerEventRow[],
+  now: Date,
+  periodDays: number,
+) {
   const dayBuckets = new Map<string, number>();
-  for (let day = DAILY_NET_DAYS - 1; day >= 0; day--) {
+  for (let day = periodDays - 1; day >= 0; day--) {
     dayBuckets.set(
       utcDate(new Date(now.getTime() - day * MILLISECONDS_PER_DAY)),
       0,
     );
   }
-
-  let net24h = 0;
-  let net7d = 0;
-  let net30d = 0;
   for (const followerEvent of followerEvents) {
-    const delta = followerEvent.action === FollowAction.FOLLOW ? 1 : -1;
-    const age = now.getTime() - followerEvent.createdAt.getTime();
-    if (age <= MILLISECONDS_PER_DAY) {
-      net24h += delta;
-    }
-    if (age <= 7 * MILLISECONDS_PER_DAY) {
-      net7d += delta;
-    }
-    net30d += delta;
-
     const day = utcDate(followerEvent.createdAt);
     if (dayBuckets.has(day)) {
-      dayBuckets.set(day, (dayBuckets.get(day) ?? 0) + delta);
+      dayBuckets.set(day, (dayBuckets.get(day) ?? 0) + deltaOf(followerEvent));
     }
   }
+  return [...dayBuckets.entries()].map(([date, net]) => ({ date, net }));
+}
 
+function followerNets(
+  followerEvents: FollowerEventRow[],
+  now: Date,
+  periodDays: number,
+) {
   return {
-    net24h,
-    net7d,
-    net30d,
-    dailyNet: [...dayBuckets.entries()].map(([date, net]) => ({ date, net })),
+    net24h: netWithin(followerEvents, now, 1),
+    net7d: netWithin(followerEvents, now, 7),
+    net30d: netWithin(followerEvents, now, FIXED_NET_WINDOW_DAYS),
+    netPeriod: netWithin(followerEvents, now, periodDays),
+    dailyNet: dailyNetBuckets(followerEvents, now, periodDays),
   };
 }
 
@@ -314,22 +333,33 @@ export class OrganizationAnalyticsService {
 
   async getAnalytics(
     orgIdOrUrlId: string,
+    period: AnalyticsPeriod = DEFAULT_ANALYTICS_PERIOD,
   ): Promise<OrganizationAnalyticsResponse> {
     const org = await this.organizationsService.findByRefOrThrow(orgIdOrUrlId);
     const now = new Date();
-    const sources = await this.fetchSources(org.id, org.arrangerId, now);
+    const periodDays = ANALYTICS_PERIOD_DAYS[period];
+    const sources = await this.fetchSources(
+      org.id,
+      org.arrangerId,
+      now,
+      periodDays,
+    );
     const registrations = await this.fetchRegistrations(sources.events);
     const tally = tallyRegistrations(sources.events, registrations);
     const items = toEventItems(sources.events, tally);
 
     return {
       generatedAt: now.toISOString(),
+      period,
       followers: {
         total: sources.followerTotal,
         gross30d: sources.followerGross30d,
-        ...followerNets(sources.followerEvents, now),
+        ...followerNets(sources.followerEvents, now, periodDays),
       },
-      members: { total: sources.memberTotal, new30d: sources.memberNew30d },
+      members: {
+        total: sources.memberTotal,
+        newInPeriod: sources.memberNewInPeriod,
+      },
       events: eventAggregates(sources.events, items, tally),
       audience: audienceAggregates(
         tally.goingCountByUser,
@@ -342,21 +372,25 @@ export class OrganizationAnalyticsService {
     organizationId: string,
     arrangerId: string,
     now: Date,
+    periodDays: number,
   ) {
     const thirtyDaysAgo = new Date(
-      now.getTime() - DAILY_NET_DAYS * MILLISECONDS_PER_DAY,
+      now.getTime() - FIXED_NET_WINDOW_DAYS * MILLISECONDS_PER_DAY,
     );
-    const eventWindowStart = new Date(now);
-    eventWindowStart.setUTCMonth(
-      eventWindowStart.getUTCMonth() - EVENT_WINDOW_MONTHS,
+    const periodStart = new Date(
+      now.getTime() - periodDays * MILLISECONDS_PER_DAY,
     );
+    // The log feeds both the fixed 24h/7d/30d nets and the period series, so
+    // the query has to span whichever window is widest.
+    const followerLogStart =
+      periodStart < thirtyDaysAgo ? periodStart : thirtyDaysAgo;
 
     const [
       followerTotal,
       followerGross30d,
       followerEvents,
       memberTotal,
-      memberNew30d,
+      memberNewInPeriod,
       events,
       followerRows,
     ] = await Promise.all([
@@ -365,18 +399,18 @@ export class OrganizationAnalyticsService {
         where: { arrangerId, createdAt: { gte: thirtyDaysAgo } },
       }),
       this.prisma.arrangerFollowerEvent.findMany({
-        where: { arrangerId, createdAt: { gte: thirtyDaysAgo } },
+        where: { arrangerId, createdAt: { gte: followerLogStart } },
         select: { action: true, createdAt: true },
       }),
       this.prisma.userOrganizationRole.count({ where: { organizationId } }),
       this.prisma.userOrganizationRole.count({
-        where: { organizationId, createdAt: { gte: thirtyDaysAgo } },
+        where: { organizationId, createdAt: { gte: periodStart } },
       }),
       this.prisma.event.findMany({
         where: {
           eventArrangers: { some: { arrangerId } },
           archivedAt: null,
-          startDate: { gte: eventWindowStart, lte: now },
+          startDate: { gte: periodStart, lte: now },
         },
         select: {
           id: true,
@@ -399,7 +433,7 @@ export class OrganizationAnalyticsService {
       followerGross30d,
       followerEvents,
       memberTotal,
-      memberNew30d,
+      memberNewInPeriod,
       events,
       followerRows,
     };

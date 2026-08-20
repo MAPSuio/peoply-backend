@@ -1,3 +1,5 @@
+import { AnalyticsPeriod } from "./organization-analytics.query";
+
 /** Aggregates only: the payload is served to every org role (including
  *  MEMBER), so it must never carry user ids or other per-user data. */
 export interface OrganizationAnalyticsEventItem {
@@ -16,6 +18,8 @@ export type TimeOfDayBucket = "MORNING" | "AFTERNOON" | "EVENING";
 
 export interface OrganizationAnalyticsResponse {
   generatedAt: string;
+  /** The window every period-scoped number below was computed over. */
+  period: AnalyticsPeriod;
   followers: {
     total: number;
     /** Net change (follows minus unfollows) from the append-only event log.
@@ -23,13 +27,16 @@ export interface OrganizationAnalyticsResponse {
     net24h: number;
     net7d: number;
     net30d: number;
-    /** New follows only, from ArrangerFollower.createdAt — covers history
-     *  from before the event log existed. */
+    /** Net change inside the requested period. */
+    netPeriod: number;
+    /** New follows the last 30 days, from ArrangerFollower.createdAt —
+     *  covers history from before the event log existed. */
     gross30d: number;
-    /** 30 net-per-day entries, zero-filled, ascending, UTC dates. */
+    /** One net-per-day entry per day in the period, zero-filled, ascending,
+     *  UTC dates. */
     dailyNet: { date: string; net: number }[];
   };
-  members: { total: number; new30d: number };
+  members: { total: number; newInPeriod: number };
   events: {
     /** Events from the last 12 months, ascending by startDate. */
     items: OrganizationAnalyticsEventItem[];
