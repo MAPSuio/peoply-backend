@@ -201,14 +201,15 @@ enum OrganizationRole {
 }
 
 model Arranger {
-  id                String             @id @default(uuid())
-  isBusiness        Boolean            @map("is_business")
-  organization      Organization?
-  user              User?
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at")
-  eventArrangers    EventArranger[]
-  arrangerFollowers ArrangerFollower[]
+  id                     String                  @id @default(uuid())
+  isBusiness             Boolean                 @map("is_business")
+  organization           Organization?
+  user                   User?
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @default(now()) @updatedAt @map("updated_at")
+  eventArrangers         EventArranger[]
+  arrangerFollowers      ArrangerFollower[]
+  arrangerFollowerEvents ArrangerFollowerEvent[]
 
   @@map("arrangers")
 }
@@ -380,6 +381,30 @@ model ArrangerFollower {
   // Listing the arrangers a user follows filters on userId alone.
   @@index([userId])
   @@map("arranger_follower")
+}
+
+/* Append-only log of follow/unfollow actions, kept because unfollowing
+   hard-deletes the ArrangerFollower row: net follower growth over time can
+   only be computed from this log. Deliberately has no userId — analytics
+   needs none, and an FK to users would let account deletion cascade FOLLOW
+   rows away and corrupt the net counts. */
+model ArrangerFollowerEvent {
+  id         String       @id @default(uuid())
+  arrangerId String       @map("arranger_id")
+  arranger   Arranger     @relation(fields: [arrangerId], references: [id], onDelete: Cascade)
+  action     FollowAction
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  // The only read is one arranger's events inside a time window.
+  @@index([arrangerId, createdAt])
+  @@map("arranger_follower_events")
+}
+
+enum FollowAction {
+  FOLLOW
+  UNFOLLOW
+
+  @@map("follow_actions")
 }
 
 model EventArranger {
