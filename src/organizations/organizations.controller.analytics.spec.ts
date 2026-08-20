@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import { OrganizationsController } from "./organizations.controller";
 import { AuthenticatedGuard } from "../auth/guards/authenticated.guard";
 import { OrganizationRolesGuard } from "../auth/guards/organizationRoles.guard";

@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { OrganizationsService } from "./organizations.service";
 import { FollowAction, RegStatus } from "../generated/prisma/client";
 import {
+  OrganizationAnalyticsEventItem,
   OrganizationAnalyticsResponse,
   TimeOfDayBucket,
 } from "./dto/organization-analytics.response";
@@ -10,7 +11,7 @@ import {
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const DAILY_NET_DAYS = 30;
 const EVENT_WINDOW_MONTHS = 12;
-const LAST_MINUTE_HOURS = 48;
+const LAST_MINUTE_MILLISECONDS = 48 * 60 * 60 * 1000;
 
 /* The product speaks Norwegian and the orgs plan their events in local time,
    so the weekday/time-of-day buckets are Europe/Oslo, not UTC. */
@@ -35,6 +36,40 @@ const TIME_OF_DAY_BUCKETS: TimeOfDayBucket[] = [
   "EVENING",
 ];
 
+interface EventRow {
+  id: string;
+  urlId: string;
+  title: string;
+  startDate: Date;
+  capacity: number | null;
+  createdAt: Date;
+}
+
+interface RegistrationRow {
+  eventId: string;
+  userId: string;
+  regStatus: RegStatus;
+  createdAt: Date;
+}
+
+interface FollowerEventRow {
+  action: FollowAction;
+  createdAt: Date;
+}
+
+interface RegistrationTally {
+  goingByEvent: Map<string, number>;
+  waitlistedByEvent: Map<string, number>;
+  goingCountByUser: Map<string, number>;
+  signupLeadDays: number[];
+  lastMinuteCount: number;
+  notGoingCount: number;
+}
+
+/** part / whole, or null when there is nothing to divide by. */
+const ratio = (part: number, whole: number): number | null =>
+  whole === 0 ? null : part / whole;
+
 const median = (values: number[]): number | null => {
   if (values.length === 0) {
     return null;
@@ -51,6 +86,9 @@ const roundDays = (days: number | null): number | null =>
 
 const utcDate = (date: Date): string => date.toISOString().slice(0, 10);
 
+const increment = (map: Map<string, number>, key: string) =>
+  map.set(key, (map.get(key) ?? 0) + 1);
+
 const osloWeekdayAndHour = (date: Date): { weekday: number; hour: number } => {
   const parts = OSLO_TIME.formatToParts(date);
   const weekday = parts.find((part) => part.type === "weekday")?.value ?? "";
@@ -60,6 +98,212 @@ const osloWeekdayAndHour = (date: Date): { weekday: number; hour: number } => {
 
 const timeOfDay = (hour: number): TimeOfDayBucket =>
   hour < 12 ? "MORNING" : hour < 17 ? "AFTERNOON" : "EVENING";
+
+function tallyGoing(
+  tally: RegistrationTally,
+  registration: RegistrationRow,
+  startDate: Date | undefined,
+) {
+  increment(tally.goingByEvent, registration.eventId);
+  increment(tally.goingCountByUser, registration.userId);
+  if (!startDate) {
+    return;
+  }
+  const leadMs = startDate.getTime() - registration.createdAt.getTime();
+  tally.signupLeadDays.push(leadMs / MILLISECONDS_PER_DAY);
+  if (leadMs <= LAST_MINUTE_MILLISECONDS) {
+    tally.lastMinuteCount++;
+  }
+}
+
+function tallyRegistrations(
+  events: EventRow[],
+  registrations: RegistrationRow[],
+): RegistrationTally {
+  const startDateByEvent = new Map(
+    events.map((event) => [event.id, event.startDate]),
+  );
+  const tally: RegistrationTally = {
+    goingByEvent: new Map(),
+    waitlistedByEvent: new Map(),
+    goingCountByUser: new Map(),
+    signupLeadDays: [],
+    lastMinuteCount: 0,
+    notGoingCount: 0,
+  };
+
+  for (const registration of registrations) {
+    if (registration.regStatus === RegStatus.NOT_GOING) {
+      tally.notGoingCount++;
+    } else if (registration.regStatus === RegStatus.WAITLISTED) {
+      increment(tally.waitlistedByEvent, registration.eventId);
+    } else {
+      tallyGoing(
+        tally,
+        registration,
+        startDateByEvent.get(registration.eventId),
+      );
+    }
+  }
+
+  return tally;
+}
+
+function toEventItems(
+  events: EventRow[],
+  tally: RegistrationTally,
+): OrganizationAnalyticsEventItem[] {
+  // The query orders by startDate, but the payload contract should not
+  // depend on the database doing so.
+  return [...events]
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    .map((event) => {
+      const goingCount = tally.goingByEvent.get(event.id) ?? 0;
+      return {
+        id: event.id,
+        urlId: event.urlId,
+        title: event.title,
+        startDate: event.startDate.toISOString(),
+        capacity: event.capacity,
+        goingCount,
+        waitlistedCount: tally.waitlistedByEvent.get(event.id) ?? 0,
+        fillRate: event.capacity ? goingCount / event.capacity : null,
+      };
+    });
+}
+
+function bucketByWeekdayAndTime(items: OrganizationAnalyticsEventItem[]) {
+  const byWeekday = Array.from({ length: 7 }, (_, weekday) => ({
+    weekday,
+    averageGoing: 0,
+    eventCount: 0,
+  }));
+  const byTimeOfDay = TIME_OF_DAY_BUCKETS.map((bucket) => ({
+    bucket,
+    averageGoing: 0,
+    eventCount: 0,
+  }));
+
+  for (const item of items) {
+    const { weekday, hour } = osloWeekdayAndHour(new Date(item.startDate));
+    const weekdayBucket = byWeekday[weekday];
+    weekdayBucket.eventCount++;
+    weekdayBucket.averageGoing += item.goingCount;
+    const hourBucket = byTimeOfDay.find(
+      (candidate) => candidate.bucket === timeOfDay(hour),
+    );
+    if (hourBucket) {
+      hourBucket.eventCount++;
+      hourBucket.averageGoing += item.goingCount;
+    }
+  }
+  for (const bucket of [...byWeekday, ...byTimeOfDay]) {
+    bucket.averageGoing =
+      bucket.eventCount === 0 ? 0 : bucket.averageGoing / bucket.eventCount;
+  }
+
+  return { byWeekday, byTimeOfDay };
+}
+
+function eventAggregates(
+  events: EventRow[],
+  items: OrganizationAnalyticsEventItem[],
+  tally: RegistrationTally,
+) {
+  const totalGoing = items.reduce((sum, item) => sum + item.goingCount, 0);
+  const totalWaitlisted = items.reduce(
+    (sum, item) => sum + item.waitlistedCount,
+    0,
+  );
+  const capacityItems = items.filter((item) => item.fillRate !== null);
+  const soldOutCount = capacityItems.filter(
+    (item) => (item.fillRate ?? 0) >= 1,
+  ).length;
+  const fillRateSum = capacityItems.reduce(
+    (sum, item) => sum + (item.fillRate ?? 0),
+    0,
+  );
+  const publishLeadDays = events.map(
+    (event) =>
+      (event.startDate.getTime() - event.createdAt.getTime()) /
+      MILLISECONDS_PER_DAY,
+  );
+
+  return {
+    items,
+    totalGoing,
+    totalWaitlisted,
+    averageGoing: ratio(totalGoing, items.length),
+    averageFillRate: ratio(fillRateSum, capacityItems.length),
+    soldOutRate: ratio(soldOutCount, capacityItems.length),
+    medianDemand: median(
+      items.map((item) => item.goingCount + item.waitlistedCount),
+    ),
+    medianSignupLeadDays: roundDays(median(tally.signupLeadDays)),
+    lastMinuteShare: ratio(tally.lastMinuteCount, tally.signupLeadDays.length),
+    medianPublishLeadDays: roundDays(median(publishLeadDays)),
+    dropoutRate: ratio(tally.notGoingCount, totalGoing + tally.notGoingCount),
+    ...bucketByWeekdayAndTime(items),
+  };
+}
+
+function audienceAggregates(
+  goingCountByUser: Map<string, number>,
+  followerRows: { userId: string }[],
+) {
+  const followerUserIds = new Set(followerRows.map((row) => row.userId));
+  const counts = [...goingCountByUser.values()];
+  const followingAttendees = [...goingCountByUser.keys()].filter((userId) =>
+    followerUserIds.has(userId),
+  ).length;
+
+  return {
+    uniqueAttendees: goingCountByUser.size,
+    returningAttendeeRate: ratio(
+      counts.filter((count) => count >= 2).length,
+      goingCountByUser.size,
+    ),
+    coreAudienceCount: counts.filter((count) => count >= 3).length,
+    attendeeFollowerRate: ratio(followingAttendees, goingCountByUser.size),
+  };
+}
+
+function followerNets(followerEvents: FollowerEventRow[], now: Date) {
+  const dayBuckets = new Map<string, number>();
+  for (let day = DAILY_NET_DAYS - 1; day >= 0; day--) {
+    dayBuckets.set(
+      utcDate(new Date(now.getTime() - day * MILLISECONDS_PER_DAY)),
+      0,
+    );
+  }
+
+  let net24h = 0;
+  let net7d = 0;
+  let net30d = 0;
+  for (const followerEvent of followerEvents) {
+    const delta = followerEvent.action === FollowAction.FOLLOW ? 1 : -1;
+    const age = now.getTime() - followerEvent.createdAt.getTime();
+    if (age <= MILLISECONDS_PER_DAY) {
+      net24h += delta;
+    }
+    if (age <= 7 * MILLISECONDS_PER_DAY) {
+      net7d += delta;
+    }
+    net30d += delta;
+
+    const day = utcDate(followerEvent.createdAt);
+    if (dayBuckets.has(day)) {
+      dayBuckets.set(day, (dayBuckets.get(day) ?? 0) + delta);
+    }
+  }
+
+  return {
+    net24h,
+    net7d,
+    net30d,
+    dailyNet: [...dayBuckets.entries()].map(([date, net]) => ({ date, net })),
+  };
+}
 
 @Injectable()
 export class OrganizationAnalyticsService {
@@ -72,9 +316,33 @@ export class OrganizationAnalyticsService {
     orgIdOrUrlId: string,
   ): Promise<OrganizationAnalyticsResponse> {
     const org = await this.organizationsService.findByRefOrThrow(orgIdOrUrlId);
-    const { arrangerId } = org;
-
     const now = new Date();
+    const sources = await this.fetchSources(org.id, org.arrangerId, now);
+    const registrations = await this.fetchRegistrations(sources.events);
+    const tally = tallyRegistrations(sources.events, registrations);
+    const items = toEventItems(sources.events, tally);
+
+    return {
+      generatedAt: now.toISOString(),
+      followers: {
+        total: sources.followerTotal,
+        gross30d: sources.followerGross30d,
+        ...followerNets(sources.followerEvents, now),
+      },
+      members: { total: sources.memberTotal, new30d: sources.memberNew30d },
+      events: eventAggregates(sources.events, items, tally),
+      audience: audienceAggregates(
+        tally.goingCountByUser,
+        sources.followerRows,
+      ),
+    };
+  }
+
+  private async fetchSources(
+    organizationId: string,
+    arrangerId: string,
+    now: Date,
+  ) {
     const thirtyDaysAgo = new Date(
       now.getTime() - DAILY_NET_DAYS * MILLISECONDS_PER_DAY,
     );
@@ -100,11 +368,9 @@ export class OrganizationAnalyticsService {
         where: { arrangerId, createdAt: { gte: thirtyDaysAgo } },
         select: { action: true, createdAt: true },
       }),
+      this.prisma.userOrganizationRole.count({ where: { organizationId } }),
       this.prisma.userOrganizationRole.count({
-        where: { organizationId: org.id },
-      }),
-      this.prisma.userOrganizationRole.count({
-        where: { organizationId: org.id, createdAt: { gte: thirtyDaysAgo } },
+        where: { organizationId, createdAt: { gte: thirtyDaysAgo } },
       }),
       this.prisma.event.findMany({
         where: {
@@ -128,254 +394,36 @@ export class OrganizationAnalyticsService {
       }),
     ]);
 
-    const registrations =
-      events.length === 0
-        ? []
-        : await this.prisma.registration.findMany({
-            where: {
-              eventId: { in: events.map((event) => event.id) },
-              regStatus: {
-                in: [
-                  RegStatus.GOING,
-                  RegStatus.NOT_GOING,
-                  RegStatus.WAITLISTED,
-                ],
-              },
-            },
-            select: {
-              eventId: true,
-              userId: true,
-              regStatus: true,
-              createdAt: true,
-            },
-          });
-
     return {
-      generatedAt: now.toISOString(),
-      followers: {
-        total: followerTotal,
-        gross30d: followerGross30d,
-        ...this.followerNets(followerEvents, now),
-      },
-      members: { total: memberTotal, new30d: memberNew30d },
-      ...this.eventAndAudienceAggregates(events, registrations, followerRows),
+      followerTotal,
+      followerGross30d,
+      followerEvents,
+      memberTotal,
+      memberNew30d,
+      events,
+      followerRows,
     };
   }
 
-  private followerNets(
-    followerEvents: { action: FollowAction; createdAt: Date }[],
-    now: Date,
-  ) {
-    const dayBuckets = new Map<string, number>();
-    for (let day = DAILY_NET_DAYS - 1; day >= 0; day--) {
-      dayBuckets.set(
-        utcDate(new Date(now.getTime() - day * MILLISECONDS_PER_DAY)),
-        0,
-      );
+  private async fetchRegistrations(
+    events: EventRow[],
+  ): Promise<RegistrationRow[]> {
+    if (events.length === 0) {
+      return [];
     }
-
-    let net24h = 0;
-    let net7d = 0;
-    let net30d = 0;
-    for (const followerEvent of followerEvents) {
-      const delta = followerEvent.action === FollowAction.FOLLOW ? 1 : -1;
-      const age = now.getTime() - followerEvent.createdAt.getTime();
-      if (age <= MILLISECONDS_PER_DAY) {
-        net24h += delta;
-      }
-      if (age <= 7 * MILLISECONDS_PER_DAY) {
-        net7d += delta;
-      }
-      net30d += delta;
-
-      const day = utcDate(followerEvent.createdAt);
-      if (dayBuckets.has(day)) {
-        dayBuckets.set(day, (dayBuckets.get(day) ?? 0) + delta);
-      }
-    }
-
-    return {
-      net24h,
-      net7d,
-      net30d,
-      dailyNet: [...dayBuckets.entries()].map(([date, net]) => ({
-        date,
-        net,
-      })),
-    };
-  }
-
-  private eventAndAudienceAggregates(
-    events: {
-      id: string;
-      urlId: string;
-      title: string;
-      startDate: Date;
-      capacity: number | null;
-      createdAt: Date;
-    }[],
-    registrations: {
-      eventId: string;
-      userId: string;
-      regStatus: RegStatus;
-      createdAt: Date;
-    }[],
-    followerRows: { userId: string }[],
-  ) {
-    const goingByEvent = new Map<string, number>();
-    const waitlistedByEvent = new Map<string, number>();
-    const goingCountByUser = new Map<string, number>();
-    const startDateByEvent = new Map(
-      events.map((event) => [event.id, event.startDate]),
-    );
-    const signupLeadDays: number[] = [];
-    let notGoingCount = 0;
-    let lastMinuteCount = 0;
-
-    for (const registration of registrations) {
-      if (registration.regStatus === RegStatus.NOT_GOING) {
-        notGoingCount++;
-        continue;
-      }
-      if (registration.regStatus === RegStatus.WAITLISTED) {
-        waitlistedByEvent.set(
-          registration.eventId,
-          (waitlistedByEvent.get(registration.eventId) ?? 0) + 1,
-        );
-        continue;
-      }
-      goingByEvent.set(
-        registration.eventId,
-        (goingByEvent.get(registration.eventId) ?? 0) + 1,
-      );
-      goingCountByUser.set(
-        registration.userId,
-        (goingCountByUser.get(registration.userId) ?? 0) + 1,
-      );
-      const startDate = startDateByEvent.get(registration.eventId);
-      if (startDate) {
-        const leadMs = startDate.getTime() - registration.createdAt.getTime();
-        signupLeadDays.push(leadMs / MILLISECONDS_PER_DAY);
-        if (leadMs <= LAST_MINUTE_HOURS * 60 * 60 * 1000) {
-          lastMinuteCount++;
-        }
-      }
-    }
-
-    // The query orders by startDate, but the payload contract should not
-    // depend on the database doing so.
-    const items = [...events]
-      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-      .map((event) => {
-        const goingCount = goingByEvent.get(event.id) ?? 0;
-        return {
-          id: event.id,
-          urlId: event.urlId,
-          title: event.title,
-          startDate: event.startDate.toISOString(),
-          capacity: event.capacity,
-          goingCount,
-          waitlistedCount: waitlistedByEvent.get(event.id) ?? 0,
-          fillRate: event.capacity ? goingCount / event.capacity : null,
-        };
-      });
-
-    const totalGoing = items.reduce((sum, item) => sum + item.goingCount, 0);
-    const totalWaitlisted = items.reduce(
-      (sum, item) => sum + item.waitlistedCount,
-      0,
-    );
-    const capacityItems = items.filter((item) => item.fillRate !== null);
-
-    const byWeekday = Array.from({ length: 7 }, (_, weekday) => ({
-      weekday,
-      averageGoing: 0,
-      eventCount: 0,
-    }));
-    const byTimeOfDay = TIME_OF_DAY_BUCKETS.map((bucket) => ({
-      bucket,
-      averageGoing: 0,
-      eventCount: 0,
-    }));
-    for (const item of items) {
-      const { weekday, hour } = osloWeekdayAndHour(new Date(item.startDate));
-      const weekdayBucket = byWeekday[weekday];
-      weekdayBucket.eventCount++;
-      weekdayBucket.averageGoing += item.goingCount;
-      const hourBucket = byTimeOfDay.find(
-        (candidate) => candidate.bucket === timeOfDay(hour),
-      );
-      if (hourBucket) {
-        hourBucket.eventCount++;
-        hourBucket.averageGoing += item.goingCount;
-      }
-    }
-    for (const bucket of [...byWeekday, ...byTimeOfDay]) {
-      bucket.averageGoing =
-        bucket.eventCount === 0 ? 0 : bucket.averageGoing / bucket.eventCount;
-    }
-
-    const followerUserIds = new Set(followerRows.map((row) => row.userId));
-    const uniqueAttendees = goingCountByUser.size;
-    const returningAttendees = [...goingCountByUser.values()].filter(
-      (count) => count >= 2,
-    ).length;
-    const followingAttendees = [...goingCountByUser.keys()].filter((userId) =>
-      followerUserIds.has(userId),
-    ).length;
-
-    return {
-      events: {
-        items,
-        totalGoing,
-        totalWaitlisted,
-        averageGoing: items.length === 0 ? null : totalGoing / items.length,
-        averageFillRate:
-          capacityItems.length === 0
-            ? null
-            : capacityItems.reduce(
-                (sum, item) => sum + (item.fillRate ?? 0),
-                0,
-              ) / capacityItems.length,
-        soldOutRate:
-          capacityItems.length === 0
-            ? null
-            : capacityItems.filter((item) => (item.fillRate ?? 0) >= 1).length /
-              capacityItems.length,
-        medianDemand: median(
-          items.map((item) => item.goingCount + item.waitlistedCount),
-        ),
-        medianSignupLeadDays: roundDays(median(signupLeadDays)),
-        lastMinuteShare:
-          signupLeadDays.length === 0
-            ? null
-            : lastMinuteCount / signupLeadDays.length,
-        medianPublishLeadDays: roundDays(
-          median(
-            events.map(
-              (event) =>
-                (event.startDate.getTime() - event.createdAt.getTime()) /
-                MILLISECONDS_PER_DAY,
-            ),
-          ),
-        ),
-        dropoutRate:
-          totalGoing + notGoingCount === 0
-            ? null
-            : notGoingCount / (totalGoing + notGoingCount),
-        byWeekday,
-        byTimeOfDay,
+    return this.prisma.registration.findMany({
+      where: {
+        eventId: { in: events.map((event) => event.id) },
+        regStatus: {
+          in: [RegStatus.GOING, RegStatus.NOT_GOING, RegStatus.WAITLISTED],
+        },
       },
-      audience: {
-        uniqueAttendees,
-        returningAttendeeRate:
-          uniqueAttendees === 0 ? null : returningAttendees / uniqueAttendees,
-        coreAudienceCount: [...goingCountByUser.values()].filter(
-          (count) => count >= 3,
-        ).length,
-        attendeeFollowerRate:
-          uniqueAttendees === 0 ? null : followingAttendees / uniqueAttendees,
+      select: {
+        eventId: true,
+        userId: true,
+        regStatus: true,
+        createdAt: true,
       },
-    };
+    });
   }
 }
