@@ -1,0 +1,52 @@
+# Anyone can open a pull request, but CodeRabbit only looks at it when a
+# maintainer says so. `.coderabbit.yaml` sets `reviews.auto_review.enabled:
+# false`, so nothing happens on its own. This workflow asks for a review, and
+# it cannot start until someone on the `maintainers` team approves it in the
+# `coderabbit-review` environment, which is the "Review deployments" button on
+# the pull request. A drive-by pull request therefore costs no review quota.
+#
+# The comment is posted through a GitHub App rather than `GITHUB_TOKEN`,
+# because CodeRabbit ignores commands from `github-actions[bot]`.
+name: CodeRabbit review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+# `pull_request_target` runs against the base branch with access to secrets, so
+# it is only safe as long as the pull request's own code never runs. Nothing
+# here checks out the head, builds, or installs anything: the job mints a token
+# and posts one comment. Keep it that way.
+permissions: {}
+
+# One pending approval per pull request. A new push replaces the previous
+# request rather than stacking another one on top of it.
+concurrency:
+  group: coderabbit-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Request a review
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Holds the App credentials and the required reviewers. Nothing below runs
+    # until a maintainer approves.
+    environment: coderabbit-review
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CODERABBIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CODERABBIT_APP_PRIVATE_KEY }}
+
+      - name: Ask CodeRabbit for a review
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # A push to an already reviewed pull request only needs the new
+          # commits looked at. Everything else starts from scratch.
+          COMMAND: ${{ github.event.action == 'synchronize' && '@coderabbitai review' || '@coderabbitai full review' }}
+        run: gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$COMMAND"
