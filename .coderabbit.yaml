@@ -1,0 +1,189 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+language: en-US
+tone_instructions: >-
+  Be direct and concise. Skip praise and preamble. State the problem, why it
+  matters, and the fix. Do not repeat what the diff already shows.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  poem: false
+  in_progress_fortune: false
+  assess_linked_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: false
+
+  auto_review:
+    # Off by design. Reviews are opt-in through the `review-ready` label, which
+    # only .github/workflows/coderabbit-gate.yml adds: immediately for members
+    # and collaborators, and for everyone else once a maintainer approves the
+    # `coderabbit-review` environment. A drive-by pull request therefore costs
+    # nothing until someone decides it is worth looking at. Removing the label
+    # stops further reviews.
+    #
+    # `description_keyword` is deliberately left unset — it would let the
+    # author of the pull request trigger a review from the description, which
+    # is exactly what this gate exists to prevent.
+    enabled: false
+    labels:
+      - review-ready
+    auto_incremental_review: true
+    # Stop re-reviewing after five commits so a labelled pull request cannot
+    # burn the quota by pushing in a loop. Re-label to resume.
+    auto_pause_after_reviewed_commits: 5
+    drafts: false
+    base_branches:
+      - master
+    ignore_title_keywords:
+      - wip
+      - "do not merge"
+
+  path_filters:
+    - "!**/package-lock.json"
+    - "!src/generated/**"
+    - "!dist/**"
+    - "!coverage/**"
+    - "!graphify-out/**"
+    - "!.claude/worktrees/**"
+    - "!docs/**/*.png"
+
+  path_instructions:
+    - path: "src/**/*.controller.ts"
+      instructions: >-
+        Every route must carry an explicit auth decision: a guard, or a
+        deliberate public marker. Flag any endpoint that is reachable without
+        authentication unless the diff shows that is intended. Request bodies
+        and params must be validated through a DTO with class-validator
+        decorators; reject raw `any` or unvalidated `@Body()`. Public,
+        write-heavy, or enumeration-prone endpoints need throttling. Do not
+        leak internals (stack traces, Prisma errors, entity ids of other
+        users) in error responses.
+    - path: "src/**/*.service.ts"
+      instructions: >-
+        Authorization belongs here as well as in the controller: verify the
+        caller actually owns or administers the organization/event being
+        touched, not just that they are logged in. Prisma queries that return
+        lists must be paginated and bounded. Every call to an external service
+        (Azure, Discord, email, location search) needs a timeout and explicit
+        error handling; a failure there must not take down the request path
+        silently. Never log tokens, emails, or other personal data.
+    - path: "src/**/dto/**/*.ts"
+      instructions: >-
+        Check that validators match what the database and the frontend
+        actually allow: string lengths, UUID versions, enum values, optional
+        vs required. A mismatch between `@IsUUID(4)` and ids produced
+        elsewhere is a real bug, not a nitpick.
+    - path: "prisma/schema.prisma"
+      instructions: >-
+        Schema changes must ship with a matching migration. Flag column drops,
+        renames, type narrowing, and new non-nullable columns without a
+        default as breaking against production data. Check that new foreign
+        keys have an explicit onDelete behaviour and that fields queried in
+        list endpoints are indexed.
+    - path: "prisma/migrations/**/*.sql"
+      instructions: >-
+        Review for production safety against a live database: destructive
+        statements, missing defaults on NOT NULL columns, and table rewrites
+        or index builds that lock writes. Migrations are applied on deploy and
+        are not reversible.
+    - path: "src/**/*.spec.ts"
+      instructions: >-
+        Tests must assert behaviour, not implementation detail. Flag tests
+        that would still pass if the feature were removed, and mocks so broad
+        that nothing real is exercised. Auth, authorization, and validation
+        paths need negative cases: wrong user, missing token, malformed input.
+    - path: ".github/workflows/**"
+      instructions: >-
+        Pin actions to a version. Flag any workflow that exposes secrets to
+        code from a fork, uses `pull_request_target` with a checkout of the
+        PR head, or interpolates untrusted input directly into a `run` block.
+    - path: "**/*.md"
+      instructions: >-
+        Prose only. Do not comment on formatting or wording preferences unless
+        the text is factually wrong or contradicts the code in the same PR.
+
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: >-
+        The title must be a Conventional Commit: `type(scope): subject`, with
+        type one of build, chore, ci, docs, feat, fix, perf, refactor, revert,
+        style, test. Subject case is not enforced. It must say what changed for
+        a user or a caller, not which file was touched.
+    description:
+      mode: warning
+    docstrings:
+      mode: off
+    custom_checks:
+      - name: PR description style
+        mode: warning
+        instructions: >-
+          Fail if the PR description contains headings, bullet lists,
+          checkboxes, emojis, or sections named Summary / Test plan /
+          Verification; if it is longer than five sentences; if it contains an
+          en dash or em dash; or if it reports test results, benchmarks,
+          commands run, or alternatives considered. The description should be
+          plain prose explaining what changed.
+      - name: Security-sensitive change
+        mode: warning
+        instructions: >-
+          Fail if the PR changes authentication, authorization, token
+          handling, rate limiting, CORS, or trusted-proxy configuration
+          without a test covering the new behaviour, or if it introduces a new
+          environment variable that is not documented in `.env.example`.
+
+  tools:
+    biome:
+      enabled: true
+    eslint:
+      enabled: false
+    oxc:
+      enabled: false
+    gitleaks:
+      enabled: true
+    semgrep:
+      enabled: true
+    prismaLint:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    osvScanner:
+      enabled: true
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+
+chat:
+  auto_reply: true
+  # Non-members cannot summon CodeRabbit with `@coderabbitai review`
+  # either, so the label is the only way in.
+  allow_non_org_members: false
+
+knowledge_base:
+  learnings:
+    scope: local
+  issues:
+    scope: local
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/CLAUDE.md"
+      - "CONTRIBUTING.md"
+      - "CONTEXT.md"
+      - "SECURITY.md"
+      - "docs/**/*.md"
+
+code_generation:
+  docstrings:
+    language: en-US
+  unit_tests:
+    language: en-US

@@ -1,0 +1,63 @@
+# CodeRabbit reviews nothing on its own. `.coderabbit.yaml` sets
+# `reviews.auto_review.enabled: false` and opts in on the `review-ready` label
+# instead, and this workflow is the only thing that adds that label: members
+# and collaborators get it straight away, everyone else gets it once a
+# maintainer approves the `coderabbit-review` environment. Spam pull requests
+# therefore never reach CodeRabbit and never count against the review quota.
+#
+# Removing the label stops further reviews on that pull request.
+name: CodeRabbit gate
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+# `pull_request_target` runs against the base branch with a writable token, so
+# it is only safe as long as the pull request's own code never runs. Nothing
+# here checks out the head, builds, or installs anything: the jobs read the
+# event payload and call the labels API. Keep it that way.
+permissions: {}
+
+# One pending approval per pull request. A new push replaces the previous
+# request rather than stacking another one on top of it.
+concurrency:
+  group: coderabbit-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  trusted:
+    # `author_association` comes from the event payload, so this costs no API
+    # call and no token permissions. OWNER, MEMBER and COLLABORATOR are the
+    # people who already have access to the repository.
+    if: >-
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'review-ready') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Open the pull request for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label review-ready
+
+  gated:
+    # Everyone else. The job does not start until a member of the environment's
+    # reviewer list approves it, and until then it sits pending and consumes no
+    # runner time.
+    if: >-
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'review-ready') &&
+      !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    runs-on: ubuntu-latest
+    environment: coderabbit-review
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Open the pull request for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label review-ready
