@@ -11,8 +11,11 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   IsUUID,
+  MaxLength,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 import { ToBoolean } from "../../../decorators/transformers";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
@@ -103,6 +106,20 @@ export class UpdateEventDto extends PartialType(
   @IsUUID(4, { each: true })
   @ApiProperty({ type: [String], required: false })
   coOrganizerOrganizationIds?: string[];
+
+  /* The edit form submits every field on every save and writes "" for the ones
+     that are empty, so a PATCH of an event without external registration
+     always carries `externalUrl: ""`. `@IsOptional()` only skips undefined and
+     null, so the inherited `@IsUrl` failed every one of those saves with a
+     400. "" is how the client says "no external URL"; the service turns it
+     into null. The scheme restriction still applies to anything non-empty -
+     JoinButton hands this value to window.open. */
+  @IsOptional()
+  @ValidateIf((dto: UpdateEventDto) => dto.externalUrl !== "")
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true })
+  @MaxLength(2048)
+  @ApiProperty()
+  externalUrl?: string;
 
   @ToBoolean()
   @IsBoolean()
