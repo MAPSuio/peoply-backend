@@ -46,6 +46,8 @@ import { CreateOrganizationDto } from "./dto/create-organization.dto";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationsService } from "./organizations.service";
+import { OrganizationAnalyticsService } from "./organization-analytics.service";
+import { OrganizationAnalyticsQueryDto } from "./dto/organization-analytics.query";
 import {
   createOrganizationCalendarIcs,
   getOrganizationCalendarFileName,
@@ -59,6 +61,7 @@ export class OrganizationsController {
     private readonly organizationInvitationsService: OrganizationInvitationsService,
     private readonly eventArrangersService: EventArrangersService,
     private readonly administrationService: AdministrationService,
+    private readonly organizationAnalyticsService: OrganizationAnalyticsService,
   ) {}
 
   @UseGuards(AuthenticatedGuard)
@@ -407,6 +410,23 @@ export class OrganizationsController {
           inviteId,
           status,
         );
+  }
+
+  /* Aggregates only — the response never carries user ids, which is what
+     makes it safe to serve to plain members while the follower list stays
+     admin/owner-only. */
+  @OrganizationRoles(
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+  )
+  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @Get(":orgId/analytics")
+  async getAnalytics(
+    @Param("orgId") orgId: string,
+    @Query() query: OrganizationAnalyticsQueryDto,
+  ) {
+    return this.organizationAnalyticsService.getAnalytics(orgId, query.period);
   }
 
   @OrganizationRoles(

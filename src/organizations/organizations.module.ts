@@ -1,6 +1,7 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { OrganizationsService } from "./organizations.service";
+import { OrganizationAnalyticsService } from "./organization-analytics.service";
 import { OrganizationsController } from "./organizations.controller";
 import { PrismaModule } from "../prisma/prisma.module";
 import { InvitationsModule } from "../invitations/invitations.module";
@@ -24,7 +25,7 @@ import { DiscordModule } from "../discord/discord.module";
     AdministrationModule,
   ],
   controllers: [OrganizationsController],
-  providers: [OrganizationsService],
+  providers: [OrganizationsService, OrganizationAnalyticsService],
   exports: [OrganizationsService],
 })
 export class OrganizationsModule {}
