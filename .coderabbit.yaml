@@ -1,12 +1,18 @@
 # yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
 language: en-US
 tone_instructions: >-
-  Be direct and concise. Skip praise and preamble. State the problem, why it
-  matters, and the fix. Do not repeat what the diff already shows.
+  Be direct. Skip praise and preamble. State the problem, why it matters, and
+  the fix, and do not repeat what the diff already shows. Say plainly when
+  something is wrong, unsafe, or will break in production rather than softening
+  it into a suggestion.
 
 reviews:
-  profile: chill
-  request_changes_workflow: false
+  # `assertive` reports more, including the nits `chill` keeps to itself.
+  profile: assertive
+  # CodeRabbit requests changes rather than commenting, and approves only once
+  # its comments are resolved.
+  request_changes_workflow: true
+  abort_on_close: true
   high_level_summary: true
   collapse_walkthrough: true
   sequence_diagrams: false
@@ -18,22 +24,10 @@ reviews:
   auto_apply_labels: false
 
   auto_review:
-    # Off by design. Reviews are opt-in through the `review-ready` label, which
-    # only .github/workflows/coderabbit-gate.yml adds: immediately for members
-    # and collaborators, and for everyone else once a maintainer approves the
-    # `coderabbit-review` environment. A drive-by pull request therefore costs
-    # nothing until someone decides it is worth looking at. Removing the label
-    # stops further reviews.
-    #
-    # `description_keyword` is deliberately left unset — it would let the
-    # author of the pull request trigger a review from the description, which
-    # is exactly what this gate exists to prevent.
-    enabled: false
-    labels:
-      - review-ready
+    enabled: true
     auto_incremental_review: true
-    # Stop re-reviewing after five commits so a labelled pull request cannot
-    # burn the quota by pushing in a loop. Re-label to resume.
+    # Stops a pull request that is being pushed to in a loop from re-reviewing
+    # itself every time. Comment `@coderabbitai review` to resume.
     auto_pause_after_reviewed_commits: 5
     drafts: false
     base_branches:
@@ -108,13 +102,15 @@ reviews:
 
   pre_merge_checks:
     title:
-      mode: warning
+      mode: error
       requirements: >-
         The title must be a Conventional Commit: `type(scope): subject`, with
         type one of build, chore, ci, docs, feat, fix, perf, refactor, revert,
         style, test. Subject case is not enforced. It must say what changed for
         a user or a caller, not which file was touched.
     description:
+      mode: error
+    issue_assessment:
       mode: warning
     docstrings:
       mode: off
@@ -129,7 +125,7 @@ reviews:
           commands run, or alternatives considered. The description should be
           plain prose explaining what changed.
       - name: Security-sensitive change
-        mode: warning
+        mode: error
         instructions: >-
           Fail if the PR changes authentication, authorization, token
           handling, rate limiting, CORS, or trusted-proxy configuration
@@ -164,8 +160,8 @@ reviews:
 
 chat:
   auto_reply: true
-  # Non-members cannot summon CodeRabbit with `@coderabbitai review`
-  # either, so the label is the only way in.
+  # Reviews run on every pull request, but only members and collaborators get
+  # to drive CodeRabbit from the comments afterwards.
   allow_non_org_members: false
 
 knowledge_base:
