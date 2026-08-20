@@ -29,7 +29,13 @@ jobs:
     # `author_association` comes from the event payload, so this costs no API
     # call and no token permissions. OWNER, MEMBER and COLLABORATOR are the
     # people who already have access to the repository.
+    #
+    # `synchronize` is excluded here on purpose. Without it, a maintainer who
+    # takes the label off to stop the reviews would get it put straight back
+    # on by their next push. The `gated` job keeps `synchronize` so that a new
+    # push to an outside pull request asks for approval again.
     if: >-
+      github.event.action != 'synchronize' &&
       !github.event.pull_request.draft &&
       !contains(github.event.pull_request.labels.*.name, 'review-ready') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)

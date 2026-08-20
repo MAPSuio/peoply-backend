@@ -164,8 +164,10 @@ reviews:
 
 chat:
   auto_reply: true
-  # Non-members cannot summon CodeRabbit with `@coderabbitai review`
-  # either, so the label is the only way in.
+  # Stops drive-by accounts from summoning CodeRabbit with `@coderabbitai
+  # review`, which would sidestep the label. Members and collaborators can
+  # still trigger a review by hand, and that is deliberate: they are the
+  # people the gate lets through anyway.
   allow_non_org_members: false
 
 knowledge_base:
