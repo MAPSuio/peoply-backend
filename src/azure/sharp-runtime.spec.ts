@@ -9,7 +9,7 @@ describe("sharp runtime", () => {
     });
   });
 
-  it("decodes one image at a time", () => {
+  it("gives libvips one thread per image", () => {
     expect(sharp.concurrency()).toBe(1);
   });
 });
