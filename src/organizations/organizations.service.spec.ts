@@ -4,6 +4,7 @@ describe("OrganizationsService", () => {
   const prisma = {
     organization: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
     organizationReport: {
@@ -44,6 +45,37 @@ describe("OrganizationsService", () => {
       azureStorageService as any,
       discordAlert as any,
     );
+  });
+
+  describe("findByRefOrThrow", () => {
+    const storedOrganization = {
+      id: "3f2b8c1a-4d5e-4f6a-8b9c-0d1e2f3a4b5c",
+      name: "MAPS",
+      _count: { organizationRoles: 2 },
+    };
+
+    it("answers the member count without exposing the member rows", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce(storedOrganization);
+
+      const organization = await service.findByRefOrThrow(
+        storedOrganization.id,
+      );
+
+      expect(organization.memberCount).toBe(2);
+      expect(organization).not.toHaveProperty("_count");
+      expect(organization).not.toHaveProperty("organizationRoles");
+    });
+
+    it("counts members when looked up by urlId too", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        ...storedOrganization,
+        urlId: "MAPSUIO",
+      });
+
+      const organization = await service.findByRefOrThrow("MAPSUIO");
+
+      expect(organization.memberCount).toBe(2);
+    });
   });
 
   it("sends organization reports to Discord with everyone mention", async () => {
