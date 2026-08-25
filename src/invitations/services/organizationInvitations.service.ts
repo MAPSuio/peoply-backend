@@ -12,6 +12,7 @@ import { CreateOrganizationInvitationDto } from "../dto/create-organizationInvit
 import { createUuid, isUUID } from "../../util/uuid";
 import { MAX_INVITATIONS_PER_REQUEST } from "../invitations.constants";
 import { OrganizationInvitationDoesNotExistException } from "../exceptions/organizationInvitationDoesNotExistException.exception";
+import { ALL_ROWS } from "../../util/pagination";
 
 /**
  * How long a pending organization invitation stays acceptable.
@@ -129,6 +130,7 @@ export class OrganizationInvitationsService {
 
     const invitations = await this.prisma.$transaction(async (trx) => {
       const usersWithExistingRoles = await trx.userOrganizationRole.findMany({
+        take: ALL_ROWS,
         where: {
           organizationId,
           userId: {

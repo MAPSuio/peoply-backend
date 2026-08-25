@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { ALL_ROWS } from "../../util/pagination";
 
 export type PublicEventsOptions = {
   fromDate?: Date;
@@ -120,6 +121,7 @@ export class EventArrangersService {
     ]);
 
     const rows = await this.prismaService.eventArranger.findMany({
+      take: ALL_ROWS,
       where: {
         arrangerId: {
           in: [...myArrangerIds],

@@ -31,6 +31,7 @@ import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
 import { PUBLIC_USER_PROFILE_SELECT } from "../user.select";
+import { ALL_ROWS } from "../../util/pagination";
 
 /**
  * Upper bound on the number of rows a name search may load for in-memory
@@ -666,6 +667,7 @@ export class UsersService {
     userId: string,
   ) {
     const ownedOrganizations = await trx.userOrganizationRole.findMany({
+      take: ALL_ROWS,
       where: { userId, role: OrganizationRole.OWNER },
       select: { organizationId: true },
     });
@@ -676,6 +678,7 @@ export class UsersService {
          declaration order in the schema (ADMIN, MEMBER) rather than on the
          alphabet - hence the explicit find below rather than taking [0]. */
       const candidates = await trx.userOrganizationRole.findMany({
+        take: ALL_ROWS,
         where: { organizationId, userId: { not: userId } },
         select: { userId: true, role: true },
         orderBy: { createdAt: "asc" },

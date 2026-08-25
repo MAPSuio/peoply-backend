@@ -17,6 +17,7 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
+import { ALL_ROWS } from "../../util/pagination";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -185,6 +186,7 @@ export class UserRegistrationService extends CommonRegistrationService {
    */
   async updateAllRegistrationsOfUserToNotGoing(userId: string) {
     const registrations = await this.prismaService.registration.findMany({
+      take: ALL_ROWS,
       where: {
         userId,
         regStatus: { in: [RegStatus.GOING, RegStatus.WAITLISTED] },
@@ -229,6 +231,7 @@ export class UserRegistrationService extends CommonRegistrationService {
 
   async getPositionInWaitlist(eventId: string, userId: string) {
     const registrations = await this.prismaService.registration.findMany({
+      take: ALL_ROWS,
       where: {
         eventId,
         regStatus: RegStatus.WAITLISTED,

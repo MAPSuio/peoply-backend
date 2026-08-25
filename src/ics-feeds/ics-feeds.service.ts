@@ -23,6 +23,7 @@ import { IcsParserService, ParsedIcsEvent } from "./ics-parser.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
 import { escapeHtml } from "../util/html";
 import { createUuid } from "../util/uuid";
+import { ALL_ROWS } from "../util/pagination";
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 60;
 const LOCK_TTL_MS = 30 * 60 * 1000;
@@ -401,6 +402,7 @@ export class IcsFeedsService {
     html: string,
   ) {
     const recipients = await this.prisma.userOrganizationRole.findMany({
+      take: ALL_ROWS,
       where: {
         organizationId,
         role: {
