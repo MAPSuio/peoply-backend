@@ -79,3 +79,55 @@ runTest("starts production without a wrapper process", () => {
 
   assert.strictEqual(scripts.start, "node dist/src/main.js");
 });
+
+function packageNameOf(specifier) {
+  const segments = specifier.split("/");
+  return specifier.startsWith("@")
+    ? segments.slice(0, 2).join("/")
+    : segments[0];
+}
+
+function runtimeSourceFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return runtimeSourceFiles(entryPath);
+    const isTest = entry.name.endsWith(".spec.ts");
+    return entry.name.endsWith(".ts") && !isTest ? [entryPath] : [];
+  });
+}
+
+function devDependenciesImportedByRuntimeCode(projectRoot) {
+  const { devDependencies } = JSON.parse(
+    fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"),
+  );
+  const importPattern = /(?:from|require\()\s*["']([^"']+)["']/g;
+
+  return runtimeSourceFiles(path.join(projectRoot, "src")).flatMap((file) => {
+    const source = fs.readFileSync(file, "utf8");
+    return [...source.matchAll(importPattern)]
+      .map((match) => match[1])
+      .filter(
+        (specifier) =>
+          !specifier.startsWith(".") && !specifier.startsWith("node:"),
+      )
+      .map(packageNameOf)
+      .filter((name) => name in devDependencies)
+      .map((name) => `${name} imported by ${path.relative(projectRoot, file)}`);
+  });
+}
+
+runTest("no runtime source imports a dev dependency", () => {
+  const projectRoot = path.resolve(__dirname, "..");
+
+  assert.deepStrictEqual(devDependenciesImportedByRuntimeCode(projectRoot), []);
+});
+
+runTest("the production build drops dev dependencies from the image", () => {
+  const packageJsonPath = path.resolve(__dirname, "..", "package.json");
+  const { scripts } = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+
+  assert.strictEqual(
+    scripts["build:prod"],
+    "npm run build && npm prune --omit=dev",
+  );
+});

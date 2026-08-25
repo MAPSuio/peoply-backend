@@ -16,6 +16,7 @@
     "prebuild": "rimraf dist",
     "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
+    "build:prod": "npm run build && npm prune --omit=dev",
     "images:downscale": "node dist/scripts/downscale-stored-images.js",
     "predeploy:prod": "npm run prisma:deploy && node dist/prisma/seed.js",
     "format": "biome format --write",
