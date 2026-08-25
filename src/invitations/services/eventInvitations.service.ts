@@ -13,6 +13,7 @@ import { UserRegistrationService } from "../../registrations/services";
 import { assertRegistrationWindowOpen } from "../../registrations/registration-window";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { createUuid } from "../../util/uuid";
+import { ALL_ROWS } from "../../util/pagination";
 
 @Injectable()
 export class EventInvitationsService {
@@ -173,6 +174,7 @@ export class EventInvitationsService {
       assertRegistrationWindowOpen(event);
 
       const existingRegs = await trx.registration.findMany({
+        take: ALL_ROWS,
         where: {
           eventId,
           userId: {

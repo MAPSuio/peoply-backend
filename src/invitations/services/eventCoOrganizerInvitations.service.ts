@@ -6,6 +6,7 @@ import {
 } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
+import { ALL_ROWS } from "../../util/pagination";
 
 /**
  * Organization roles that may answer a co-organizer invitation.
@@ -85,6 +86,7 @@ export class EventCoOrganizerInvitationsService {
    */
   async findAllPendingForUser(userId: string) {
     const roles = await this.prisma.userOrganizationRole.findMany({
+      take: ALL_ROWS,
       where: { userId, role: { in: CO_ORGANIZER_RESPONDER_ROLES } },
       select: { organizationId: true },
     });

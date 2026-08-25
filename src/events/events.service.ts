@@ -37,6 +37,7 @@ import { AzureCommunicationService } from "../azure/azure-communication.service"
 import { createUuid, isUUID } from "../util/uuid";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventAccessService } from "../event-access/event-access.service";
+import { ALL_ROWS } from "../util/pagination";
 
 /**
  * How many email-bearing updates one event may send in a rolling 24 hours.
@@ -483,6 +484,7 @@ export class EventsService {
         select: { arrangerId: true },
       }),
       this.prisma.eventArranger.findMany({
+        take: ALL_ROWS,
         where: { eventId, role: EventArrangerRole.ADMIN },
         select: { arrangerId: true },
       }),
@@ -752,6 +754,7 @@ export class EventsService {
 
       const registrations = (
         await this.prisma.registration.findMany({
+          take: ALL_ROWS,
           where: { eventId, regStatus: RegStatus.GOING },
           include: {
             user: true,

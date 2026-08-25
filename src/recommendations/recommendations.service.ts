@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
 import { EventVisibility, RegStatus } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { ALL_ROWS } from "../util/pagination";
 
 /**
  * Content-based recommendations.
@@ -199,6 +200,7 @@ export class RecommendationsService {
         select: { arrangerId: true },
       }),
       this.prisma.userOrganizationRole.findMany({
+        take: ALL_ROWS,
         where: { userId },
         select: { organization: { select: { arrangerId: true } } },
       }),

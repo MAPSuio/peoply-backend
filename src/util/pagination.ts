@@ -14,3 +14,24 @@
  * and land the client change first.
  */
 export const MAX_PAGE_SIZE = 500;
+
+/**
+ * `take` for a query whose answer is only correct if it returns every matching
+ * row. Prisma reads a missing `take` and this as the same thing, so it changes
+ * no behaviour: it exists so the decision is written down at the call site
+ * rather than inferred from an absence, and so the query bound test can tell a
+ * deliberate choice from an oversight.
+ */
+export const ALL_ROWS = undefined;
+
+/**
+ * Models whose rows are what grant a user access to something. A truncated
+ * read of one of these does not answer slowly, it answers wrongly: the member
+ * past the limit stops being an admin, and the registration past it stops
+ * granting the view it paid for.
+ */
+export const MODELS_WHOSE_ROWS_GRANT_ACCESS = [
+  "userOrganizationRole",
+  "eventArranger",
+  "registration",
+] as const;

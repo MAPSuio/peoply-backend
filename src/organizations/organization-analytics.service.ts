@@ -12,6 +12,7 @@ import {
   AnalyticsPeriod,
   DEFAULT_ANALYTICS_PERIOD,
 } from "./dto/organization-analytics.query";
+import { ALL_ROWS } from "../util/pagination";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const FIXED_NET_WINDOW_DAYS = 30;
@@ -446,6 +447,7 @@ export class OrganizationAnalyticsService {
       return [];
     }
     return this.prisma.registration.findMany({
+      take: ALL_ROWS,
       where: {
         eventId: { in: events.map((event) => event.id) },
         regStatus: {

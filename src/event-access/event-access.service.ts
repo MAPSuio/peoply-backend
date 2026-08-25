@@ -8,6 +8,7 @@ import {
 } from "../generated/prisma/client";
 import { EventNotFoundException } from "../events/exceptions";
 import { PrismaService } from "../prisma/prisma.service";
+import { ALL_ROWS } from "../util/pagination";
 
 /** The event a route points at. `id` wins when both are present. */
 export type EventRef = { id?: string; urlId?: string };
@@ -83,6 +84,7 @@ export class EventAccessService {
     /* One set-based query instead of one organization lookup per arranger.
        Arrangers that are individuals simply match no organization row. */
     const memberships = await this.prisma.userOrganizationRole.findMany({
+      take: ALL_ROWS,
       where: {
         userId: user.id,
         role: { in: opts.orgRoles },
@@ -183,6 +185,7 @@ export class EventAccessService {
 
     const [arranged, registered] = await Promise.all([
       this.prisma.eventArranger.findMany({
+        take: ALL_ROWS,
         where: {
           eventId: { in: eventIds },
           arranger: { user: { id: userId } },
@@ -190,6 +193,7 @@ export class EventAccessService {
         select: { eventId: true },
       }),
       this.prisma.registration.findMany({
+        take: ALL_ROWS,
         where: {
           eventId: { in: eventIds },
           userId,
