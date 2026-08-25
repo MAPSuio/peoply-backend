@@ -11,6 +11,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { BROWSER_CACHE_TTL, BrowserCacheFor } from "../util/browser-cache";
 import { AuthenticatedGuard } from "../auth/guards";
 import { AdministrationService } from "../administration/administration.service";
 import { CreatePopupDto } from "./dto/create-popup.dto";
@@ -25,6 +26,7 @@ export class PopupsController {
   ) {}
 
   @Get("active")
+  @BrowserCacheFor(BROWSER_CACHE_TTL.scheduledContent)
   findActive() {
     return this.popupsService.findActive();
   }
