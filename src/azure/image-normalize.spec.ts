@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp from "./sharp-runtime";
 import {
   ImageTooLargeError,
   MAX_IMAGE_EDGE_PX,

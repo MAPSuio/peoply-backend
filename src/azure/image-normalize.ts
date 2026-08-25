@@ -1,4 +1,4 @@
-import sharp, { type Metadata } from "sharp";
+import sharp, { type Metadata } from "./sharp-runtime";
 
 /**
  * Longest edge, in pixels, that a stored image is allowed to have.

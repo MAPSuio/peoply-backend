@@ -12,7 +12,8 @@
       "src/**/*.ts",
       "decorators/**/*.ts",
       "test/**/*.ts",
-      "scripts/**/*.js"
+      "scripts/**/*.js",
+      "scripts/**/*.ts"
     ]
   },
   "formatter": {
@@ -39,6 +40,14 @@
     "rules": {
       "recommended": true,
       "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "sharp": "Import the sharp-runtime module instead. A direct import skips the cache and concurrency limits the 512 MB container depends on."
+            }
+          }
+        },
         // tsconfig sets emitDecoratorMetadata. Rewriting an injected import
         // to `import type` erases the runtime value Nest resolves against,
         // which breaks dependency injection at startup.
@@ -55,6 +64,18 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["src/azure/sharp-runtime.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "actions": {
       "source": {

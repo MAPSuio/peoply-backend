@@ -22,7 +22,7 @@
     "dev": "node scripts/run-dev.js",
     "dev:raw": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start": "node scripts/run-start.js",
+    "start": "node dist/src/main.js",
     "start:dev-db": "cd dev-db && sudo make start",
     "stop:dev-db": "cd dev-db && sudo make stop",
     "restart:dev-db": "cd dev-db && sudo make restart",

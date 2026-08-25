@@ -3,8 +3,8 @@ import {
   ContainerClient,
   StorageSharedKeyCredential,
 } from "@azure/storage-blob";
-import sharp from "sharp";
 import { AzureStorageContainer } from "../src/azure/azure-storage.constants";
+import sharp from "../src/azure/sharp-runtime";
 import { needsDownscaling, normalizeImage } from "../src/azure/image-normalize";
 
 /**
@@ -51,13 +51,6 @@ const LIMIT = Number(
  * inside the limit, and this is what keeps those off the wire entirely.
  */
 const HEADER_BYTES = 64 * 1024;
-
-/* libvips keeps decoded operations in a cache and parallelises across cores.
- * Neither helps a job that touches each image once, and both cost memory that
- * this may not have: a console session shares the 512 MB service container,
- * and the run that died mid-dry-run died on exactly that. */
-sharp.cache(false);
-sharp.concurrency(1);
 
 /**
  * Rewrites images that were stored before uploads were bounded.
@@ -147,7 +140,9 @@ async function dimensionsFromHeader(
 ) {
   try {
     const header = await readBlob(container, blobName, HEADER_BYTES);
-    const metadata = await sharp(header, { limitInputPixels: false }).metadata();
+    const metadata = await sharp(header, {
+      limitInputPixels: false,
+    }).metadata();
 
     if (!metadata.width || !metadata.height) {
       return null;
@@ -290,7 +285,12 @@ async function downscaleContainer(
     totals.inspected += 1;
 
     try {
-      record(totals, containerName, blob.name, await downscaleBlob(container, blob.name));
+      record(
+        totals,
+        containerName,
+        blob.name,
+        await downscaleBlob(container, blob.name),
+      );
     } catch (error) {
       recordFailure(totals, containerName, blob.name, error);
     }
@@ -339,7 +339,9 @@ async function main() {
   }
 
   if (totals.rewritten > 0) {
-    console.log(`Storage: ${kB(totals.bytesBefore)} -> ${kB(totals.bytesAfter)}`);
+    console.log(
+      `Storage: ${kB(totals.bytesBefore)} -> ${kB(totals.bytesAfter)}`,
+    );
   }
 
   if (totals.failed > 0) {
