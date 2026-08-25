@@ -163,17 +163,23 @@ export class OrganizationsService {
     });
   }
 
-  /** Looks an organization up by id or urlId, and 404s when it is missing. */
+  /** Looks an organization up by id or urlId, and 404s when it is missing.
+      Carries `memberCount` as an aggregate so the public organization page can
+      show it without access to the member list itself. */
   async findByRefOrThrow(orgIdOrUrlId: string) {
-    const org = isUUID(orgIdOrUrlId)
-      ? await this.findOne(orgIdOrUrlId)
-      : await this.findOneByUrlId(orgIdOrUrlId);
+    const org = await this.prisma.organization.findUnique({
+      where: isUUID(orgIdOrUrlId)
+        ? { id: orgIdOrUrlId }
+        : { urlId: orgIdOrUrlId },
+      include: { _count: { select: { organizationRoles: true } } },
+    });
 
     if (!org) {
       throw new OrganizationDoesNotExistException(orgIdOrUrlId);
     }
 
-    return org;
+    const { _count, ...organization } = org;
+    return { ...organization, memberCount: _count.organizationRoles };
   }
 
   async update(
