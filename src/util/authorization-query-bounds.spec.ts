@@ -28,6 +28,28 @@ function argumentsOfCallAt(source: string, openingParenthesis: number): string {
   return source.slice(openingParenthesis);
 }
 
+/**
+ * A `take` inside a nested relation bounds that relation, not the query, so
+ * only a `take` property of the outer options object counts as the decision.
+ */
+function statesARowBoundOnTheOuterOptions(callArguments: string): boolean {
+  let braceDepth = 0;
+
+  for (let cursor = 0; cursor < callArguments.length; cursor++) {
+    if (callArguments[cursor] === "{") braceDepth++;
+    if (callArguments[cursor] === "}") braceDepth--;
+
+    const isPropertyOfOuterObject =
+      braceDepth === 1 &&
+      /^[\s,{]$/.test(callArguments[cursor]) &&
+      /^\s*take\s*[:,}]/.test(callArguments.slice(cursor + 1));
+
+    if (isPropertyOfOuterObject) return true;
+  }
+
+  return false;
+}
+
 function accessQueriesWithoutARowBound(): string[] {
   const guarded = new Set<string>(MODELS_WHOSE_ROWS_GRANT_ACCESS);
   const callPattern = /\.(\w+)\.findMany\(/g;
@@ -39,8 +61,8 @@ function accessQueriesWithoutARowBound(): string[] {
       .filter((call) => guarded.has(call[1]))
       .filter(
         (call) =>
-          !argumentsOfCallAt(source, call.index + call[0].length - 1).includes(
-            "take",
+          !statesARowBoundOnTheOuterOptions(
+            argumentsOfCallAt(source, call.index + call[0].length - 1),
           ),
       )
       .map((call) => {
@@ -49,6 +71,34 @@ function accessQueriesWithoutARowBound(): string[] {
       });
   });
 }
+
+describe("recognising the row bound decision", () => {
+  it("accepts a take on the outer options object", () => {
+    expect(
+      statesARowBoundOnTheOuterOptions("({ take: ALL_ROWS, where: { id } })"),
+    ).toBe(true);
+  });
+
+  it("rejects a take that only bounds a nested relation", () => {
+    expect(
+      statesARowBoundOnTheOuterOptions(
+        "({ where: { id }, include: { members: { take: 5 } } })",
+      ),
+    ).toBe(false);
+  });
+
+  it("accepts the shorthand property form", () => {
+    expect(
+      statesARowBoundOnTheOuterOptions("({ where: { eventId }, skip, take })"),
+    ).toBe(true);
+  });
+
+  it("rejects a where field that merely starts with the word take", () => {
+    expect(
+      statesARowBoundOnTheOuterOptions("({ where: { takenBy: userId } })"),
+    ).toBe(false);
+  });
+});
 
 describe("queries on models whose rows grant access", () => {
   it("all state a row bound, so no access decision is silently truncated", () => {
