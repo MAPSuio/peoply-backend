@@ -2,11 +2,11 @@ import sharp from "sharp";
 
 export type { Metadata } from "sharp";
 
-function releaseDecodedImagesInsteadOfCachingThem() {
+function limitMemoryHeldByImageDecoding() {
   sharp.cache(false);
   sharp.concurrency(1);
 }
 
-releaseDecodedImagesInsteadOfCachingThem();
+limitMemoryHeldByImageDecoding();
 
 export default sharp;
