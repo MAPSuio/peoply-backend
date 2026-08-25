@@ -45,10 +45,10 @@ jobs:
       #
       # Pointing at a closed port means reintroducing that dependency fails on
       # the pull request rather than after the merge.
-      - name: Build (must not need a database)
+      - name: Build and drop dev dependencies (must not need a database)
         env:
           DATABASE_URL: postgresql://unused:unused@127.0.0.1:1/unused
-        run: npm run build
+        run: npm run build:prod
 
       - name: Apply database migrations
         run: npm run prisma:deploy
