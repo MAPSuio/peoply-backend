@@ -100,12 +100,13 @@ function devDependenciesImportedByRuntimeCode(projectRoot) {
   const { devDependencies } = JSON.parse(
     fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"),
   );
-  const importPattern = /(?:from|require\()\s*["']([^"']+)["']/g;
+  const importPattern =
+    /(?:from|\bimport\s*\(|\brequire\s*(?:\.resolve)?\s*\()\s*["']([^"']+)["']|^\s*import\s*["']([^"']+)["']/gm;
 
   return runtimeSourceFiles(path.join(projectRoot, "src")).flatMap((file) => {
     const source = fs.readFileSync(file, "utf8");
     return [...source.matchAll(importPattern)]
-      .map((match) => match[1])
+      .map((match) => match[1] ?? match[2])
       .filter(
         (specifier) =>
           !specifier.startsWith(".") && !specifier.startsWith("node:"),
