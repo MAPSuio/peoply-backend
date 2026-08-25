@@ -110,20 +110,19 @@ reviews:
         a user or a caller, not which file was touched.
     description:
       mode: error
+      requirements: >-
+        The description must be plain prose explaining what changed, and why
+        only where that is not obvious from the diff. Fail if it contains
+        headings, bullet lists, checkboxes, emojis, or sections named
+        Description / Summary / Test plan / Verification / PR checklist; if it
+        is longer than five sentences; if it contains an en dash or em dash; or
+        if it reports test results, benchmarks, commands run, or alternatives
+        considered. Do not require the repository pull request template.
     issue_assessment:
       mode: warning
     docstrings:
       mode: off
     custom_checks:
-      - name: PR description style
-        mode: warning
-        instructions: >-
-          Fail if the PR description contains headings, bullet lists,
-          checkboxes, emojis, or sections named Summary / Test plan /
-          Verification; if it is longer than five sentences; if it contains an
-          en dash or em dash; or if it reports test results, benchmarks,
-          commands run, or alternatives considered. The description should be
-          plain prose explaining what changed.
       - name: Security-sensitive change
         mode: error
         instructions: >-
