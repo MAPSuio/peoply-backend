@@ -54,6 +54,10 @@ describe("OrganizationsService", () => {
       _count: { organizationRoles: 2 },
     };
 
+    const memberCountAggregate = {
+      _count: { select: { organizationRoles: true } },
+    };
+
     it("answers the member count without exposing the member rows", async () => {
       prisma.organization.findUnique.mockResolvedValueOnce(storedOrganization);
 
@@ -61,6 +65,10 @@ describe("OrganizationsService", () => {
         storedOrganization.id,
       );
 
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+        where: { id: storedOrganization.id },
+        include: memberCountAggregate,
+      });
       expect(organization.memberCount).toBe(2);
       expect(organization).not.toHaveProperty("_count");
       expect(organization).not.toHaveProperty("organizationRoles");
@@ -74,6 +82,10 @@ describe("OrganizationsService", () => {
 
       const organization = await service.findByRefOrThrow("MAPSUIO");
 
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+        where: { urlId: "MAPSUIO" },
+        include: memberCountAggregate,
+      });
       expect(organization.memberCount).toBe(2);
     });
   });
