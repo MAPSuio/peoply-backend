@@ -110,17 +110,20 @@ export class AzureStorageService
     return {
       url: blockBlobClient.url,
       colors: containerStoresBrandColors(containerName)
-        ? await this.readColorsQuietly(image.buffer, fileName)
+        ? await this.readColorsQuietly(image.buffer, containerName)
         : null,
     };
   }
 
-  private async readColorsQuietly(image: Buffer, fileName: string) {
+  private async readColorsQuietly(
+    image: Buffer,
+    containerName: AzureStorageContainer,
+  ) {
     try {
       return await readBrandColors(image);
     } catch (error) {
       this.logger.warn(
-        `Could not read the colors of ${fileName}: ${
+        `Could not read the colors of an image in ${containerName}: ${
           error instanceof Error ? error.message : error
         }`,
       );

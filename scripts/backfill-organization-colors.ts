@@ -1,17 +1,19 @@
 import { readBrandColors } from "../src/azure/image-colors";
-import { createPrismaAdapter } from "../src/prisma/prisma.adapter";
 import { PrismaClient } from "../src/generated/prisma/client";
+import {
+  type BackfillTally,
+  type ColorableOrganization,
+  type OrganizationStore,
+  organizationsLeftToColor,
+  parseLimit,
+  storeColorsIfImageUnchanged,
+  summarize,
+} from "../src/organizations/organization-color-backfill";
+import { createPrismaAdapter } from "../src/prisma/prisma.adapter";
 
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 const RETRY_DELAY_MS = 2_000;
 const MAX_ATTEMPTS = 3;
-
-const LIMIT = Number(
-  process.argv
-    .find((argument) => argument.startsWith("--limit="))
-    ?.split("=")[1] ?? Number.POSITIVE_INFINITY,
-);
-const DRY_RUN = process.argv.includes("--dry-run");
 
 const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -37,60 +39,63 @@ async function downloadImage(url: string) {
   throw lastError;
 }
 
-async function main() {
-  const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
+async function colorOne(
+  organizations: OrganizationStore,
+  organization: ColorableOrganization,
+  dryRun: boolean,
+): Promise<keyof BackfillTally> {
+  const image = await downloadImage(organization.image as string);
+  const colors = await readBrandColors(image);
 
-  const pending = await prisma.organization.findMany({
-    where: { image: { not: null }, imagePrimaryColor: null },
-    select: { id: true, name: true, image: true },
-    orderBy: { id: "asc" },
-    take: Number.isFinite(LIMIT) ? LIMIT : undefined,
-  });
-
-  console.log(`${pending.length} organizations without colors`);
-
-  let written = 0;
-  let colorless = 0;
-  let failed = 0;
-
-  for (const organization of pending) {
-    try {
-      const image = await downloadImage(organization.image as string);
-      const colors = await readBrandColors(image);
-
-      if (!colors) {
-        colorless++;
-        console.log(`${organization.name}: no color in the picture, skipping`);
-        continue;
-      }
-
-      if (!DRY_RUN) {
-        await prisma.organization.update({
-          where: { id: organization.id },
-          data: {
-            imagePrimaryColor: colors.primary,
-            imageAccentColor: colors.accent,
-          },
-        });
-      }
-
-      written++;
-      console.log(
-        `${organization.name}: ${colors.primary} ${colors.accent ?? "(no accent)"}`,
-      );
-    } catch (error) {
-      failed++;
-      console.error(
-        `${organization.name}: ${error instanceof Error ? error.message : error}`,
-      );
-    }
+  if (!colors) {
+    console.log(`${organization.name}: no color in the picture, skipping`);
+    return "colorless";
   }
 
-  console.log(
-    `${DRY_RUN ? "would write" : "wrote"} ${written}, colorless ${colorless}, failed ${failed}`,
-  );
-  await prisma.$disconnect();
-  if (failed > 0) process.exitCode = 1;
+  const found = `${colors.primary} ${colors.accent ?? "(no accent)"}`;
+
+  if (dryRun) {
+    console.log(`${organization.name}: ${found}`);
+    return "written";
+  }
+
+  if (
+    !(await storeColorsIfImageUnchanged(organizations, organization, colors))
+  ) {
+    console.log(`${organization.name}: logo changed mid-run, leaving it alone`);
+    return "colorless";
+  }
+
+  console.log(`${organization.name}: ${found}`);
+  return "written";
+}
+
+async function main() {
+  const limit = parseLimit(process.argv);
+  const dryRun = process.argv.includes("--dry-run");
+  const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
+  const tally: BackfillTally = { written: 0, colorless: 0, failed: 0 };
+
+  try {
+    const pending = await organizationsLeftToColor(prisma.organization, limit);
+    console.log(`${pending.length} organizations without colors`);
+
+    for (const organization of pending) {
+      try {
+        tally[await colorOne(prisma.organization, organization, dryRun)]++;
+      } catch (error) {
+        tally.failed++;
+        console.error(
+          `${organization.name}: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+
+  console.log(summarize(tally, dryRun));
+  if (tally.failed > 0) process.exitCode = 1;
 }
 
 void main();

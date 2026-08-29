@@ -98,7 +98,7 @@ function toHex(color: Rgb) {
   return `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-export function getBrandColorsFromPixels(
+function getBrandColorsFromPixels(
   pixels: Buffer,
   channels: number,
 ): BrandColors | null {
