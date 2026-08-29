@@ -25,6 +25,14 @@ describe("parseLimit", () => {
   it("refuses a fractional limit", () => {
     expect(() => parseLimit(["--limit=2.5"])).toThrow(/--limit/);
   });
+
+  it("refuses an empty limit rather than reading it as none", () => {
+    expect(() => parseLimit(["--limit="])).toThrow(/--limit/);
+  });
+
+  it("refuses a limit with something appended to it", () => {
+    expect(() => parseLimit(["--limit=1=extra"])).toThrow(/--limit/);
+  });
 });
 
 describe("organizationsLeftToColor", () => {

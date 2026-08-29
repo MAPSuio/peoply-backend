@@ -11,6 +11,7 @@ const OPAQUE_ENOUGH_ALPHA = 128;
 const MIN_CHROMA = 0.15;
 const DISTINCT_HUE_DEGREES = 30;
 const MAX_DECODED_PIXELS = 100_000_000;
+const RGBA_CHANNELS = 4;
 
 interface ColorBucket {
   index: number;
@@ -54,11 +55,15 @@ function bucketIndexOf([red, green, blue]: Rgb) {
   );
 }
 
-function countColorfulPixelsPerBucket(pixels: Buffer, channels: number) {
+function countColorfulPixelsPerBucket(pixels: Buffer) {
   const buckets = new Map<number, ColorBucket>();
 
-  for (let offset = 0; offset + channels <= pixels.length; offset += channels) {
-    if (channels === 4 && pixels[offset + 3] < OPAQUE_ENOUGH_ALPHA) continue;
+  for (
+    let offset = 0;
+    offset + RGBA_CHANNELS <= pixels.length;
+    offset += RGBA_CHANNELS
+  ) {
+    if (pixels[offset + 3] < OPAQUE_ENOUGH_ALPHA) continue;
 
     const color: Rgb = [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
     if (chromaOf(color) < MIN_CHROMA) continue;
@@ -98,11 +103,8 @@ function toHex(color: Rgb) {
   return `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function getBrandColorsFromPixels(
-  pixels: Buffer,
-  channels: number,
-): BrandColors | null {
-  const ranked = countColorfulPixelsPerBucket(pixels, channels)
+function getBrandColorsFromPixels(pixels: Buffer): BrandColors | null {
+  const ranked = countColorfulPixelsPerBucket(pixels)
     .sort(byPixelCountThenBucketIndex)
     .map(averageColorOf);
 
@@ -122,11 +124,11 @@ function getBrandColorsFromPixels(
 export async function readBrandColors(
   image: Buffer,
 ): Promise<BrandColors | null> {
-  const { data, info } = await sharp(image, {
-    limitInputPixels: MAX_DECODED_PIXELS,
-  })
+  const pixels = await sharp(image, { limitInputPixels: MAX_DECODED_PIXELS })
+    .toColourspace("srgb")
+    .ensureAlpha()
     .raw()
-    .toBuffer({ resolveWithObject: true });
+    .toBuffer();
 
-  return getBrandColorsFromPixels(data, info.channels);
+  return getBrandColorsFromPixels(pixels);
 }

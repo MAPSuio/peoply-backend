@@ -120,6 +120,32 @@ describe("readBrandColors", () => {
     expect(colors?.primary).toBe("#00c3c3");
   });
 
+  it("reads a picture stored without an alpha channel", async () => {
+    const image = await sharp(
+      Buffer.from(
+        '<svg width="200" height="200"><rect width="200" height="200" fill="#ffffff" /><rect width="60" height="200" fill="#0051f1" /></svg>',
+      ),
+    )
+      .removeAlpha()
+      .png()
+      .toBuffer();
+
+    expect((await readBrandColors(image))?.primary).toBe("#0051f1");
+  });
+
+  it("gives nothing back for a picture decoded as a single grey channel", async () => {
+    const image = await sharp(
+      Buffer.from(
+        '<svg width="200" height="200"><rect width="200" height="200" fill="#ffffff" /><rect width="60" height="200" fill="#0051f1" /></svg>',
+      ),
+    )
+      .toColourspace("b-w")
+      .png()
+      .toBuffer();
+
+    expect(await readBrandColors(image)).toBeNull();
+  });
+
   it("refuses a picture that is not an image at all", async () => {
     await expect(
       readBrandColors(Buffer.from("not an image")),

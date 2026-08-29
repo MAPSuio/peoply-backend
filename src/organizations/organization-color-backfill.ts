@@ -16,14 +16,13 @@ export interface BackfillTally {
 }
 
 export function parseLimit(argv: string[]) {
-  const given = argv
-    .find((argument) => argument.startsWith("--limit="))
-    ?.split("=")[1];
+  const argument = argv.find((candidate) => candidate.startsWith("--limit="));
 
-  if (given === undefined) return Number.POSITIVE_INFINITY;
+  if (argument === undefined) return Number.POSITIVE_INFINITY;
 
+  const given = argument.slice("--limit=".length);
   const limit = Number(given);
-  if (!Number.isSafeInteger(limit) || limit < 0) {
+  if (!/^\d+$/.test(given) || !Number.isSafeInteger(limit)) {
     throw new Error(
       `--limit must be a non-negative whole number, got "${given}"`,
     );
