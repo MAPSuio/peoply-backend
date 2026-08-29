@@ -25,6 +25,7 @@ import { calculateEditDistance } from "../util/string";
 import { createUuid, isUUID } from "../util/uuid";
 import { DiscordAlertService } from "../discord/discord-alert.service";
 import { toDiscordFieldValue } from "../discord/discord-field";
+import { organizationImageColumns } from "./organization-image-columns";
 
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
 const ORGANIZATION_SOCIAL_LINK_FIELDS = [
@@ -229,9 +230,9 @@ export class OrganizationsService {
       }
     }
 
-    /* new filename if an image is provided, null if removeImage, and undefined
-       if the column should be left alone */
-    const imageFileName = await this.azureStorageService.swapImage({
+    /* the new image and its colors if one is provided, nulls if removeImage,
+       and undefined if the columns should be left alone */
+    const imageChange = await this.azureStorageService.swapImage({
       ownerId: org.id,
       currentImageUrl: org.image,
       newImage: orgImage,
@@ -253,17 +254,15 @@ export class OrganizationsService {
            field one day cannot silently reopen it. */
         data: {
           ...normalizedUpdateOrganizationDto,
-          ...(imageFileName !== undefined && {
-            image: imageFileName,
-          }),
+          ...organizationImageColumns(imageChange),
         },
       });
     } catch (error) {
       // Kept for the cleanup only: the image is uploaded before the update,
       // so a failure would leave it orphaned.
-      if (imageFileName) {
+      if (imageChange?.image) {
         await this.azureStorageService.deleteUploadedImageQuietly(
-          imageFileName,
+          imageChange.image,
           AzureStorageContainer.ORGANIZATION_IMAGES,
           `Organization ${org.id} update`,
         );

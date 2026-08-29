@@ -18,6 +18,7 @@
     "build": "tsc -p tsconfig.build.json",
     "build:prod": "npm run build && npm prune --omit=dev",
     "images:downscale": "node dist/scripts/downscale-stored-images.js",
+    "organizations:backfill-colors": "node dist/scripts/backfill-organization-colors.js",
     "predeploy:prod": "npm run prisma:deploy && node dist/prisma/seed.js",
     "format": "biome format --write",
     "dev": "node scripts/run-dev.js",

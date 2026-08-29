@@ -138,11 +138,13 @@ export class EventsService {
 
     try {
       const imageUrl = eventImage
-        ? await this.azureStorageService.upload(
-            eventImageFileName,
-            eventImage.buffer,
-            AzureStorageContainer.EVENT_IMAGES,
-          )
+        ? (
+            await this.azureStorageService.upload(
+              eventImageFileName,
+              eventImage.buffer,
+              AzureStorageContainer.EVENT_IMAGES,
+            )
+          ).url
         : null;
 
       const event = await this.prisma.$transaction(async (trx) => {
@@ -595,11 +597,16 @@ export class EventsService {
 
       if (newImage) {
         //upload new image
-        newImageUrl = await this.azureStorageService.upload(
-          this.azureStorageService.generateFileNameById(oldEvent.id, newImage),
-          newImage.buffer,
-          AzureStorageContainer.EVENT_IMAGES,
-        );
+        newImageUrl = (
+          await this.azureStorageService.upload(
+            this.azureStorageService.generateFileNameById(
+              oldEvent.id,
+              newImage,
+            ),
+            newImage.buffer,
+            AzureStorageContainer.EVENT_IMAGES,
+          )
+        ).url;
 
         deleteImage = false;
       }

@@ -253,6 +253,69 @@ describe("OrganizationsService", () => {
     });
   });
 
+  describe("the image and its colors", () => {
+    const updatedWith = () => prisma.organization.update.mock.calls[0][0].data;
+
+    it("stores the colors of the logo it just uploaded", async () => {
+      azureStorageService.swapImage.mockResolvedValueOnce({
+        image: "https://blob/organization-images/maps.png",
+        colors: { primary: "#e62239", accent: "#0ca3b1" },
+      });
+      prisma.organization.update.mockResolvedValueOnce({ id: "org-1" });
+
+      await service.update({ id: "org-1", image: null } as any, {} as any);
+
+      expect(updatedWith()).toEqual({
+        image: "https://blob/organization-images/maps.png",
+        imagePrimaryColor: "#e62239",
+        imageAccentColor: "#0ca3b1",
+      });
+    });
+
+    it("clears the colors along with the logo they came from", async () => {
+      azureStorageService.swapImage.mockResolvedValueOnce({
+        image: null,
+        colors: null,
+      });
+      prisma.organization.update.mockResolvedValueOnce({ id: "org-1" });
+
+      await service.update({ id: "org-1", image: "old.png" } as any, {} as any);
+
+      expect(updatedWith()).toEqual({
+        image: null,
+        imagePrimaryColor: null,
+        imageAccentColor: null,
+      });
+    });
+
+    it("leaves all three alone when the request said nothing about the logo", async () => {
+      prisma.organization.update.mockResolvedValueOnce({ id: "org-1" });
+
+      await service.update(
+        { id: "org-1", image: "kept.png" } as any,
+        {} as any,
+      );
+
+      expect(updatedWith()).toEqual({});
+    });
+
+    it("keeps a logo that yielded no color from carrying the previous one's", async () => {
+      azureStorageService.swapImage.mockResolvedValueOnce({
+        image: "https://blob/organization-images/greyscale.png",
+        colors: null,
+      });
+      prisma.organization.update.mockResolvedValueOnce({ id: "org-1" });
+
+      await service.update({ id: "org-1", image: "old.png" } as any, {} as any);
+
+      expect(updatedWith()).toEqual({
+        image: "https://blob/organization-images/greyscale.png",
+        imagePrimaryColor: null,
+        imageAccentColor: null,
+      });
+    });
+  });
+
   describe("findOrgsByUserIdAndRole", () => {
     const someFilter = () =>
       prisma.organization.findMany.mock.calls[0][0].where.organizationRoles

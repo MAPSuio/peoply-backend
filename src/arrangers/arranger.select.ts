@@ -21,6 +21,8 @@ export const PUBLIC_ARRANGER_INCLUDE = {
       urlId: true,
       name: true,
       image: true,
+      imagePrimaryColor: true,
+      imageAccentColor: true,
       orgNr: true,
     },
   },
