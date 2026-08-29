@@ -35,9 +35,10 @@ import { takeLinkUserId, takePendingLink } from "./link-session";
 import { isLoopbackAddress } from "./local-auth";
 import { OidcResolution } from "./strategies/oidc";
 import { withoutRefreshTokenId } from "../users/user.response";
-
-export const SESSION_MARKER_COOKIE_NAME = "has_session";
-const SESSION_MARKER_COOKIE_VALUE = "1";
+import {
+  SESSION_MARKER_COOKIE_NAME,
+  SESSION_MARKER_COOKIE_VALUE,
+} from "./session-marker-cookie-name";
 
 @Controller("auth")
 export class AuthController {
