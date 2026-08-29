@@ -28,6 +28,8 @@ const SHAPE_BEFORE_EXTRACTION = {
       urlId: true,
       name: true,
       image: true,
+      imagePrimaryColor: true,
+      imageAccentColor: true,
       orgNr: true,
     },
   },

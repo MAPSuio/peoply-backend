@@ -91,22 +91,32 @@ describe("AzureStorageService.swapImage", () => {
       });
     jest
       .spyOn(service, "upload")
-      .mockImplementation(
-        async (fileName: string) => `https://blob/profile-images/${fileName}`,
-      );
+      .mockImplementation(async (fileName: string) => ({
+        url: `https://blob/profile-images/${fileName}`,
+        colors: { primary: "#fd7b03", accent: null },
+      }));
   });
 
   it("uploads and answers with the new URL", async () => {
     const result = await swap({ newImage: fileWith(png) });
 
-    expect(result).toMatch(/^https:\/\/blob\/profile-images\/owner-1-/);
+    expect(result?.image).toMatch(/^https:\/\/blob\/profile-images\/owner-1-/);
   });
 
-  it("answers null when the image is removed", async () => {
-    expect(await swap({ removeImage: true })).toBeNull();
+  it("hands back the colors of the picture it just stored", async () => {
+    const result = await swap({ newImage: fileWith(png) });
+
+    expect(result?.colors).toEqual({ primary: "#fd7b03", accent: null });
   });
 
-  /* null clears the column, undefined leaves it alone. Collapsing the two
+  it("answers null for both the image and its colors when the image is removed", async () => {
+    expect(await swap({ removeImage: true })).toEqual({
+      image: null,
+      colors: null,
+    });
+  });
+
+  /* undefined leaves the columns alone. Collapsing it with the removal case
      would wipe the image every time something else was saved. */
   it("answers undefined when the request says nothing about the image", async () => {
     expect(await swap({})).toBeUndefined();

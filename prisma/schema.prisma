@@ -37,6 +37,8 @@ model Organization {
   orgNr                   String?                      @unique @map("org_nr") @db.VarChar(9)
   approved                Boolean                      @default(true)
   image                   String?
+  imagePrimaryColor       String?                      @map("image_primary_color") @db.VarChar(7)
+  imageAccentColor        String?                      @map("image_accent_color") @db.VarChar(7)
   description             String?                      @db.Text
   websiteUrl              String?                      @map("website_url")
   instagramUrl            String?                      @map("instagram_url")

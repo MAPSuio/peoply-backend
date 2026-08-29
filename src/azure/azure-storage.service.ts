@@ -10,9 +10,18 @@ import {
 } from "@azure/storage-blob";
 import { ConfigService } from "@nestjs/config";
 import { randomUUID } from "node:crypto";
-import { AzureStorageContainer } from "./azure-storage.constants";
+import {
+  AzureStorageContainer,
+  containerStoresBrandColors,
+} from "./azure-storage.constants";
 import { assertIsImage, extensionFor } from "./image-upload";
 import { ImageTooLargeError, normalizeImage } from "./image-normalize";
+import { type BrandColors, readBrandColors } from "./image-colors";
+
+export type ImageChange =
+  | { image: string; colors: BrandColors | null }
+  | { image: null; colors: null }
+  | undefined;
 
 @Injectable()
 export class AzureStorageService
@@ -97,7 +106,26 @@ export class AzureStorageService
     const container = this.getContainerClient(containerName);
     const blockBlobClient = container.getBlockBlobClient(fileName);
     await blockBlobClient.upload(image.buffer, image.buffer.length);
-    return blockBlobClient.url;
+
+    return {
+      url: blockBlobClient.url,
+      colors: containerStoresBrandColors(containerName)
+        ? await this.readColorsQuietly(image.buffer, fileName)
+        : null,
+    };
+  }
+
+  private async readColorsQuietly(image: Buffer, fileName: string) {
+    try {
+      return await readBrandColors(image);
+    } catch (error) {
+      this.logger.warn(
+        `Could not read the colors of ${fileName}: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+      return null;
+    }
   }
 
   async delete(fileName: string, containerName: AzureStorageContainer) {
@@ -143,14 +171,16 @@ export class AzureStorageService
 
   /**
    * Applies one profile-style image change and answers with what the owning
-   * row's `image` column should become: a URL when a new image was uploaded,
-   * `null` when the existing one was removed, and `undefined` when the request
-   * said nothing about the image and the column must be left alone.
+   * row's image columns should become: the URL and the colors read from it
+   * when a new image was uploaded, nulls when the existing one was removed,
+   * and `undefined` when the request said nothing about the image and the
+   * columns must be left alone.
    *
    * The three-way return is the reason this is one call rather than the caller
-   * branching: `null` and `undefined` mean different things to Prisma, and a
+   * branching: nulls and `undefined` mean different things to Prisma, and a
    * caller that collapsed them would clear an image every time it saved
-   * something else.
+   * something else. The colors travel with the URL rather than beside it so a
+   * caller cannot store a logo and leave last logo's colors next to it.
    *
    * Removing and uploading in the same request is refused rather than resolved
    * — a request that asks for both has no single obvious outcome.
@@ -169,7 +199,7 @@ export class AzureStorageService
     removeImage?: boolean;
     container: AzureStorageContainer;
     conflictMessage: string;
-  }): Promise<string | null | undefined> {
+  }): Promise<ImageChange> {
     if (removeImage && newImage) {
       throw new HttpException({ message: conflictMessage }, 409);
     }
@@ -183,15 +213,16 @@ export class AzureStorageService
     }
 
     if (newImage) {
-      return await this.upload(
+      const { url, colors } = await this.upload(
         this.generateFileNameById(ownerId, newImage),
         newImage.buffer,
         container,
       );
+      return { image: url, colors };
     }
 
     if (removeImage) {
-      return null;
+      return { image: null, colors: null };
     }
 
     return undefined;

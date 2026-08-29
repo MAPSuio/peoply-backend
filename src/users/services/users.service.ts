@@ -541,9 +541,9 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     profileImage?: Express.Multer.File,
   ) {
-    /* new filename if an image is provided, null if removeImage, and undefined
-       if the column should be left alone */
-    const imageFileName = await this.azureStorageService.swapImage({
+    /* the new image and its colors if one is provided, nulls if removeImage,
+       and undefined if the column should be left alone */
+    const imageChange = await this.azureStorageService.swapImage({
       ownerId: user.id,
       currentImageUrl: user.image,
       newImage: profileImage,
@@ -575,8 +575,8 @@ export class UsersService {
         return await trx.user.update({
           where: { id: user.id },
           data: {
-            ...(imageFileName !== undefined && {
-              image: imageFileName,
+            ...(imageChange !== undefined && {
+              image: imageChange.image,
             }),
             ...updateUserDto,
           },
@@ -585,9 +585,9 @@ export class UsersService {
     } catch (error) {
       // Kept for the cleanup only: the image is uploaded before the update,
       // so a failure would leave it orphaned.
-      if (imageFileName) {
+      if (imageChange?.image) {
         await this.azureStorageService.deleteUploadedImageQuietly(
-          imageFileName,
+          imageChange.image,
           AzureStorageContainer.PROFILE_IMAGES,
           "User update",
         );
