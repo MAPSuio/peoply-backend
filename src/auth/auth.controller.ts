@@ -36,6 +36,9 @@ import { isLoopbackAddress } from "./local-auth";
 import { OidcResolution } from "./strategies/oidc";
 import { withoutRefreshTokenId } from "../users/user.response";
 
+export const SESSION_MARKER_COOKIE_NAME = "has_session";
+const SESSION_MARKER_COOKIE_VALUE = "1";
+
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -131,6 +134,11 @@ export class AuthController {
       this.authService.getAccessToken(user),
       this.authService.getAccessCookieOptions(),
     );
+    res.cookie(
+      SESSION_MARKER_COOKIE_NAME,
+      SESSION_MARKER_COOKIE_VALUE,
+      this.authService.getSessionMarkerCookieOptions(),
+    );
 
     /* headers telling the browser to save the cookies */
     res.set("Access-Control-Allow-Credentials", "true");
@@ -145,6 +153,10 @@ export class AuthController {
   private clearSessionCookies(res: Response) {
     res.clearCookie("refresh", this.authService.getRefreshCookieOptions());
     res.clearCookie("access", this.authService.getAccessCookieOptions());
+    res.clearCookie(
+      SESSION_MARKER_COOKIE_NAME,
+      this.authService.getSessionMarkerCookieOptions(),
+    );
   }
 
   /**

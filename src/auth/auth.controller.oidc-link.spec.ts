@@ -57,6 +57,7 @@ describe("AuthController OIDC callback linking", () => {
     getRefreshToken: jest.fn(() => "refresh-token"),
     getAccessCookieOptions: jest.fn(() => accessCookieOptions),
     getRefreshCookieOptions: jest.fn(() => refreshCookieOptions),
+    getSessionMarkerCookieOptions: jest.fn(() => ({ httpOnly: false })),
     validateJWT: jest.fn(() => ({ sub: "linker-1" })),
   } as unknown as AuthService;
 

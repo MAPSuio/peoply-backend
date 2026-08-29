@@ -69,6 +69,10 @@ import { PopupsModule } from "./popups/popups.module";
         GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI: Joi.string().required(),
         LOCAL_AUTH_ENABLED: Joi.boolean().default(false),
         CORS_ORIGIN: Joi.string().required(),
+        // Domain the session marker cookie is written for, so the frontend on
+        // peoply.app can read a cookie the api on api.peoply.app set. Unset
+        // means host-only, which is what local development needs.
+        SESSION_COOKIE_DOMAIN: Joi.string().allow("").optional(),
         AZURE_STORAGE_ACCOUNT: Joi.string().required(),
         AZURE_STORAGE_KEY: Joi.string().required(),
         AZURE_STORAGE_SKIP_INIT: Joi.boolean().optional(),
