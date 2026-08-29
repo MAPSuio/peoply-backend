@@ -14,6 +14,7 @@ import { UsersService } from "../users/services";
 describe("AuthController session cookies", () => {
   const accessCookieOptions = { httpOnly: true, maxAge: 1000 };
   const refreshCookieOptions = { httpOnly: true, maxAge: 2000, path: "/auth" };
+  const sessionMarkerCookieOptions = { httpOnly: false, maxAge: 2000 };
 
   const user = { id: "user-1" } as any;
 
@@ -27,6 +28,7 @@ describe("AuthController session cookies", () => {
     getRefreshToken: jest.fn(() => "refresh-token"),
     getAccessCookieOptions: jest.fn(() => accessCookieOptions),
     getRefreshCookieOptions: jest.fn(() => refreshCookieOptions),
+    getSessionMarkerCookieOptions: jest.fn(() => sessionMarkerCookieOptions),
     assertTrustedOrigin: jest.fn(),
   } as unknown as AuthService;
 
@@ -99,9 +101,10 @@ describe("AuthController session cookies", () => {
       expect.arrayContaining([
         ["access", "access-token", accessCookieOptions],
         ["refresh", "refresh-token", refreshCookieOptions],
+        ["has_session", "1", sessionMarkerCookieOptions],
       ]),
     );
-    expect(cookies).toHaveLength(2);
+    expect(cookies).toHaveLength(3);
     // Without these the browser drops the cookies on the cross-site callback.
     expect(headers).toEqual({
       "Access-Control-Allow-Credentials": "true",
@@ -166,6 +169,7 @@ describe("AuthController session cookies", () => {
       expect.arrayContaining([
         ["access", accessCookieOptions],
         ["refresh", refreshCookieOptions],
+        ["has_session", sessionMarkerCookieOptions],
       ]),
     );
     expect(usersService.rotateRefreshTokenId).toHaveBeenCalledWith("user-1");

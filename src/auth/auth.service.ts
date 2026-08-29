@@ -116,6 +116,19 @@ export class AuthService {
    * definitively gone (they stopped being written 2026-03-23 and carried a
    * finite Max-Age).
    */
+  getSessionMarkerCookieOptions(): CookieOptions {
+    return {
+      ...this.baseCookieOptions(),
+      httpOnly: false,
+      domain:
+        this.configService.get<string>("SESSION_COOKIE_DOMAIN") || undefined,
+      maxAge:
+        this.configService.get<number>("JWT_REFRESH_TOKEN_EXP_TIME", {
+          infer: true,
+        }) * 1000,
+    };
+  }
+
   getLegacyRefreshCookieClearOptions(): CookieOptions {
     return {
       ...this.baseCookieOptions(),
