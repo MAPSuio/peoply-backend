@@ -14,6 +14,7 @@ import { McpHandlerService } from "./mcp-handler.service";
 import { McpKeysController } from "./mcp-keys.controller";
 import { McpRateLimitService } from "./mcp-rate-limit.service";
 import { McpServerFactory } from "./mcp-server.factory";
+import { McpToolsController } from "./mcp-tools.controller";
 import { McpController } from "./mcp.controller";
 
 @Module({
@@ -29,7 +30,7 @@ import { McpController } from "./mcp.controller";
     ArrangersModule,
     NotificationsModule,
   ],
-  controllers: [McpKeysController, McpController],
+  controllers: [McpKeysController, McpToolsController, McpController],
   providers: [
     McpApiKeyService,
     McpRateLimitService,

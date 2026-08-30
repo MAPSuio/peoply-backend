@@ -1,5 +1,6 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { McpServerFactory } from "./mcp-server.factory";
+import { MCP_TOOL_SUMMARIES } from "./mcp-tool-summaries";
 
 const USER_ID = "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b";
 const ARRANGER_ID = "0122cb1d-2572-4fbf-8b09-bf8738d68221";
@@ -117,6 +118,55 @@ describe("McpServerFactory", () => {
       USER_ID,
       expect.objectContaining({ eventId }),
     );
+
+    await client.close();
+    await server.close();
+  });
+
+  it("describes exactly the tools it registers, for every scope", async () => {
+    const summaries = factory.describeTools();
+
+    for (const scope of ["peoply:read", "peoply:write", "peoply:organize"]) {
+      const { client, server } = await connect([scope]);
+      const registered = (await client.listTools()).tools
+        .map(({ name, description }) => ({ name, description }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const described = summaries
+        .filter((summary) => summary.scope === scope)
+        .map(({ name, description }) => ({ name, description }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      expect(described).toEqual(registered);
+      expect(described.length).toBeGreaterThan(0);
+
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("gives every described tool a title a reader can act on", () => {
+    for (const tool of factory.describeTools()) {
+      expect(tool.title.length).toBeGreaterThan(0);
+      expect(tool.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives every tool a Norwegian summary, and keeps no unused ones", () => {
+    const described = factory.describeTools();
+
+    for (const tool of described) {
+      expect(tool.summary.length).toBeGreaterThan(0);
+    }
+    expect(Object.keys(MCP_TOOL_SUMMARIES).sort()).toEqual(
+      described.map(({ name }) => name).sort(),
+    );
+  });
+
+  it("keeps the Norwegian summary out of what the agent is told", async () => {
+    const { client, server } = await connect(["peoply:read"]);
+    const [tool] = (await client.listTools()).tools;
+
+    expect(tool).not.toHaveProperty("summary");
 
     await client.close();
     await server.close();
