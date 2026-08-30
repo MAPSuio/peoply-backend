@@ -89,7 +89,10 @@ export class EventArrangersService {
     });
   }
 
-  async findAllWithEventsArrangedByUserAndOrganizationsOfUser(userId: string) {
+  async findAllWithEventsArrangedByUserAndOrganizationsOfUser(
+    userId: string,
+    pagination?: { skip?: number; take?: number },
+  ) {
     const orgs = await this.prismaService.organization.findMany({
       where: {
         organizationRoles: {
@@ -121,7 +124,8 @@ export class EventArrangersService {
     ]);
 
     const rows = await this.prismaService.eventArranger.findMany({
-      take: ALL_ROWS,
+      skip: pagination?.skip,
+      take: pagination?.take ?? ALL_ROWS,
       where: {
         arrangerId: {
           in: [...myArrangerIds],

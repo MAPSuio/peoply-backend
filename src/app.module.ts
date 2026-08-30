@@ -27,6 +27,7 @@ import { HealthModule } from "./health/health.module";
 import { RecommendationsModule } from "./recommendations/recommendations.module";
 import { LocationSearchModule } from "./location-search/location-search.module";
 import { PopupsModule } from "./popups/popups.module";
+import { McpModule } from "./mcp/mcp.module";
 
 @Module({
   imports: [
@@ -113,6 +114,7 @@ import { PopupsModule } from "./popups/popups.module";
     IcsFeedsModule,
     RecommendationsModule,
     PopupsModule,
+    McpModule,
   ],
   providers: [
     // Apply rate limiting globally, using CF-Connecting-IP when available
