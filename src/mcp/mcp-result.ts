@@ -1,6 +1,7 @@
 import { HttpException, Logger } from "@nestjs/common";
+import type { CallToolResult } from "@modelcontextprotocol/server";
 
-function mcpResult(value: unknown) {
+function mcpResult(value: unknown): CallToolResult {
   const structuredContent = { data: value };
   return {
     content: [{ type: "text", text: JSON.stringify(structuredContent) }],
@@ -11,7 +12,7 @@ function mcpResult(value: unknown) {
 export async function runMcpTool(
   logger: Logger,
   operation: () => Promise<unknown>,
-) {
+): Promise<CallToolResult> {
   try {
     return mcpResult(await operation());
   } catch (error) {
