@@ -42,6 +42,16 @@
     "prisma"
   ],
 
+  // Defensive pins for packages that are not in the tree at all: npm honours
+  // an override the day one of them shows up transitively, but fallow only
+  // sees that nothing resolves to them today. Removing the pin to silence the
+  // finding is what would actually be unsafe.
+  "ignoreDependencyOverrides": [
+    { "package": "tough-cookie", "source": "package.json" },
+    { "package": "uuid", "source": "package.json" },
+    { "package": "xml2js", "source": "package.json" }
+  ],
+
   "rules": {
     // Alt som handler om kode ingen bruker, skal stoppe PR-en. Standard er
     // allerede error for de fleste; disse er hevet fra warn.

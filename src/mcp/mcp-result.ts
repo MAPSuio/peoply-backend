@@ -1,9 +1,7 @@
 import { HttpException, Logger } from "@nestjs/common";
 import type { CallToolResult } from "@modelcontextprotocol/server";
 
-export type ToolResult = CallToolResult;
-
-function mcpResult(value: unknown): ToolResult {
+function mcpResult(value: unknown): CallToolResult {
   const structuredContent = { data: value };
   return {
     content: [{ type: "text", text: JSON.stringify(structuredContent) }],
