@@ -10,6 +10,7 @@ import { PassportModule } from "@nestjs/passport";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { LegacyRefreshCookieMiddleware } from "./legacy-refresh-cookie.middleware";
+import { SessionMarkerBackfillMiddleware } from "./session-marker-backfill.middleware";
 import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { UsersModule } from "../users/users.module";
@@ -78,6 +79,7 @@ const GoogleStrategyFactory = {
     AccessStrategy,
     RefreshStrategy,
     LegacyRefreshCookieMiddleware,
+    SessionMarkerBackfillMiddleware,
   ],
   exports: [AuthService],
 })
@@ -90,5 +92,9 @@ export class AuthModule implements NestModule {
         { path: "auth/callback", method: RequestMethod.GET },
         { path: "auth/callback/google", method: RequestMethod.GET },
       );
+
+    consumer
+      .apply(SessionMarkerBackfillMiddleware)
+      .forRoutes({ path: "users/me", method: RequestMethod.GET });
   }
 }
