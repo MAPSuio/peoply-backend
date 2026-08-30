@@ -91,8 +91,33 @@ model User {
   organizationReports            OrganizationReport[]
   userAllergens                  UserAllergen[]
   userSeenUpdates                UserSeenUpdate[]
+  mcpApiKeys                     McpApiKey[]
 
   @@map("users")
+}
+
+model McpApiKey {
+  id         String           @id @default(uuid())
+  userId     String           @map("user_id")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String           @db.VarChar(100)
+  secretHash String           @map("secret_hash") @db.Char(64)
+  scopes     McpApiKeyScope[] @default([READ])
+  expiresAt  DateTime         @map("expires_at")
+  revokedAt  DateTime?        @map("revoked_at")
+  lastUsedAt DateTime?        @map("last_used_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, revokedAt])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("mcp_api_keys")
+}
+
+enum McpApiKeyScope {
+  READ
+  WRITE
+  ORGANIZE
 }
 
 model UserSeenUpdate {

@@ -10,6 +10,7 @@ import { OrganizationsModule } from "./organizations/organizations.module";
 import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
 import { jwtSecretSchema } from "./auth/jwt-secret.schema";
+import { mcpKeyPepperSchema } from "./mcp/mcp-key-pepper.schema";
 import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 import { AzureModule } from "./azure/azure.module";
@@ -27,6 +28,7 @@ import { HealthModule } from "./health/health.module";
 import { RecommendationsModule } from "./recommendations/recommendations.module";
 import { LocationSearchModule } from "./location-search/location-search.module";
 import { PopupsModule } from "./popups/popups.module";
+import { McpModule } from "./mcp/mcp.module";
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { PopupsModule } from "./popups/popups.module";
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),
         JWT_REFRESH_TOKEN_EXP_TIME: Joi.number().required(),
         ...jwtSecretSchema,
+        ...mcpKeyPepperSchema,
         DATABASE_URL: Joi.string().required(),
         // Optional: only managed databases with a private CA need it. Unset
         // locally and in CI, where Postgres runs without TLS.
@@ -113,6 +116,7 @@ import { PopupsModule } from "./popups/popups.module";
     IcsFeedsModule,
     RecommendationsModule,
     PopupsModule,
+    McpModule,
   ],
   providers: [
     // Apply rate limiting globally, using CF-Connecting-IP when available

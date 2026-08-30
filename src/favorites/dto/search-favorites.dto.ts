@@ -8,7 +8,7 @@ export class SearchFavoritesDto extends PagedQueryDto(
 ) {
   @IsOptional()
   @IsUUID(4)
-  eventId: string;
+  eventId?: string;
 
   @IsOptional()
   @ToBoolean()

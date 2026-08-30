@@ -172,3 +172,25 @@ describe.each(pagedQueryDtos)(
     });
   },
 );
+
+describe("SearchFavoritesDto eventId validation", () => {
+  it("rejects a malformed eventId", () => {
+    const errors = validateSync(
+      plainToInstance(SearchFavoritesDto, { eventId: "not-a-uuid" }),
+    );
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0].property).toBe("eventId");
+    expect(errors[0].constraints).toHaveProperty("isUuid");
+  });
+
+  it("accepts a valid UUID eventId", () => {
+    const errors = validateSync(
+      plainToInstance(SearchFavoritesDto, {
+        eventId: "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b",
+      }),
+    );
+
+    expect(errors).toHaveLength(0);
+  });
+});
