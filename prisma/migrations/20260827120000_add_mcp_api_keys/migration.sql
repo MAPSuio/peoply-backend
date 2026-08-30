@@ -1,8 +1,8 @@
 CREATE TYPE "McpApiKeyScope" AS ENUM ('READ', 'WRITE', 'ORGANIZE');
 
 CREATE TABLE "mcp_api_keys" (
-    "id" UUID NOT NULL,
-    "user_id" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
     "name" VARCHAR(100) NOT NULL,
     "secret_hash" CHAR(64) NOT NULL,
     "scopes" "McpApiKeyScope"[] NOT NULL DEFAULT ARRAY['READ']::"McpApiKeyScope"[],

@@ -15,8 +15,6 @@ import { McpApiKeyService } from "./mcp-api-key.service";
 import { McpRateLimitService } from "./mcp-rate-limit.service";
 import { McpServerFactory } from "./mcp-server.factory";
 
-type AuthenticatedRequest = Request & { auth?: AuthInfo };
-
 const ALLOWED_HOSTS = ["api.peoply.app", "localhost", "127.0.0.1", "[::1]"];
 const ALLOWED_ORIGINS = [
   "peoply.app",
@@ -48,7 +46,7 @@ export class McpHandlerService implements OnModuleDestroy {
     private readonly servers: McpServerFactory,
   ) {}
 
-  async handle(req: AuthenticatedRequest, res: Response) {
+  async handle(req: Request & { auth?: AuthInfo }, res: Response) {
     if (!this.validateHost(req, res) || !this.validateOrigin(req, res)) {
       return;
     }

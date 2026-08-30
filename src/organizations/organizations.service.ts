@@ -308,11 +308,7 @@ export class OrganizationsService {
     return org;
   }
 
-  async findOrgsByUserIdAndRole(
-    userId: string,
-    role?: OrganizationRole,
-    pagination?: { skip?: number; take?: number },
-  ) {
+  async findOrgsByUserIdAndRole(userId: string, role?: OrganizationRole) {
     /* Find all orgs a user has access to
 
     Args:
@@ -332,8 +328,6 @@ export class OrganizationsService {
         },
       },
       include: { organizationRoles: { where: { userId: userId } } },
-      skip: pagination?.skip,
-      take: pagination?.take,
     });
   }
   async findOrgWithUsers(orgId: string) {

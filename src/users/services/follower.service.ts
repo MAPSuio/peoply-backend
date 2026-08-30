@@ -9,7 +9,7 @@ import { FollowAction } from "../../generated/prisma/client";
 export class FollowService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(userId: string, pagination?: { skip?: number; take?: number }) {
+  async findAll(userId: string) {
     return await this.prisma.arrangerFollower.findMany({
       where: {
         userId,
@@ -25,8 +25,6 @@ export class FollowService {
           },
         },
       },
-      skip: pagination?.skip,
-      take: pagination?.take,
     });
   }
 

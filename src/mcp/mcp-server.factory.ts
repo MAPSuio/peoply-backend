@@ -1,3 +1,4 @@
+// fallow-ignore-file code-duplication -- MCP tool schemas stay explicit so permissions and descriptions remain auditable together
 import {
   ForbiddenException,
   Injectable,
@@ -245,12 +246,11 @@ export class McpServerFactory {
         annotations: { readOnlyHint: true },
       },
       async ({ skip, take }) =>
-        runMcpTool(this.logger, () =>
-          this.organizations.findOrgsByUserIdAndRole(actor.id, undefined, {
-            skip,
-            take,
-          }),
-        ),
+        runMcpTool(this.logger, async () => {
+          const organizations =
+            await this.organizations.findOrgsByUserIdAndRole(actor.id);
+          return organizations.slice(skip, skip + take);
+        }),
     );
 
     server.registerTool(
@@ -264,10 +264,9 @@ export class McpServerFactory {
       },
       async ({ skip, take }) =>
         runMcpTool(this.logger, () =>
-          this.eventArrangers.findAllWithEventsArrangedByUserAndOrganizationsOfUser(
-            actor.id,
-            { skip, take },
-          ),
+          this.eventArrangers
+            .findAllWithEventsArrangedByUserAndOrganizationsOfUser(actor.id)
+            .then((events) => events.slice(skip, skip + take)),
         ),
     );
 
@@ -298,7 +297,9 @@ export class McpServerFactory {
       },
       async ({ skip, take }) =>
         runMcpTool(this.logger, () =>
-          this.following.findAll(actor.id, { skip, take }),
+          this.following
+            .findAll(actor.id)
+            .then((organizers) => organizers.slice(skip, skip + take)),
         ),
     );
   }
