@@ -122,6 +122,34 @@ describe("McpServerFactory", () => {
     await server.close();
   });
 
+  it("describes exactly the tools it registers, for every scope", async () => {
+    const summaries = factory.describeTools();
+
+    for (const scope of ["peoply:read", "peoply:write", "peoply:organize"]) {
+      const { client, server } = await connect([scope]);
+      const registered = (await client.listTools()).tools
+        .map(({ name, description }) => ({ name, description }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const described = summaries
+        .filter((summary) => summary.scope === scope)
+        .map(({ name, description }) => ({ name, description }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      expect(described).toEqual(registered);
+      expect(described.length).toBeGreaterThan(0);
+
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("gives every described tool a title a reader can act on", () => {
+    for (const summary of factory.describeTools()) {
+      expect(summary.title.length).toBeGreaterThan(0);
+      expect(summary.description.length).toBeGreaterThan(0);
+    }
+  });
+
   it("refuses attendee data when the actor is not an organizer", async () => {
     eventAccess.arrangerRoleFor.mockResolvedValue(null);
     const { client, server } = await connect(["peoply:organize"]);

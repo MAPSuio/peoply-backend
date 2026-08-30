@@ -26,6 +26,7 @@ import {
 import { FavoritesService } from "../favorites/favorites.service";
 import { FollowService } from "../users/services";
 import { runMcpTool } from "./mcp-result";
+import { McpToolTarget, type McpToolSummary } from "./mcp-tool-target";
 
 const paginationSchema = {
   skip: z.number().int().min(0).default(0),
@@ -41,6 +42,16 @@ const actorSchema = z.object({
 });
 
 type McpActor = z.infer<typeof actorSchema>;
+
+const ALL_MCP_SCOPES = ["peoply:read", "peoply:write", "peoply:organize"];
+
+const CATALOGUE_ACTOR: McpActor = {
+  id: "00000000-0000-4000-8000-000000000000",
+  arrangerId: "00000000-0000-4000-8000-000000000000",
+  firstName: "",
+  lastName: "",
+  email: "",
+};
 
 function optionalDate(value: unknown): Date | null | undefined {
   if (value === null || value === undefined) {
@@ -67,25 +78,41 @@ export class McpServerFactory {
 
   create(authInfo?: AuthInfo) {
     const actor = actorSchema.parse(authInfo?.extra?.user);
-    const scopes = new Set(authInfo?.scopes ?? []);
     const server = new McpServer({ name: "peoply", version: "1.0.0" });
 
-    if (scopes.has("peoply:read")) {
-      this.registerReadTools(server, actor);
-    }
-
-    if (scopes.has("peoply:write")) {
-      this.registerWriteTools(server, actor);
-    }
-    if (scopes.has("peoply:organize")) {
-      this.registerOrganizerTools(server, actor);
-    }
+    this.buildTools(new Set(authInfo?.scopes ?? []), actor, server);
 
     return server;
   }
 
+  describeTools(): McpToolSummary[] {
+    return this.buildTools(new Set(ALL_MCP_SCOPES), CATALOGUE_ACTOR);
+  }
+
+  private buildTools(
+    scopes: Set<string>,
+    actor: McpActor,
+    server?: McpServer,
+  ): McpToolSummary[] {
+    const summaries: McpToolSummary[] = [];
+    const target = (scope: string) =>
+      new McpToolTarget(scope, summaries, server);
+
+    if (scopes.has("peoply:read")) {
+      this.registerReadTools(target("peoply:read"), actor);
+    }
+    if (scopes.has("peoply:write")) {
+      this.registerWriteTools(target("peoply:write"), actor);
+    }
+    if (scopes.has("peoply:organize")) {
+      this.registerOrganizerTools(target("peoply:organize"), actor);
+    }
+
+    return summaries;
+  }
+
   private registerTool<Shape extends z.ZodRawShape>(
-    server: McpServer,
+    target: McpToolTarget,
     name: string,
     metadata: {
       title: string;
@@ -95,15 +122,13 @@ export class McpServerFactory {
     },
     run: (input: z.output<z.ZodObject<Shape>>) => Promise<unknown>,
   ) {
-    server.registerTool(
-      name,
-      metadata as never,
-      ((input: never) => runMcpTool(this.logger, () => run(input))) as never,
+    target.add(name, metadata, (input: never) =>
+      runMcpTool(this.logger, () => run(input)),
     );
   }
 
   private registerReadTool<Shape extends z.ZodRawShape>(
-    server: McpServer,
+    target: McpToolTarget,
     name: string,
     metadata: {
       title: string;
@@ -113,7 +138,7 @@ export class McpServerFactory {
     run: (input: z.output<z.ZodObject<Shape>>) => Promise<unknown>,
   ) {
     this.registerTool(
-      server,
+      target,
       name,
       { ...metadata, annotations: { readOnlyHint: true } },
       run,
@@ -121,22 +146,22 @@ export class McpServerFactory {
   }
 
   private registerSlicedReadTool(
-    server: McpServer,
+    target: McpToolTarget,
     name: string,
     metadata: { title: string; description: string },
     findAll: () => Promise<unknown[]>,
   ) {
     this.registerReadTool(
-      server,
+      target,
       name,
       { ...metadata, inputSchema: z.object(paginationSchema) },
       async ({ skip, take }) => (await findAll()).slice(skip, skip + take),
     );
   }
 
-  private registerReadTools(server: McpServer, actor: McpActor) {
+  private registerReadTools(target: McpToolTarget, actor: McpActor) {
     this.registerReadTool(
-      server,
+      target,
       "who_am_i",
       {
         title: "Current Peoply user",
@@ -151,7 +176,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "search_events",
       {
         title: "Search public events",
@@ -178,7 +203,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "get_event",
       {
         title: "Get event",
@@ -193,7 +218,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "search_organizations",
       {
         title: "Search organizations",
@@ -209,7 +234,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "get_organization",
       {
         title: "Get organization",
@@ -221,7 +246,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "list_my_registrations",
       {
         title: "List my registrations",
@@ -248,7 +273,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "list_my_favorites",
       {
         title: "List my favorite events",
@@ -271,7 +296,7 @@ export class McpServerFactory {
     );
 
     this.registerSlicedReadTool(
-      server,
+      target,
       "list_my_organizations",
       {
         title: "List my organizations",
@@ -281,7 +306,7 @@ export class McpServerFactory {
     );
 
     this.registerSlicedReadTool(
-      server,
+      target,
       "list_my_arranged_events",
       {
         title: "List events I organize",
@@ -295,7 +320,7 @@ export class McpServerFactory {
     );
 
     this.registerSlicedReadTool(
-      server,
+      target,
       "list_my_notifications",
       {
         title: "List my notifications",
@@ -305,7 +330,7 @@ export class McpServerFactory {
     );
 
     this.registerSlicedReadTool(
-      server,
+      target,
       "list_followed_organizers",
       {
         title: "List followed organizers",
@@ -315,9 +340,9 @@ export class McpServerFactory {
     );
   }
 
-  private registerWriteTools(server: McpServer, actor: McpActor) {
+  private registerWriteTools(target: McpToolTarget, actor: McpActor) {
     this.registerTool(
-      server,
+      target,
       "register_for_event",
       {
         title: "Register for event",
@@ -337,7 +362,7 @@ export class McpServerFactory {
     );
 
     this.registerTool(
-      server,
+      target,
       "update_my_registration",
       {
         title: "Update my registration",
@@ -358,7 +383,7 @@ export class McpServerFactory {
     );
 
     this.registerTool(
-      server,
+      target,
       "favorite_event",
       {
         title: "Favorite event",
@@ -370,7 +395,7 @@ export class McpServerFactory {
     );
 
     this.registerTool(
-      server,
+      target,
       "unfavorite_event",
       {
         title: "Remove favorite event",
@@ -386,7 +411,7 @@ export class McpServerFactory {
     );
 
     this.registerTool(
-      server,
+      target,
       "follow_organizer",
       {
         title: "Follow organizer",
@@ -398,7 +423,7 @@ export class McpServerFactory {
     );
 
     this.registerTool(
-      server,
+      target,
       "unfollow_organizer",
       {
         title: "Unfollow organizer",
@@ -414,9 +439,9 @@ export class McpServerFactory {
     );
   }
 
-  private registerOrganizerTools(server: McpServer, actor: McpActor) {
+  private registerOrganizerTools(target: McpToolTarget, actor: McpActor) {
     this.registerTool(
-      server,
+      target,
       "create_event",
       {
         title: "Create event",
@@ -469,7 +494,7 @@ export class McpServerFactory {
     );
 
     this.registerReadTool(
-      server,
+      target,
       "list_event_registrations",
       {
         title: "List event registrations",
