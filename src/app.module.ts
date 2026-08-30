@@ -10,6 +10,7 @@ import { OrganizationsModule } from "./organizations/organizations.module";
 import { ArrangersModule } from "./arrangers/arrangers.module";
 import { AuthModule } from "./auth/auth.module";
 import { jwtSecretSchema } from "./auth/jwt-secret.schema";
+import { mcpKeyPepperSchema } from "./mcp/mcp-key-pepper.schema";
 import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
 import { AzureModule } from "./azure/azure.module";
@@ -51,6 +52,7 @@ import { McpModule } from "./mcp/mcp.module";
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),
         JWT_REFRESH_TOKEN_EXP_TIME: Joi.number().required(),
         ...jwtSecretSchema,
+        ...mcpKeyPepperSchema,
         DATABASE_URL: Joi.string().required(),
         // Optional: only managed databases with a private CA need it. Unset
         // locally and in CI, where Postgres runs without TLS.

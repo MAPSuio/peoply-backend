@@ -4,8 +4,9 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
-  createHash,
+  createHmac,
   randomBytes,
   randomUUID,
   timingSafeEqual,
@@ -14,6 +15,7 @@ import { McpApiKeyScope } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateMcpApiKeyDto } from "./dto/create-mcp-api-key.dto";
 import {
+  MCP_KEY_PEPPER_MIN_LENGTH,
   MCP_KEY_PREFIX,
   MCP_MAX_ACTIVE_KEYS_PER_USER,
   MCP_SCOPE_NAMES,
@@ -51,7 +53,22 @@ export type VerifiedMcpApiKey = {
 
 @Injectable()
 export class McpApiKeyService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly pepper: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    configService: ConfigService,
+  ) {
+    const pepper = configService.get<string>("MCP_KEY_PEPPER");
+
+    if (!pepper || pepper.length < MCP_KEY_PEPPER_MIN_LENGTH) {
+      throw new Error(
+        `MCP_KEY_PEPPER must be at least ${MCP_KEY_PEPPER_MIN_LENGTH} characters`,
+      );
+    }
+
+    this.pepper = pepper;
+  }
 
   async create(userId: string, dto: CreateMcpApiKeyDto) {
     const now = new Date();
@@ -168,7 +185,7 @@ export class McpApiKeyService {
   }
 
   private hash(token: string) {
-    return createHash("sha256").update(token).digest("hex");
+    return createHmac("sha256", this.pepper).update(token).digest("hex");
   }
 
   private createInTransaction(

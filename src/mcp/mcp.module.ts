@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { ArrangersModule } from "../arrangers/arrangers.module";
 import { EventAccessModule } from "../event-access/event-access.module";
 import { EventsModule } from "../events/events.module";
@@ -17,6 +18,7 @@ import { McpController } from "./mcp.controller";
 
 @Module({
   imports: [
+    ConfigModule,
     PrismaModule,
     EventsModule,
     EventAccessModule,

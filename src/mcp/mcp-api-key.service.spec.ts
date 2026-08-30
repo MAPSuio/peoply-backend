@@ -3,13 +3,17 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { McpApiKeyScope } from "../generated/prisma/client";
 import { CreateMcpApiKeyDto } from "./dto/create-mcp-api-key.dto";
 import { McpApiKeyService } from "./mcp-api-key.service";
 import { MCP_MAX_ACTIVE_KEYS_PER_USER } from "./mcp.constants";
 
 const USER_ID = "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b";
+const PEPPER = "pepper-that-is-long-enough-for-the-schema";
+
+const peppered = (token: string) =>
+  createHmac("sha256", PEPPER).update(token).digest("hex");
 
 describe("McpApiKeyService", () => {
   const prisma = {
@@ -23,7 +27,8 @@ describe("McpApiKeyService", () => {
       update: jest.fn(),
     },
   } as any;
-  const service = new McpApiKeyService(prisma);
+  const config = { get: jest.fn().mockReturnValue(PEPPER) } as any;
+  const service = new McpApiKeyService(prisma, config);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -87,15 +92,13 @@ describe("McpApiKeyService", () => {
     );
     expect(stored.secretHash).toMatch(/^[0-9a-f]{64}$/);
     expect(stored.secretHash).not.toBe(created.token);
-    expect(stored.secretHash).toBe(
-      createHash("sha256").update(created.token).digest("hex"),
-    );
+    expect(stored.secretHash).toBe(peppered(created.token));
   });
 
   it("verifies an active key and expands scopes", async () => {
     const token =
       "ppl_mcp_775e3f3c-f489-4bce-a9fb-a76173237d44_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    const secretHash = createHash("sha256").update(token).digest("hex");
+    const secretHash = peppered(token);
 
     prisma.mcpApiKey.findUnique.mockResolvedValue({
       id: "775e3f3c-f489-4bce-a9fb-a76173237d44",
@@ -139,7 +142,7 @@ describe("McpApiKeyService", () => {
   it("rejects a revoked key", async () => {
     const token =
       "ppl_mcp_775e3f3c-f489-4bce-a9fb-a76173237d44_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    const secretHash = createHash("sha256").update(token).digest("hex");
+    const secretHash = peppered(token);
 
     prisma.mcpApiKey.findUnique.mockResolvedValue({
       id: "775e3f3c-f489-4bce-a9fb-a76173237d44",
@@ -159,7 +162,7 @@ describe("McpApiKeyService", () => {
   it("rejects an expired key", async () => {
     const token =
       "ppl_mcp_775e3f3c-f489-4bce-a9fb-a76173237d44_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    const secretHash = createHash("sha256").update(token).digest("hex");
+    const secretHash = peppered(token);
 
     prisma.mcpApiKey.findUnique.mockResolvedValue({
       id: "775e3f3c-f489-4bce-a9fb-a76173237d44",
@@ -204,5 +207,55 @@ describe("McpApiKeyService", () => {
       where: { id: "key-1" },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+  it("stores an HMAC of the token, not a bare sha256 digest", async () => {
+    prisma.mcpApiKey.count.mockResolvedValue(0);
+    prisma.mcpApiKey.create.mockImplementation(({ data }: any) => ({
+      id: data.id,
+      name: data.name,
+      scopes: data.scopes,
+      expiresAt: data.expiresAt,
+      revokedAt: null,
+      lastUsedAt: null,
+      createdAt: new Date(),
+    }));
+
+    const created = await service.create(USER_ID, {
+      name: "Claude Code",
+      scopes: [McpApiKeyScope.READ],
+      expiresInDays: 30,
+    } as CreateMcpApiKeyDto);
+    const stored = prisma.mcpApiKey.create.mock.calls[0][0].data;
+
+    expect(stored.secretHash).not.toBe(
+      createHash("sha256").update(created.token).digest("hex"),
+    );
+  });
+
+  it("rejects a key hashed with a different pepper", async () => {
+    const token =
+      "ppl_mcp_775e3f3c-f489-4bce-a9fb-a76173237d44_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    prisma.mcpApiKey.findUnique.mockResolvedValue({
+      id: "775e3f3c-f489-4bce-a9fb-a76173237d44",
+      secretHash: createHmac("sha256", "a-rotated-pepper-value-for-the-test")
+        .update(token)
+        .digest("hex"),
+      scopes: [McpApiKeyScope.READ],
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      lastUsedAt: null,
+      user: { id: USER_ID },
+    });
+
+    await expect(service.verify(token)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it("refuses to construct without a pepper", () => {
+    expect(
+      () => new McpApiKeyService(prisma, { get: () => undefined } as any),
+    ).toThrow(/MCP_KEY_PEPPER/);
   });
 });
