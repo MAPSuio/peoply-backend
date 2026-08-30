@@ -3,7 +3,9 @@ import { APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { ThrottlerModule } from "@nestjs/throttler";
 import request = require("supertest");
+import { AuthenticatedGuard } from "../auth/guards";
 import { CfThrottlerGuard } from "../cf-throttler.guard";
+import { McpKeysController } from "./mcp-keys.controller";
 import { McpServerFactory } from "./mcp-server.factory";
 import { McpToolsController } from "./mcp-tools.controller";
 
@@ -54,5 +56,17 @@ describe("GET /mcp/tools without credentials", () => {
     const response = await request(app.getHttpServer()).get("/mcp/tools");
 
     expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("stays deliberately unguarded, unlike the key endpoints", () => {
+    expect(
+      Reflect.getMetadata("__guards__", McpToolsController),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata("__guards__", McpToolsController.prototype.list),
+    ).toBeUndefined();
+    expect(Reflect.getMetadata("__guards__", McpKeysController)).toEqual([
+      AuthenticatedGuard,
+    ]);
   });
 });
