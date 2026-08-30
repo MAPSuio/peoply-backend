@@ -33,8 +33,8 @@ const paginationSchema = {
 };
 
 const actorSchema = z.object({
-  id: z.string().uuid(),
-  arrangerId: z.string().uuid(),
+  id: z.uuid(),
+  arrangerId: z.uuid(),
   firstName: z.string(),
   lastName: z.string(),
   email: z.string(),
@@ -113,7 +113,7 @@ export class McpServerFactory {
           description: z.string().min(1).optional(),
           afterDate: z.iso.datetime().optional(),
           beforeDate: z.iso.datetime().optional(),
-          organizationId: z.string().uuid().optional(),
+          organizationId: z.uuid().optional(),
           categoryIds: z.array(z.number().int().positive()).max(20).optional(),
         }),
         annotations: { readOnlyHint: true },
@@ -191,7 +191,7 @@ export class McpServerFactory {
           "List event registrations belonging to the connected user.",
         inputSchema: z.object({
           ...paginationSchema,
-          status: z.nativeEnum(RegStatus).optional(),
+          status: z.enum(RegStatus).optional(),
         }),
         annotations: { readOnlyHint: true },
       },
@@ -311,7 +311,7 @@ export class McpServerFactory {
         title: "Register for event",
         description: "Register the connected user as going to a public event.",
         inputSchema: z.object({
-          eventId: z.string().uuid(),
+          eventId: z.uuid(),
           formAnswer: z.string().max(4000).optional(),
         }),
         annotations: { readOnlyHint: false, destructiveHint: false },
@@ -332,7 +332,7 @@ export class McpServerFactory {
         title: "Update my registration",
         description: "Change the connected user's event registration.",
         inputSchema: z.object({
-          eventId: z.string().uuid(),
+          eventId: z.uuid(),
           status: z.enum([RegStatus.GOING, RegStatus.NOT_GOING]),
           formAnswer: z.string().max(4000).optional(),
         }),
@@ -353,7 +353,7 @@ export class McpServerFactory {
       {
         title: "Favorite event",
         description: "Add an event to the connected user's favorites.",
-        inputSchema: z.object({ eventId: z.string().uuid() }),
+        inputSchema: z.object({ eventId: z.uuid() }),
         annotations: { readOnlyHint: false, destructiveHint: false },
       },
       async ({ eventId }) =>
@@ -365,7 +365,7 @@ export class McpServerFactory {
       {
         title: "Remove favorite event",
         description: "Remove an event from the connected user's favorites.",
-        inputSchema: z.object({ eventId: z.string().uuid() }),
+        inputSchema: z.object({ eventId: z.uuid() }),
         annotations: {
           readOnlyHint: false,
           destructiveHint: true,
@@ -381,7 +381,7 @@ export class McpServerFactory {
       {
         title: "Follow organizer",
         description: "Follow an organizer as the connected user.",
-        inputSchema: z.object({ arrangerId: z.string().uuid() }),
+        inputSchema: z.object({ arrangerId: z.uuid() }),
         annotations: { readOnlyHint: false, destructiveHint: false },
       },
       async ({ arrangerId }) =>
@@ -395,7 +395,7 @@ export class McpServerFactory {
       {
         title: "Unfollow organizer",
         description: "Stop following an organizer as the connected user.",
-        inputSchema: z.object({ arrangerId: z.string().uuid() }),
+        inputSchema: z.object({ arrangerId: z.uuid() }),
         annotations: {
           readOnlyHint: false,
           destructiveHint: true,
@@ -417,7 +417,7 @@ export class McpServerFactory {
         description:
           "Create an event for the connected user or an organization they administer. Image upload is not supported through MCP.",
         inputSchema: z.object({
-          organizationId: z.string().uuid().optional(),
+          organizationId: z.uuid().optional(),
           title: z.string().min(3).max(200),
           description: z.string().min(1).max(20_000),
           startDate: z.iso.datetime(),
@@ -427,9 +427,9 @@ export class McpServerFactory {
           locationName: z.string().min(1).max(500),
           capacity: z.number().int().positive().optional(),
           categoryIds: z.array(z.number().int().positive()).min(1).max(20),
-          visibility: z.nativeEnum(EventVisibility),
+          visibility: z.enum(EventVisibility),
           hasFood: z.boolean(),
-          registrationMode: z.nativeEnum(EventRegistrationMode).optional(),
+          registrationMode: z.enum(EventRegistrationMode).optional(),
           externalUrl: z.url().max(2048).optional(),
           formQuestion: z.string().max(4000).optional(),
         }),
@@ -470,9 +470,9 @@ export class McpServerFactory {
         description:
           "List attendees for an event administered by the connected user.",
         inputSchema: z.object({
-          eventId: z.string().uuid(),
+          eventId: z.uuid(),
           ...paginationSchema,
-          status: z.nativeEnum(RegStatus).optional(),
+          status: z.enum(RegStatus).optional(),
         }),
         annotations: { readOnlyHint: true },
       },

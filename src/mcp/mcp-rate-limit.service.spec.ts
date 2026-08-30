@@ -15,4 +15,14 @@ describe("McpRateLimitService", () => {
     expect(service.consume("key-1", now).allowed).toBe(false);
     expect(service.consume("key-1", now + 60_000).allowed).toBe(true);
   });
+
+  it("tracks quota separately per key", () => {
+    const now = 2_000_000;
+    for (let request = 0; request < MCP_REQUESTS_PER_MINUTE; request++) {
+      service.consume("key-a", now);
+    }
+
+    expect(service.consume("key-a", now).allowed).toBe(false);
+    expect(service.consume("key-b", now).allowed).toBe(true);
+  });
 });

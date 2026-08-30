@@ -6,12 +6,12 @@ import {
   IsArray,
   IsEnum,
   IsInt,
-  IsOptional,
   IsString,
   Max,
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 import { McpApiKeyScope } from "../../generated/prisma/client";
 import { MCP_DEFAULT_EXPIRY_DAYS, MCP_MAX_EXPIRY_DAYS } from "../mcp.constants";
@@ -23,7 +23,7 @@ export class CreateMcpApiKeyDto {
   @ApiProperty({ example: "Claude Code on my laptop" })
   name: string;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(3)
@@ -31,7 +31,7 @@ export class CreateMcpApiKeyDto {
   @ApiProperty({ enum: McpApiKeyScope, isArray: true, required: false })
   scopes: McpApiKeyScope[] = [McpApiKeyScope.READ];
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsInt()
   @Min(1)
   @Max(MCP_MAX_EXPIRY_DAYS)

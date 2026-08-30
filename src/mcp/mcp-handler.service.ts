@@ -2,8 +2,10 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
+  Optional,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { AuthInfo, createMcpHandler } from "@modelcontextprotocol/server";
 import {
   hostHeaderValidation,
@@ -15,20 +17,17 @@ import { McpApiKeyService } from "./mcp-api-key.service";
 import { McpRateLimitService } from "./mcp-rate-limit.service";
 import { McpServerFactory } from "./mcp-server.factory";
 
-const ALLOWED_HOSTS = ["api.peoply.app", "localhost", "127.0.0.1", "[::1]"];
-const ALLOWED_ORIGINS = [
-  "peoply.app",
-  "www.peoply.app",
-  "localhost",
-  "127.0.0.1",
-  "[::1]",
-];
+const DEFAULT_ALLOWED_HOSTS = ["api.peoply.app"];
+const DEFAULT_ALLOWED_ORIGINS = ["peoply.app", "www.peoply.app"];
+const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+
+export type AuthenticatedRequest = Request & { auth?: AuthInfo };
 
 @Injectable()
 export class McpHandlerService implements OnModuleDestroy {
   private readonly logger = new Logger(McpHandlerService.name);
-  private readonly validateHost = hostHeaderValidation(ALLOWED_HOSTS);
-  private readonly validateOrigin = originValidation(ALLOWED_ORIGINS);
+  private readonly validateHost: (req: Request, res: Response) => boolean;
+  private readonly validateOrigin: (req: Request, res: Response) => boolean;
   private readonly handler = createMcpHandler(
     ({ authInfo }) => this.servers.create(authInfo),
     {
@@ -44,9 +43,39 @@ export class McpHandlerService implements OnModuleDestroy {
     private readonly apiKeys: McpApiKeyService,
     private readonly rateLimits: McpRateLimitService,
     private readonly servers: McpServerFactory,
-  ) {}
+    @Optional() private readonly configService?: ConfigService,
+  ) {
+    const isDevOrLocalAuth =
+      this.configService?.get<boolean>("LOCAL_AUTH_ENABLED") ??
+      process.env.NODE_ENV !== "production";
+    const allowedHosts = [
+      ...DEFAULT_ALLOWED_HOSTS,
+      ...(isDevOrLocalAuth ? LOOPBACK_HOSTS : []),
+    ];
+    const corsOrigins = (this.configService?.get<string>("CORS_ORIGIN") ?? "")
+      .split(",")
+      .map((origin) => {
+        try {
+          return new URL(origin.trim()).hostname;
+        } catch {
+          return origin.trim();
+        }
+      })
+      .filter(Boolean);
 
-  async handle(req: Request & { auth?: AuthInfo }, res: Response) {
+    const allowedOrigins = Array.from(
+      new Set([
+        ...DEFAULT_ALLOWED_ORIGINS,
+        ...corsOrigins,
+        ...(isDevOrLocalAuth ? LOOPBACK_HOSTS : []),
+      ]),
+    );
+
+    this.validateHost = hostHeaderValidation(allowedHosts);
+    this.validateOrigin = originValidation(allowedOrigins);
+  }
+
+  async handle(req: AuthenticatedRequest, res: Response) {
     if (!this.validateHost(req, res) || !this.validateOrigin(req, res)) {
       return;
     }

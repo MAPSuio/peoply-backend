@@ -19,7 +19,9 @@ import {
   MCP_SCOPE_NAMES,
 } from "./mcp.constants";
 
-const TOKEN_PATTERN = /^ppl_mcp_([0-9a-f-]{36})_([A-Za-z0-9_-]{43})$/;
+const TOKEN_PATTERN = new RegExp(
+  `^${MCP_KEY_PREFIX}_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_([A-Za-z0-9_-]{43})$`,
+);
 const LAST_USED_WRITE_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_LISTED_KEYS = 100;
 const TRANSACTION_RETRIES = 3;

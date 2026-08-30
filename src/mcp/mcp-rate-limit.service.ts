@@ -8,6 +8,7 @@ type RateLimitWindow = {
 
 @Injectable()
 export class McpRateLimitService implements OnModuleDestroy {
+  // In-memory rate limiting for single-instance deployment; back with a shared store if scaled horizontally.
   private readonly windows = new Map<string, RateLimitWindow>();
   private readonly cleanupTimer = setInterval(
     () => this.removeExpired(),

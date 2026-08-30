@@ -5,6 +5,7 @@ function responseMock() {
   const response: any = {
     end: jest.fn(),
     json: jest.fn(),
+    on: jest.fn(),
     setHeader: jest.fn(),
     writeHead: jest.fn(),
   };
@@ -122,5 +123,42 @@ describe("McpHandlerService", () => {
     expect(rateLimits.consume).toHaveBeenCalledWith("key-1");
     expect(response.setHeader).toHaveBeenCalledWith("Retry-After", "12");
     expect(response.status).toHaveBeenCalledWith(429);
+  });
+
+  it("populates req.auth with verified key scopes and passes request to node handler", async () => {
+    const response = responseMock();
+    const expiresAt = new Date(Date.now() + 60_000);
+    const verifiedUser = {
+      id: "user-1",
+      arrangerId: "arr-1",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@example.com",
+    };
+    apiKeys.verify.mockResolvedValue({
+      keyId: "key-1",
+      user: verifiedUser,
+      scopes: ["peoply:read", "peoply:write"],
+      expiresAt,
+    });
+    rateLimits.consume.mockReturnValue({ allowed: true, retryAfterSeconds: 0 });
+
+    const req: any = {
+      headers: {
+        authorization: "Bearer ppl_mcp_test_token",
+        host: "api.peoply.app",
+      },
+      body: { jsonrpc: "2.0", method: "tools/list", id: 1 },
+    };
+
+    await service.handle(req, response);
+
+    expect(req.auth).toEqual({
+      token: "ppl_mcp_test_token",
+      clientId: "key-1",
+      scopes: ["peoply:read", "peoply:write"],
+      expiresAt: Math.floor(expiresAt.getTime() / 1000),
+      extra: { user: verifiedUser, keyId: "key-1" },
+    });
   });
 });
