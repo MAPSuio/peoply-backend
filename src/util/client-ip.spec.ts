@@ -148,3 +148,121 @@ describe("isOriginSecretConfigured", () => {
     expect(isOriginSecretConfigured()).toBe(true);
   });
 });
+
+describe("resolveClientIp across the forwarding chain", () => {
+  const OUR_CLOUDFLARE_EDGE = "162.158.0.1";
+  const DIGITALOCEAN_CLOUDFLARE_EDGE = "172.64.0.1";
+  const PLATFORM_HOP = "10.244.0.7";
+  const VISITOR = "84.211.24.137";
+
+  beforeEach(() => {
+    process.env.CLOUDFLARE_ORIGIN_SECRET = "s3cret";
+  });
+
+  function requestThroughCloudflare(forwardedFor: string) {
+    return {
+      headers: {
+        "x-forwarded-for": forwardedFor,
+        "x-cf-origin-secret": "s3cret",
+        "cf-connecting-ip": OUR_CLOUDFLARE_EDGE,
+      },
+      socket: { remoteAddress: PLATFORM_HOP },
+      ip: OUR_CLOUDFLARE_EDGE,
+    };
+  }
+
+  it("reports the visitor rather than the edge that relayed them", () => {
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(
+          `${VISITOR}, ${OUR_CLOUDFLARE_EDGE}, ${DIGITALOCEAN_CLOUDFLARE_EDGE}`,
+        ),
+      ),
+    ).toBe(VISITOR);
+  });
+
+  it("puts two visitors behind one edge in different buckets", () => {
+    const other = "84.211.24.200";
+
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(`${VISITOR}, ${OUR_CLOUDFLARE_EDGE}`),
+      ),
+    ).not.toBe(
+      resolveClientIp(
+        requestThroughCloudflare(`${other}, ${OUR_CLOUDFLARE_EDGE}`),
+      ),
+    );
+  });
+
+  it("keeps one visitor in one bucket however the edge rotates", () => {
+    const buckets = new Set(
+      ["162.158.0.1", "162.158.9.9", "104.16.0.5"].map((edge) =>
+        resolveClientIp(requestThroughCloudflare(`${VISITOR}, ${edge}`)),
+      ),
+    );
+
+    expect([...buckets]).toEqual([VISITOR]);
+  });
+
+  it("ignores entries the caller prepended to the chain", () => {
+    expect(
+      resolveClientIp(requestThroughCloudflare(`1.1.1.1, 2.2.2.2, ${VISITOR}`)),
+    ).toBe(VISITOR);
+  });
+
+  it("gives a caller who reaches the origin directly no say in their bucket", () => {
+    const buckets = new Set(
+      ["1.1.1.1", "2.2.2.2", "3.3.3.3"].map((forged) =>
+        resolveClientIp({
+          headers: { "x-forwarded-for": `${forged}, ${VISITOR}` },
+          socket: { remoteAddress: PLATFORM_HOP },
+          ip: forged,
+        }),
+      ),
+    );
+
+    expect([...buckets]).toEqual([VISITOR]);
+  });
+
+  it("does not skip past a Cloudflare address when Cloudflare is unproven", () => {
+    expect(
+      resolveClientIp({
+        headers: { "x-forwarded-for": `${VISITOR}, ${OUR_CLOUDFLARE_EDGE}` },
+        socket: { remoteAddress: PLATFORM_HOP },
+        ip: VISITOR,
+      }),
+    ).toBe(OUR_CLOUDFLARE_EDGE);
+  });
+
+  it("normalises the IPv4-mapped socket address into one bucket", () => {
+    expect(
+      resolveClientIp({
+        headers: {},
+        socket: { remoteAddress: `::ffff:${VISITOR}` },
+      }),
+    ).toBe(VISITOR);
+  });
+
+  it("skips chain entries that are not addresses", () => {
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(
+          `${VISITOR}, not-an-ip, ${OUR_CLOUDFLARE_EDGE}`,
+        ),
+      ),
+    ).toBe(VISITOR);
+  });
+
+  it("falls back to the outermost hop when every entry is infrastructure", () => {
+    expect(
+      resolveClientIp({
+        headers: {
+          "x-forwarded-for": `${OUR_CLOUDFLARE_EDGE}`,
+          "x-cf-origin-secret": "s3cret",
+        },
+        socket: { remoteAddress: PLATFORM_HOP },
+      }),
+    ).toBe(OUR_CLOUDFLARE_EDGE);
+  });
+});
