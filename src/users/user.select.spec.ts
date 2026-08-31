@@ -90,6 +90,11 @@ describe("endpoints that return other people's users", () => {
               .fn()
               .mockResolvedValue({ id: "user-1", arrangerId: "arr-1" }),
           },
+          /* The page of events comes first and the arranger rows are loaded
+             for it, so the include under test is only reached with a page. */
+          event: {
+            findMany: jest.fn().mockResolvedValue([{ id: "event-1" }]),
+          },
           eventArranger: {
             findMany: jest.fn((args) => {
               calls.push(args);

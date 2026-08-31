@@ -129,24 +129,38 @@ export class EventArrangersService {
       ...orgs.map((org) => org.arrangerId),
     ]);
 
-    const rows = await this.prismaService.eventArranger.findMany({
+    /* The page counts events, not arranger rows. An event the caller arranges
+       both personally and through an organization has two rows here, and
+       paging over rows would spend two slots on it and push a real event onto
+       the next page. Newest first is what a "my events" list is read for, and
+       the id breaks the tie: two events starting at the same instant are
+       interchangeable to Postgres, so without it one of them can be served on
+       two pages and its neighbour on none. */
+    const eventPage = await this.prismaService.event.findMany({
       skip,
       take,
-      /* Newest first is what a "my events" list is read for, and the primary
-         key breaks the tie: two events starting at the same instant are
-         interchangeable to Postgres, so without it one of them can be served
-         on two pages and its neighbour on none. */
-      orderBy: [
-        { event: { startDate: "desc" } },
-        { eventId: "desc" },
-        { arrangerId: "desc" },
-      ],
+      orderBy: [{ startDate: "desc" }, { id: "desc" }],
       where: {
+        archivedAt: null,
+        eventArrangers: { some: { arrangerId: { in: [...myArrangerIds] } } },
+      },
+      select: { id: true },
+    });
+
+    if (eventPage.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prismaService.eventArranger.findMany({
+      /* Bounded by the page above: every row here belongs to one of its
+         events, and there are only ever as many as those events have
+         arrangers. */
+      take: ALL_ROWS,
+      orderBy: { arrangerId: "asc" },
+      where: {
+        eventId: { in: eventPage.map(({ id }) => id) },
         arrangerId: {
           in: [...myArrangerIds],
-        },
-        event: {
-          archivedAt: null,
         },
       },
       include: {
@@ -160,6 +174,17 @@ export class EventArrangersService {
       },
     });
 
+    const arrangerRowByEventId = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      if (!arrangerRowByEventId.has(row.eventId)) {
+        arrangerRowByEventId.set(row.eventId, row);
+      }
+    }
+
+    const rowsInPageOrder = eventPage
+      .map(({ id }) => arrangerRowByEventId.get(id))
+      .filter((row) => row !== undefined);
+
     // The filter above selects events by *the caller's* arrangers, but the
     // nested include returns every arranger on those events. A co-arranged
     // event therefore carries organizations the caller has no role in, and
@@ -167,7 +192,7 @@ export class EventArrangersService {
     // as "my organizations" would ask for members of someone else's org and
     // get a 403. Mark them rather than dropping them: the co-arranger still
     // has to be rendered on the event.
-    return rows.map((row) => ({
+    return rowsInPageOrder.map((row) => ({
       ...row,
       event: {
         ...row.event,

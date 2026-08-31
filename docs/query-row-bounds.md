@@ -56,6 +56,12 @@ på side 1 og motsatt på side 2, slik at en rad serveres to ganger og naboen
 aldri. Derfor sorterer hver paginerte spørring på primærnøkkelen i tillegg til
 kolonnen lista faktisk sorteres på.
 
+`/users/:userId/arranging` paginerer over events, ikke over `EventArranger`-rader.
+Et arrangement brukeren står bak både personlig og gjennom en forening har to
+rader, og en side over rader ville brukt to plasser på det og dyttet et ekte
+arrangement over på neste side. Radene for siden hentes etterpå, ubundet, fordi
+de allerede er begrenset av arrangementene siden valgte.
+
 Varsler er den eneste av dem som ikke kan pagineres i én spørring. Tre kilder
 slås sammen og sorteres på `createdAt`, og en side kan i sin helhet komme fra
 én av dem, så hver kilde henter sine nyeste `skip + take` rader før
