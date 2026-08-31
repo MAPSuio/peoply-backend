@@ -1,5 +1,6 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
+import { BUDGET_ACTIONS } from "../abuse-budget/budget-action";
 import { BudgetExceeded } from "../abuse-budget/budget-errors";
 import { SYSTEM_CLOCK, type BudgetStore } from "../abuse-budget/budget-store";
 import { InMemoryBudgetStore } from "../abuse-budget/in-memory-budget-store";
@@ -27,19 +28,22 @@ function budgetedClient() {
 }
 
 class UnavailableBudgetStore implements BudgetStore {
-  async increment(): Promise<never> {
+  async increment(
+    _key: string,
+    _cost: number,
+    _windowMs: number,
+    _nowMs: number,
+  ): Promise<never> {
     throw new Error("budget store unavailable");
   }
 }
 
 function budgetedClientWithUnavailableStore() {
-  const budget = new AbuseBudgetService(
-    new UnavailableBudgetStore(),
-    SYSTEM_CLOCK,
-  );
+  const store = new UnavailableBudgetStore();
+  const budget = new AbuseBudgetService(store, SYSTEM_CLOCK);
   const base = new PrismaClient({ adapter: createPrismaAdapter() });
 
-  return { budget, base, client: withAbuseBudget(base, budget) };
+  return { store, budget, base, client: withAbuseBudget(base, budget) };
 }
 
 function identitiesOf(userId: string): RequestIdentities {
@@ -306,7 +310,8 @@ describe("full-text search gating while the budget store is unavailable", () => 
   });
 
   it("still serves an authenticated caller because search.text fails open", async () => {
-    const { base, client } = budgetedClientWithUnavailableStore();
+    const { store, base, client } = budgetedClientWithUnavailableStore();
+    const increment = jest.spyOn(store, "increment");
 
     await asAuthenticatedUser("searcher", async () => {
       await expect(
@@ -316,6 +321,13 @@ describe("full-text search gating while the budget store is unavailable", () => 
         }),
       ).resolves.toEqual([]);
     });
+
+    expect(increment).toHaveBeenCalledWith(
+      "abuse:search.text:user:searcher",
+      1,
+      BUDGET_ACTIONS["search.text"].windowMs,
+      expect.any(Number),
+    );
 
     await base.$disconnect();
   });
