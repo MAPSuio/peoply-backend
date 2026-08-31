@@ -70,6 +70,7 @@ describe("OIDC strategies", () => {
 
   const vippsClaims = {
     email: "ola@example.com",
+    email_verified: true,
     phone_number: "+4712345678",
     given_name: "Ola",
     family_name: "Nordmann",
@@ -184,6 +185,14 @@ describe("OIDC strategies", () => {
       await expect(
         vipps({ ...vippsClaims, [claim]: undefined }).validate(tokens),
       ).rejects.toThrow("Missing user info");
+    });
+
+    it("refuses an unverified email", async () => {
+      await expect(
+        vipps({ ...vippsClaims, email_verified: false }).validate(tokens),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(userService.create).not.toHaveBeenCalled();
     });
   });
 });

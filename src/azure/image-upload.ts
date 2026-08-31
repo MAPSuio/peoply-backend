@@ -52,6 +52,9 @@ export const IMAGE_UPLOAD_OPTIONS: MulterOptions = {
   limits: {
     fileSize: MAX_IMAGE_BYTES,
     files: 1,
+    fields: 16,
+    parts: 24,
+    fieldSize: 64 * 1024,
   },
 };
 

@@ -29,6 +29,11 @@ const attendeeSelect = (showFood: boolean | undefined) => ({
   },
 });
 
+const NON_ARRANGER_COUNTABLE_STATUSES = new Set<RegStatus>([
+  RegStatus.GOING,
+  RegStatus.WAITLISTED,
+]);
+
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
   async findAll(searchProps: SearchEventRegistrationDto, eventId: string) {
@@ -106,6 +111,14 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     }
 
     if (!isArranger && event.visibility !== EventVisibility.PUBLIC) {
+      throw new EventNotFoundException(eventId);
+    }
+
+    if (
+      !isArranger &&
+      searchProps.regStatus &&
+      !NON_ARRANGER_COUNTABLE_STATUSES.has(searchProps.regStatus)
+    ) {
       throw new EventNotFoundException(eventId);
     }
 

@@ -173,7 +173,7 @@ export class EventsController {
   @EventArrangerRoles(EventArrangerRole.ADMIN)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Delete(":id")
-  async remove(@Req() @Param("id") id: string) {
+  async remove(@Param("id") id: string) {
     //the user has to be the arranger or the admin of the organization
     return this.eventsService.remove(id);
   }
