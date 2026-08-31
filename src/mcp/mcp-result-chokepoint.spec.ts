@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const MCP_ROOT = __dirname;
 const RESULT_MODULE = "mcp-result.ts";
-const CONTENT_BLOCK = 'type: "text"';
+const CONTENT_BLOCK = /type\s*:\s*['"`]text['"`]/;
 
 function sourceFilesIn(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -22,7 +22,7 @@ describe("every tool answer goes through one framed result", () => {
         return false;
       }
 
-      return readFileSync(path, "utf8").includes(CONTENT_BLOCK);
+      return CONTENT_BLOCK.test(readFileSync(path, "utf8"));
     });
 
     expect(offenders).toEqual([]);

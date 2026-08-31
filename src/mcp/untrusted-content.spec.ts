@@ -18,9 +18,7 @@ describe("clampUserText", () => {
       description: string;
     };
 
-    expect(clamped.description).toHaveLength(
-      MAX_TEXT_CHARACTERS + TRUNCATION_MARKER.length,
-    );
+    expect(clamped.description).toHaveLength(MAX_TEXT_CHARACTERS);
     expect(clamped.description.endsWith(TRUNCATION_MARKER)).toBe(true);
   });
 
@@ -56,17 +54,31 @@ describe("clampUserText", () => {
     expect(clampUserText(value)).toEqual(value);
   });
 
-  it("does not follow a structure back into itself", () => {
-    const looping: Record<string, unknown> = { description: "kort" };
+  it("hands back something a caller can still serialise when it loops", () => {
+    const looping: Record<string, unknown> = { description: OVERLONG };
     looping.self = looping;
 
-    expect(() => clampUserText(looping)).not.toThrow();
+    const serialised = JSON.stringify(clampUserText(looping));
+
+    expect(serialised).not.toContain(OVERLONG);
+  });
+
+  it("clamps a branch reached twice, not only the first time", () => {
+    const shared = { description: OVERLONG };
+
+    const serialised = JSON.stringify(
+      clampUserText({ first: shared, second: shared }),
+    );
+
+    expect(serialised).not.toContain(OVERLONG);
   });
 
   it("stops descending before a deeply nested structure exhausts the stack", () => {
     let deep: unknown = { description: OVERLONG };
     for (let level = 0; level < 5000; level += 1) deep = { nested: deep };
 
-    expect(() => clampUserText(deep)).not.toThrow();
+    const serialised = JSON.stringify(clampUserText(deep));
+
+    expect(serialised).not.toContain(OVERLONG);
   });
 });

@@ -2,7 +2,6 @@ import { BadRequestException, Logger } from "@nestjs/common";
 import { runMcpTool } from "./mcp-result";
 import {
   MAX_TEXT_CHARACTERS,
-  TRUNCATION_MARKER,
   UNTRUSTED_DATA_NOTICE,
 } from "./untrusted-content";
 
@@ -54,9 +53,7 @@ describe("runMcpTool", () => {
       data: { description: string };
     };
 
-    expect(data.description).toHaveLength(
-      MAX_TEXT_CHARACTERS + TRUNCATION_MARKER.length,
-    );
+    expect(data.description).toHaveLength(MAX_TEXT_CHARACTERS);
   });
 
   it("frames a refusal too, since its message can quote what a user wrote", async () => {
