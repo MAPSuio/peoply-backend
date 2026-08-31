@@ -21,7 +21,8 @@ import { AuthService } from "./auth.service";
 import { ConfigService } from "@nestjs/config";
 import {
   AuthenticatedGuard,
-  ClearLinkIntentGuard,
+  ConfirmLinkGuard,
+  FreshLoginSessionGuard,
   LinkIntentGuard,
   VippsGuard,
   RefreshGuard,
@@ -332,7 +333,7 @@ export class AuthController {
     session: any,
     user: User,
   ): Promise<Record<string, string>> {
-    const pending = takePendingLink(session);
+    const pending = takePendingLink(session, Date.now());
 
     if (!pending) {
       return {};
@@ -385,6 +386,7 @@ export class AuthController {
         sub,
         profile,
         matchedUserId: emailOwner.id,
+        parkedAt: Date.now(),
       };
 
       return this.redirectToFrontend(res, redirectUriConfigKey, {
@@ -430,14 +432,27 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @UseGuards(ClearLinkIntentGuard, VippsGuard)
+  @UseGuards(FreshLoginSessionGuard, VippsGuard)
   @Get("/login")
   async login() {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @UseGuards(ClearLinkIntentGuard, GoogleGuard)
+  @UseGuards(FreshLoginSessionGuard, GoogleGuard)
   @Get("/login/google")
   async loginGoogle() {}
+
+  /* The confirm re-auth of the link modal. Same flow as a plain login, but it
+     is the one login allowed to keep a parked link, so it has its own door
+     rather than being recognised after the fact. */
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @UseGuards(ConfirmLinkGuard, VippsGuard)
+  @Get("/confirm-link")
+  async confirmLinkVipps() {}
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @UseGuards(ConfirmLinkGuard, GoogleGuard)
+  @Get("/confirm-link/google")
+  async confirmLinkGoogle() {}
 
   /* The link endpoints are the login endpoints with an intent: guard order is
      load-bearing. AuthenticatedGuard puts the user on the request,

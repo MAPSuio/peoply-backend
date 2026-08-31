@@ -4,6 +4,7 @@ import { Response } from "express";
 import { Provider } from "../generated/prisma/client";
 import { UsersService } from "../users/services";
 import { AuthController } from "./auth.controller";
+import { PENDING_LINK_MAX_AGE_MS, takePendingLink } from "./link-session";
 import { AuthService } from "./auth.service";
 
 /**
@@ -183,6 +184,7 @@ describe("AuthController OIDC callback linking", () => {
         sub: "sub-g",
         profile: googleProfile,
         matchedUserId: "matched-1",
+        parkedAt: expect.any(Number),
       });
       expect(usersService.create).not.toHaveBeenCalled();
       expect(sessionCookiesIssued()).toBe(false);
@@ -265,6 +267,7 @@ describe("AuthController OIDC callback linking", () => {
       sub: "sub-g",
       profile: googleProfile,
       matchedUserId: "user-1",
+      parkedAt: Date.now(),
     };
 
     it("links the pending identity when the matched user logs back in", async () => {
@@ -397,5 +400,42 @@ describe("AuthController OIDC callback linking", () => {
         "https://peoply.app/login/callback?link_error=expired",
       );
     });
+  });
+});
+
+describe("a parked link expires", () => {
+  it("is not confirmed once it has outlived the sitting it was offered in", () => {
+    const parked = {
+      provider: Provider.GOOGLE,
+      sub: "sub-g",
+      profile: { email: "ola@example.com" } as never,
+      matchedUserId: "user-1",
+      parkedAt: 0,
+    };
+
+    expect(
+      takePendingLink({ pendingLink: { ...parked } }, PENDING_LINK_MAX_AGE_MS),
+    ).toEqual(parked);
+    expect(
+      takePendingLink(
+        { pendingLink: { ...parked } },
+        PENDING_LINK_MAX_AGE_MS + 1,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("is read once, so a consumed one cannot turn a later login into a link", () => {
+    const session = {
+      pendingLink: {
+        provider: Provider.GOOGLE,
+        sub: "sub-g",
+        profile: { email: "ola@example.com" } as never,
+        matchedUserId: "user-1",
+        parkedAt: 0,
+      },
+    };
+
+    expect(takePendingLink(session, 0)).toBeDefined();
+    expect(takePendingLink(session, 0)).toBeUndefined();
   });
 });
