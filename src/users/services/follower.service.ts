@@ -20,7 +20,7 @@ export class FollowService {
       where: {
         userId,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { arrangerId: "desc" }],
       include: {
         arranger: {
           include: {

@@ -80,7 +80,7 @@ export class EventInvitationsService {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         event: true,
         // This is spread verbatim into the notifications payload, so

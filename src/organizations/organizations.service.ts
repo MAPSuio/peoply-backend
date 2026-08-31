@@ -330,7 +330,7 @@ export class OrganizationsService {
     return await this.prisma.organization.findMany({
       skip,
       take,
-      orderBy: { name: "asc" },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
       where: {
         organizationRoles: {
           // Prisma drops undefined fields from a where clause, so an

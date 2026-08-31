@@ -353,7 +353,9 @@ describe("OrganizationsService", () => {
       expect(prisma.organization.findMany.mock.calls[0][0]).toMatchObject({
         skip: 10,
         take: 5,
-        orderBy: { name: "asc" },
+        /* Two organizations may share a name, so the page order needs the
+           primary key as well or one of them can be served on two pages. */
+        orderBy: [{ name: "asc" }, { id: "asc" }],
       });
     });
 

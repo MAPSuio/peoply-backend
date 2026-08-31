@@ -65,8 +65,16 @@ describe("EventInvitationsService", () => {
 
       expect(prisma.eventInvitation.findMany.mock.calls[0][0]).toMatchObject({
         take: 10,
-        orderBy: { createdAt: "desc" },
       });
+    });
+
+    it("orders on a unique column too, so a page cannot repeat a row", async () => {
+      await service.findAllPendingInvitationsToUser("user-1", 10);
+
+      expect(prisma.eventInvitation.findMany.mock.calls[0][0].orderBy).toEqual([
+        { createdAt: "desc" },
+        { id: "desc" },
+      ]);
     });
   });
 });

@@ -132,10 +132,15 @@ export class EventArrangersService {
     const rows = await this.prismaService.eventArranger.findMany({
       skip,
       take,
-      /* A page is only a page under a deterministic order, or which events land
-         on it is up to the query planner. Newest first is what a "my events"
-         list is read for. */
-      orderBy: { event: { startDate: "desc" } },
+      /* Newest first is what a "my events" list is read for, and the primary
+         key breaks the tie: two events starting at the same instant are
+         interchangeable to Postgres, so without it one of them can be served
+         on two pages and its neighbour on none. */
+      orderBy: [
+        { event: { startDate: "desc" } },
+        { eventId: "desc" },
+        { arrangerId: "desc" },
+      ],
       where: {
         arrangerId: {
           in: [...myArrangerIds],

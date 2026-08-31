@@ -77,6 +77,31 @@ describe("NotificationsService.findAllPendingByUserId", () => {
     expect(page[0].type).toBe(NotificationType.INVITATION_ORGANIZATION);
   });
 
+  it("splits rows sharing a timestamp across pages without repeating one", async () => {
+    const sameInstant = new Date(NEWEST_FIRST_START);
+    eventInvitations.findAllPendingInvitationsToUser.mockResolvedValue([
+      { id: "aaa", createdAt: sameInstant },
+      { id: "ccc", createdAt: sameInstant },
+    ]);
+    organizationInvitations.findAllPendingInvitationsToUser.mockResolvedValue([
+      { id: "bbb", createdAt: sameInstant },
+    ]);
+
+    const firstPage = await service.findAllPendingByUserId("user-1", {
+      skip: 0,
+      take: 2,
+    });
+    const secondPage = await service.findAllPendingByUserId("user-1", {
+      skip: 2,
+      take: 2,
+    });
+
+    /* The merge breaks the tie on id descending, the same order the three
+       source queries use, so the two pages partition the set. */
+    expect(firstPage.map(({ id }) => id)).toEqual(["ccc", "bbb"]);
+    expect(secondPage.map(({ id }) => id)).toEqual(["aaa"]);
+  });
+
   it("keeps the second page correct when one source holds every row on it", async () => {
     eventInvitations.findAllPendingInvitationsToUser.mockResolvedValue(
       invitationsNewestFirst("event", 5),

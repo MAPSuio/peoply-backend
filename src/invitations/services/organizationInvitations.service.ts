@@ -67,7 +67,7 @@ export class OrganizationInvitationsService {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         organization: true,
       },

@@ -106,7 +106,7 @@ export class EventCoOrganizerInvitationsService {
         invitationStatus: InvitationStatus.PENDING,
       },
       include: INVITATION_INCLUDE,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
   }
 

@@ -9,8 +9,29 @@ import {
   NotificationType,
 } from "./notifications.constants";
 
+/**
+ * The same total order the three sources are queried in. It has to be the same
+ * one: each source offers its own newest rows on the strength of its `orderBy`,
+ * and a merge that broke ties differently would place a row on a page the
+ * source never offered it for.
+ */
 function newestFirst(a: PeoplyNotification, b: PeoplyNotification) {
-  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  const byCreatedAt =
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+  if (byCreatedAt !== 0) {
+    return byCreatedAt;
+  }
+
+  return descendingByCodePoint(a.id, b.id);
+}
+
+function descendingByCodePoint(a: string, b: string) {
+  if (a === b) {
+    return 0;
+  }
+
+  return a < b ? 1 : -1;
 }
 
 @Injectable()

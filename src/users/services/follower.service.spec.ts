@@ -42,7 +42,7 @@ describe("FollowService", () => {
       expect(prisma.arrangerFollower.findMany.mock.calls[0][0]).toMatchObject({
         skip: 30,
         take: 10,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { arrangerId: "desc" }],
       });
     });
 

@@ -140,9 +140,18 @@ describe("EventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsO
   it("orders the page, so which events land on it is not up to the planner", async () => {
     await run(setup([]), { skip: 0, take: 5 });
 
-    expect(eventArrangerQuery().orderBy).toEqual({
-      event: { startDate: "desc" },
-    });
+    expect(eventArrangerQuery().orderBy).toEqual([
+      { event: { startDate: "desc" } },
+      { eventId: "desc" },
+      { arrangerId: "desc" },
+    ]);
+  });
+
+  it("breaks a startDate tie on the primary key, so no event lands on two pages", async () => {
+    await run(setup([]), { skip: 0, take: 5 });
+
+    const [, ...tiebreakers] = eventArrangerQuery().orderBy;
+    expect(tiebreakers).toEqual([{ eventId: "desc" }, { arrangerId: "desc" }]);
   });
 
   it("never bounds the organizations that decide whose events these are", async () => {

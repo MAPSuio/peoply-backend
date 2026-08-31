@@ -49,6 +49,13 @@ gjennom `pageBoundsOf` i `src/util/pagination.ts`, som lar `take` falle tilbake
 til `MAX_PAGE_SIZE` når kallstedet ikke oppgir noe: spørringen får en grense
 uten at en klient som aldri sendte `take` får et kortere svar enn før.
 
+`skip` og `take` peker på posisjoner, og posisjoner finnes bare under en total
+ordning. To organisasjoner med samme navn, eller to invitasjoner opprettet i
+samme millisekund, er utbyttbare for Postgres: den kan gi dem i én rekkefølge
+på side 1 og motsatt på side 2, slik at en rad serveres to ganger og naboen
+aldri. Derfor sorterer hver paginerte spørring på primærnøkkelen i tillegg til
+kolonnen lista faktisk sorteres på.
+
 Varsler er den eneste av dem som ikke kan pagineres i én spørring. Tre kilder
 slås sammen og sorteres på `createdAt`, og en side kan i sin helhet komme fra
 én av dem, så hver kilde henter sine nyeste `skip + take` rader før
