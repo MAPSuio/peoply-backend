@@ -10,9 +10,6 @@ describe("OrganizationAnalyticsService", () => {
       count: jest.fn(),
       findMany: jest.fn(),
     },
-    arrangerFollowerEvent: {
-      findMany: jest.fn(),
-    },
     userOrganizationRole: {
       count: jest.fn(),
     },
@@ -22,6 +19,23 @@ describe("OrganizationAnalyticsService", () => {
     registration: {
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
+  };
+
+  const mockFollowerQueries = (
+    windows: {
+      net24h: number;
+      net7d: number;
+      net30d: number;
+      netPeriod: number;
+    },
+    dailyNets: { day: string; net: number }[] = [],
+  ) => {
+    prisma.$queryRaw.mockImplementation((strings: TemplateStringsArray) =>
+      Promise.resolve(
+        strings.join(" ").includes("net24h") ? [windows] : dailyNets,
+      ),
+    );
   };
   const organizationsService = {
     findByRefOrThrow: jest.fn(),
@@ -35,7 +49,7 @@ describe("OrganizationAnalyticsService", () => {
     organizationsService.findByRefOrThrow.mockResolvedValue(org);
     prisma.arrangerFollower.count.mockResolvedValue(0);
     prisma.arrangerFollower.findMany.mockResolvedValue([]);
-    prisma.arrangerFollowerEvent.findMany.mockResolvedValue([]);
+    mockFollowerQueries({ net24h: 0, net7d: 0, net30d: 0, netPeriod: 0 });
     prisma.userOrganizationRole.count.mockResolvedValue(0);
     prisma.event.findMany.mockResolvedValue([]);
     prisma.registration.findMany.mockResolvedValue([]);
@@ -69,15 +83,8 @@ describe("OrganizationAnalyticsService", () => {
     });
   });
 
-  it("computes follower net windows from a FOLLOW/UNFOLLOW mix straddling window edges", async () => {
-    const hours = (n: number) => new Date(NOW.getTime() - n * 3_600_000);
-    prisma.arrangerFollowerEvent.findMany.mockResolvedValue([
-      { action: "FOLLOW", createdAt: hours(1) },
-      { action: "UNFOLLOW", createdAt: hours(2) },
-      { action: "FOLLOW", createdAt: hours(3 * 24) },
-      { action: "UNFOLLOW", createdAt: hours(10 * 24) },
-      { action: "FOLLOW", createdAt: hours(29 * 24) },
-    ]);
+  it("passes the aggregated follower net windows through to the response", async () => {
+    mockFollowerQueries({ net24h: 0, net7d: 1, net30d: 1, netPeriod: 1 });
 
     const result = await service.getAnalytics("org-1");
 
@@ -87,11 +94,10 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("returns dailyNet as zero-filled ascending UTC days ending today", async () => {
-    prisma.arrangerFollowerEvent.findMany.mockResolvedValue([
-      { action: "FOLLOW", createdAt: new Date("2026-08-20T08:00:00Z") },
-      { action: "FOLLOW", createdAt: new Date("2026-08-19T23:59:59Z") },
-      { action: "UNFOLLOW", createdAt: new Date("2026-08-19T00:00:00Z") },
-      { action: "UNFOLLOW", createdAt: new Date("2026-07-25T12:00:00Z") },
+    mockFollowerQueries({ net24h: 1, net7d: 1, net30d: 0, netPeriod: 0 }, [
+      { day: "2026-08-20", net: 1 },
+      { day: "2026-08-19", net: 0 },
+      { day: "2026-07-25", net: -1 },
     ]);
 
     const { dailyNet } = (await service.getAnalytics("org-1", "30d")).followers;
@@ -341,12 +347,8 @@ describe("OrganizationAnalyticsService", () => {
     expect(year.followers.dailyNet).toHaveLength(365);
   });
 
-  it("keeps the fixed net windows even for long periods", async () => {
-    const hours = (n: number) => new Date(NOW.getTime() - n * 3_600_000);
-    prisma.arrangerFollowerEvent.findMany.mockResolvedValue([
-      { action: "FOLLOW", createdAt: hours(1) },
-      { action: "FOLLOW", createdAt: hours(100 * 24) },
-    ]);
+  it("keeps the fixed net windows distinct from the period net", async () => {
+    mockFollowerQueries({ net24h: 1, net7d: 1, net30d: 1, netPeriod: 2 });
 
     const result = await service.getAnalytics("org-1", "1y");
 
