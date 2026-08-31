@@ -1,5 +1,5 @@
 import { Global, Logger, Module } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AbuseBudgetService } from "./abuse-budget.service";
 import { SYSTEM_CLOCK, type BudgetStore } from "./budget-store";
 import { BUDGET_CLOCK, BUDGET_STORE } from "./budget-tokens";
@@ -27,6 +27,7 @@ export function createBudgetStore(
 
 @Global()
 @Module({
+  imports: [ConfigModule],
   providers: [
     AbuseBudgetService,
     { provide: BUDGET_CLOCK, useValue: SYSTEM_CLOCK },
