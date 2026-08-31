@@ -15,7 +15,7 @@ const CREATE_OPERATIONS = new Set([
   "upsert",
 ]);
 
-export type CostedModel = keyof typeof COSTED_CREATE_ACTIONS;
+type CostedModel = keyof typeof COSTED_CREATE_ACTIONS;
 
 export function costedCreateAction(
   model: string | undefined,

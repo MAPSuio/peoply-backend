@@ -1,8 +1,8 @@
 import type { PrincipalKind } from "./principal";
 
-export type FailMode = "closed" | "open";
+type FailMode = "closed" | "open";
 
-export interface BudgetActionConfig {
+interface BudgetActionConfig {
   limit: number;
   windowMs: number;
   failMode: FailMode;
