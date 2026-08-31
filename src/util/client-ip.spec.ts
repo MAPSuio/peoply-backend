@@ -16,57 +16,43 @@ describe("resolveClientIp", () => {
       delete process.env.CLOUDFLARE_ORIGIN_SECRET;
     });
 
-    it("uses CF-Connecting-IP when it is a valid address", () => {
+    it("ignores CF-Connecting-IP, which nothing can vouch for", () => {
       expect(
         resolveClientIp({
           headers: { "cf-connecting-ip": "1.2.3.4" },
           ip: "10.0.0.1",
         }),
-      ).toBe("1.2.3.4");
+      ).toBe("10.0.0.1");
     });
 
-    it("uses the first value when CF-Connecting-IP repeats", () => {
+    it("gives a caller who rotates the header the same bucket every time", () => {
+      const buckets = new Set(
+        ["1.1.1.1", "2.2.2.2", "3.3.3.3"].map((forged) =>
+          resolveClientIp({
+            headers: { "cf-connecting-ip": forged },
+            ip: "10.0.0.1",
+          }),
+        ),
+      );
+
+      expect([...buckets]).toEqual(["10.0.0.1"]);
+    });
+
+    it("still reads the visitor out of the forwarding chain", () => {
       expect(
         resolveClientIp({
-          headers: { "cf-connecting-ip": ["1.2.3.4", "5.6.7.8"] },
-          ip: "10.0.0.1",
+          headers: { "x-forwarded-for": "84.211.24.137, 162.158.0.1" },
+          socket: { remoteAddress: "10.244.0.7" },
         }),
-      ).toBe("1.2.3.4");
+      ).toBe("84.211.24.137");
     });
 
-    it("accepts IPv6", () => {
-      expect(
-        resolveClientIp({
-          headers: { "cf-connecting-ip": "2001:db8::1" },
-          ip: "10.0.0.1",
-        }),
-      ).toBe("2001:db8::1");
-    });
-
-    it("falls back to req.ip when CF-Connecting-IP is absent", () => {
+    it("falls back to req.ip when there is nothing else", () => {
       expect(resolveClientIp({ headers: {}, ip: "10.0.0.1" })).toBe("10.0.0.1");
     });
 
-    it("returns 'unknown' when neither is available", () => {
+    it("returns 'unknown' when there is nothing at all", () => {
       expect(resolveClientIp({ headers: {}, ip: undefined })).toBe("unknown");
-    });
-
-    // The header is a Map key in the throttler and is
-    // interpolated into log lines and Discord alerts. Anything that is not an
-    // address has no business being any of those.
-    it.each([
-      ["not-an-ip", "an arbitrary string"],
-      ["", "an empty value"],
-      ["1.2.3.4, 5.6.7.8", "a comma-joined list"],
-      ["a".repeat(5000), "an oversized value"],
-      ["@everyone", "a Discord mention"],
-    ])("ignores %s (%s) and falls back to req.ip", (value) => {
-      expect(
-        resolveClientIp({
-          headers: { "cf-connecting-ip": value },
-          ip: "10.0.0.1",
-        }),
-      ).toBe("10.0.0.1");
     });
   });
 
@@ -75,7 +61,43 @@ describe("resolveClientIp", () => {
       process.env.CLOUDFLARE_ORIGIN_SECRET = "s3cret";
     });
 
-    it("trusts CF-Connecting-IP when the shared secret matches", () => {
+    it("takes the address our own zone stamped on the request", () => {
+      expect(
+        resolveClientIp({
+          headers: {
+            "x-peoply-client-ip": "84.211.24.137",
+            "x-cf-origin-secret": "s3cret",
+            "x-forwarded-for": "1.1.1.1, 104.16.5.5, 162.158.0.1",
+          },
+          socket: { remoteAddress: "10.244.0.7" },
+        }),
+      ).toBe("84.211.24.137");
+    });
+
+    it("ignores a stamped address from a caller who cannot prove the zone", () => {
+      expect(
+        resolveClientIp({
+          headers: { "x-peoply-client-ip": "1.2.3.4" },
+          socket: { remoteAddress: "10.244.0.7" },
+          ip: "10.244.0.7",
+        }),
+      ).toBe("10.244.0.7");
+    });
+
+    it("ignores a stamped value that is not an address", () => {
+      expect(
+        resolveClientIp({
+          headers: {
+            "x-peoply-client-ip": "not-an-ip",
+            "x-cf-origin-secret": "s3cret",
+            "x-forwarded-for": "84.211.24.137, 162.158.0.1",
+          },
+          socket: { remoteAddress: "10.244.0.7" },
+        }),
+      ).toBe("84.211.24.137");
+    });
+
+    it("falls back to CF-Connecting-IP when the zone stamped nothing", () => {
       expect(
         resolveClientIp({
           headers: {
@@ -87,8 +109,6 @@ describe("resolveClientIp", () => {
       ).toBe("1.2.3.4");
     });
 
-    // The whole point: a request straight to the *.ondigitalocean.app origin
-    // cannot pick its own throttler bucket.
     it("ignores CF-Connecting-IP when the secret is missing", () => {
       expect(
         resolveClientIp({
@@ -122,24 +142,208 @@ describe("resolveClientIp", () => {
       ).not.toThrow();
     });
 
-    it("rotating the header no longer yields a fresh bucket", () => {
-      const buckets = new Set(
-        ["1.1.1.1", "2.2.2.2", "3.3.3.3"].map((forged) =>
-          resolveClientIp({
-            headers: { "cf-connecting-ip": forged },
-            ip: "10.0.0.1",
-          }),
-        ),
-      );
+    it("survives whitespace the hosting console adds to a pasted secret", () => {
+      process.env.CLOUDFLARE_ORIGIN_SECRET = "s3cret\n";
 
-      expect([...buckets]).toEqual(["10.0.0.1"]);
+      expect(
+        resolveClientIp({
+          headers: {
+            "x-peoply-client-ip": "84.211.24.137",
+            "x-cf-origin-secret": "s3cret",
+          },
+          socket: { remoteAddress: "10.244.0.7" },
+        }),
+      ).toBe("84.211.24.137");
     });
+
+    it.each([
+      ["not-an-ip", "an arbitrary string"],
+      ["", "an empty value"],
+      ["1.2.3.4, 5.6.7.8", "a comma-joined list"],
+      ["a".repeat(5000), "an oversized value"],
+      ["@everyone", "a Discord mention"],
+    ])("ignores %s (%s) in CF-Connecting-IP", (value) => {
+      expect(
+        resolveClientIp({
+          headers: {
+            "cf-connecting-ip": value,
+            "x-cf-origin-secret": "s3cret",
+          },
+          ip: "10.0.0.1",
+        }),
+      ).toBe("10.0.0.1");
+    });
+  });
+});
+
+describe("resolveClientIp across the forwarding chain", () => {
+  const OUR_CLOUDFLARE_EDGE = "162.158.0.1";
+  const DIGITALOCEAN_CLOUDFLARE_EDGE = "172.64.0.1";
+  const PLATFORM_HOP = "10.244.0.7";
+  const VISITOR = "84.211.24.137";
+
+  beforeEach(() => {
+    process.env.CLOUDFLARE_ORIGIN_SECRET = "s3cret";
+  });
+
+  function requestThroughCloudflare(forwardedFor: string) {
+    return {
+      headers: {
+        "x-forwarded-for": forwardedFor,
+        "x-cf-origin-secret": "s3cret",
+        "cf-connecting-ip": OUR_CLOUDFLARE_EDGE,
+      },
+      socket: { remoteAddress: PLATFORM_HOP },
+      ip: OUR_CLOUDFLARE_EDGE,
+    };
+  }
+
+  it("reports the visitor rather than the edge that relayed them", () => {
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(
+          `${VISITOR}, ${OUR_CLOUDFLARE_EDGE}, ${DIGITALOCEAN_CLOUDFLARE_EDGE}`,
+        ),
+      ),
+    ).toBe(VISITOR);
+  });
+
+  it("puts two visitors behind one edge in different buckets", () => {
+    const other = "84.211.24.200";
+
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(`${VISITOR}, ${OUR_CLOUDFLARE_EDGE}`),
+      ),
+    ).not.toBe(
+      resolveClientIp(
+        requestThroughCloudflare(`${other}, ${OUR_CLOUDFLARE_EDGE}`),
+      ),
+    );
+  });
+
+  it("keeps one visitor in one bucket however the edge rotates", () => {
+    const buckets = new Set(
+      ["162.158.0.1", "162.158.9.9", "104.16.0.5"].map((edge) =>
+        resolveClientIp(requestThroughCloudflare(`${VISITOR}, ${edge}`)),
+      ),
+    );
+
+    expect([...buckets]).toEqual([VISITOR]);
+  });
+
+  it("ignores entries the caller prepended to the chain", () => {
+    expect(
+      resolveClientIp(requestThroughCloudflare(`1.1.1.1, 2.2.2.2, ${VISITOR}`)),
+    ).toBe(VISITOR);
+  });
+
+  it("gives a caller who reaches the origin directly no say in their bucket", () => {
+    const buckets = new Set(
+      ["1.1.1.1", "2.2.2.2", "3.3.3.3"].map((forged) =>
+        resolveClientIp({
+          headers: { "x-forwarded-for": `${forged}, ${VISITOR}` },
+          socket: { remoteAddress: PLATFORM_HOP },
+          ip: forged,
+        }),
+      ),
+    );
+
+    expect([...buckets]).toEqual([VISITOR]);
+  });
+
+  it("gives a caller who fills the chain with infrastructure addresses no say in their bucket", () => {
+    const buckets = new Set(
+      ["10.1.1.1", "10.2.2.2", "10.3.3.3"].map((forged) =>
+        resolveClientIp({
+          headers: { "x-forwarded-for": forged },
+          socket: { remoteAddress: PLATFORM_HOP },
+        }),
+      ),
+    );
+
+    expect([...buckets]).toEqual([PLATFORM_HOP]);
+  });
+
+  it("does not skip past a Cloudflare address when Cloudflare is unproven", () => {
+    expect(
+      resolveClientIp({
+        headers: { "x-forwarded-for": `${VISITOR}, ${OUR_CLOUDFLARE_EDGE}` },
+        socket: { remoteAddress: PLATFORM_HOP },
+        ip: VISITOR,
+      }),
+    ).toBe(OUR_CLOUDFLARE_EDGE);
+  });
+
+  it("gives a caller relaying through Cloudflare no say once the zone stamps the address", () => {
+    const buckets = new Set(
+      ["1.1.1.1", "2.2.2.2", "3.3.3.3"].map((forged) =>
+        resolveClientIp({
+          headers: {
+            "x-peoply-client-ip": "104.16.5.5",
+            "x-cf-origin-secret": "s3cret",
+            "x-forwarded-for": `${forged}, 104.16.5.5, ${OUR_CLOUDFLARE_EDGE}`,
+          },
+          socket: { remoteAddress: PLATFORM_HOP },
+        }),
+      ),
+    );
+
+    expect([...buckets]).toEqual(["104.16.5.5"]);
+  });
+
+  it("inspects a bounded number of hops however long the header is", () => {
+    const flood = Array.from({ length: 4000 }, () => "1.1.1.1").join(", ");
+
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(
+          `${flood}, ${VISITOR}, ${OUR_CLOUDFLARE_EDGE}`,
+        ),
+      ),
+    ).toBe(VISITOR);
+  });
+
+  it("normalises the IPv4-mapped socket address into one bucket", () => {
+    expect(
+      resolveClientIp({
+        headers: {},
+        socket: { remoteAddress: `::ffff:${VISITOR}` },
+      }),
+    ).toBe(VISITOR);
+  });
+
+  it("skips chain entries that are not addresses", () => {
+    expect(
+      resolveClientIp(
+        requestThroughCloudflare(
+          `${VISITOR}, not-an-ip, ${OUR_CLOUDFLARE_EDGE}`,
+        ),
+      ),
+    ).toBe(VISITOR);
+  });
+
+  it("falls back to the peer we accepted the connection from when every entry is infrastructure", () => {
+    expect(
+      resolveClientIp({
+        headers: {
+          "x-forwarded-for": `${OUR_CLOUDFLARE_EDGE}`,
+          "x-cf-origin-secret": "s3cret",
+        },
+        socket: { remoteAddress: PLATFORM_HOP },
+      }),
+    ).toBe(PLATFORM_HOP);
   });
 });
 
 describe("isOriginSecretConfigured", () => {
   it("is false when the variable is unset", () => {
     delete process.env.CLOUDFLARE_ORIGIN_SECRET;
+    expect(isOriginSecretConfigured()).toBe(false);
+  });
+
+  it("is false when the variable holds only whitespace", () => {
+    process.env.CLOUDFLARE_ORIGIN_SECRET = "  ";
     expect(isOriginSecretConfigured()).toBe(false);
   });
 

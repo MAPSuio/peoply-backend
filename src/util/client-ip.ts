@@ -1,55 +1,40 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
-
-/**
- * Resolves the client IP that rate limiting is keyed on.
- *
- * `CF-Connecting-IP` is set by Cloudflare and overwritten on every request that
- * transits its edge, so behind Cloudflare it is authoritative. It is also just
- * a request header: anything that reaches the origin directly can put whatever
- * it likes in it.
- *
- * That matters here because the origin *is* directly reachable. The app runs on
- * DigitalOcean App Platform, whose `*.ondigitalocean.app` hostname answers
- * without going through Cloudflare at all — the production deploy workflow
- * polls exactly that URL. So an attacker who sends a fresh `CF-Connecting-IP`
- * per request lands in a fresh throttler bucket every time and is never rate
- * limited, never crosses a burst-404 threshold, and never trips brute-force
- * detection. Every per-IP control in the application silently stops applying.
- *
- * Two things guard against that:
- *
- * 1. The value must parse as an IP address. Without this the header is an
- *    arbitrary attacker-controlled string used as a Map key and interpolated
- *    into log lines and Discord alerts.
- * 2. The request must prove it came through Cloudflare, by presenting the
- *    shared secret in `CLOUDFLARE_ORIGIN_SECRET` (injected by a Cloudflare
- *    transform rule — see docs/rate-limiting.md). Requests that cannot
- *    prove it fall back to `req.ip`, which Express derives from the proxy
- *    chain and an attacker cannot forge past the trusted hop.
- *
- * When `CLOUDFLARE_ORIGIN_SECRET` is unset the second check cannot run, so the
- * header is trusted as before and only rule 1 applies. That keeps existing
- * deployments working, but it leaves the bypass open, so `main.ts` warns about
- * it at startup rather than letting it pass unnoticed.
- */
+import { isTrustedProxy, normalizeIp } from "./trusted-proxies";
 
 const ORIGIN_SECRET_HEADER = "x-cf-origin-secret";
+const CLIENT_IP_HEADER = "x-peoply-client-ip";
+const FORWARDED_FOR_HEADER = "x-forwarded-for";
+const CLOUDFLARE_CLIENT_HEADER = "cf-connecting-ip";
+const UNKNOWN_CLIENT = "unknown";
+const MAX_INSPECTED_HOPS = 32;
 
 export interface ClientIpRequest {
   headers: Record<string, string | string[] | undefined>;
   ip?: string;
+  socket?: { remoteAddress?: string | undefined };
 }
 
-function firstHeaderValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
+function singleHeaderValue(
+  req: ClientIpRequest,
+  name: string,
+): string | undefined {
+  const header = req.headers[name];
+  const value = Array.isArray(header) ? header[0] : header;
+
+  return value?.trim() || undefined;
 }
 
-/**
- * Compares two secrets without leaking their contents through timing. Hashing
- * first means `timingSafeEqual` always sees equal-length buffers, so unequal
- * lengths do not throw and do not short-circuit.
- */
+function listHeaderValues(req: ClientIpRequest, name: string): string[] {
+  const header = req.headers[name];
+  if (header === undefined) return [];
+
+  return (Array.isArray(header) ? header : [header])
+    .flatMap((entry) => entry.split(","))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function secretsMatch(presented: string, expected: string) {
   const presentedDigest = createHash("sha256").update(presented).digest();
   const expectedDigest = createHash("sha256").update(expected).digest();
@@ -57,28 +42,74 @@ function secretsMatch(presented: string, expected: string) {
   return timingSafeEqual(presentedDigest, expectedDigest);
 }
 
-function cameThroughCloudflare(req: ClientIpRequest) {
-  const expected = process.env.CLOUDFLARE_ORIGIN_SECRET;
+function isAddress(value: string) {
+  return isIP(normalizeIp(value)) !== 0;
+}
 
-  // Not configured: no way to tell, so keep the pre-existing behaviour.
-  if (!expected) return true;
+function addressHeader(req: ClientIpRequest, name: string) {
+  const value = singleHeaderValue(req, name);
 
-  const presented = firstHeaderValue(req.headers[ORIGIN_SECRET_HEADER]);
-  if (!presented) return false;
+  return value && isAddress(value) ? normalizeIp(value) : undefined;
+}
 
-  return secretsMatch(presented, expected);
+function configuredOriginSecret() {
+  return process.env.CLOUDFLARE_ORIGIN_SECRET?.trim() || undefined;
+}
+
+/* Proof that the request crossed our own Cloudflare zone, which is the only
+   thing that makes the headers that zone writes worth reading. Requests to the
+   *.ondigitalocean.app origin bypass the zone entirely and cannot present it. */
+function provenOwnZone(req: ClientIpRequest) {
+  const expected = configuredOriginSecret();
+  if (!expected) return false;
+
+  const presented = singleHeaderValue(req, ORIGIN_SECRET_HEADER);
+
+  return presented ? secretsMatch(presented, expected) : false;
+}
+
+function peerAddress(req: ClientIpRequest): string | undefined {
+  const peer = req.socket?.remoteAddress ?? req.ip;
+
+  return peer && isAddress(peer) ? normalizeIp(peer) : undefined;
+}
+
+function forwardingChain(req: ClientIpRequest): string[] {
+  const peer = peerAddress(req);
+  const hops = listHeaderValues(req, FORWARDED_FOR_HEADER).filter(isAddress);
+  if (peer) hops.push(peer);
+
+  return hops.map(normalizeIp).slice(-MAX_INSPECTED_HOPS);
 }
 
 export function resolveClientIp(req: ClientIpRequest): string {
-  const claimed = firstHeaderValue(req.headers["cf-connecting-ip"]);
+  const proven = provenOwnZone(req);
 
-  if (claimed && isIP(claimed) !== 0 && cameThroughCloudflare(req)) {
-    return claimed;
+  const stamped = proven ? addressHeader(req, CLIENT_IP_HEADER) : undefined;
+  if (stamped) return stamped;
+
+  const chain = forwardingChain(req);
+  const trustCloudflare = proven || configuredOriginSecret() === undefined;
+
+  for (let hop = chain.length - 1; hop >= 0; hop -= 1) {
+    if (!isTrustedProxy(chain[hop], trustCloudflare)) return chain[hop];
   }
 
-  return req.ip ?? "unknown";
+  const claimed = proven
+    ? addressHeader(req, CLOUDFLARE_CLIENT_HEADER)
+    : undefined;
+
+  return claimed ?? peerAddress(req) ?? UNKNOWN_CLIENT;
 }
 
 export function isOriginSecretConfigured() {
-  return Boolean(process.env.CLOUDFLARE_ORIGIN_SECRET);
+  return configuredOriginSecret() !== undefined;
+}
+
+export function isZoneProven(req: ClientIpRequest) {
+  return provenOwnZone(req);
+}
+
+export function isClientIpStamped(req: ClientIpRequest) {
+  return singleHeaderValue(req, CLIENT_IP_HEADER) !== undefined;
 }

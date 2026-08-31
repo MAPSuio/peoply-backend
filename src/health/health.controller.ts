@@ -1,5 +1,5 @@
 import { Controller, Get, HttpStatus, Res } from "@nestjs/common";
-import { SkipThrottle } from "@nestjs/throttler";
+import { SkipRateLimit } from "../rate-limit";
 import { Response } from "express";
 import { HealthService } from "./health.service";
 
@@ -21,7 +21,7 @@ import { HealthService } from "./health.service";
  * fine — turning a traffic spike into an outage. Database load is bounded by
  * the cache in HealthService instead, which holds regardless of source IP.
  */
-@SkipThrottle()
+@SkipRateLimit()
 @Controller()
 export class HealthController {
   constructor(private readonly health: HealthService) {}
