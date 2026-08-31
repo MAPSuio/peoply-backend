@@ -2,6 +2,7 @@ import { OmitType, PartialType } from "@nestjs/mapped-types";
 import { ApiProperty } from "@nestjs/swagger";
 import { EventVisibility } from "../../generated/prisma/client";
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -105,6 +106,7 @@ export class UpdateEventDto extends PartialType(
   @IsOptional()
   @ToArray()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsUUID(4, { each: true })
   @ApiProperty({ type: [String], required: false })
   coOrganizerOrganizationIds?: string[];

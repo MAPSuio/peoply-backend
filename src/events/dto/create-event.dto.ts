@@ -5,6 +5,7 @@ import {
 } from "../../generated/prisma/client";
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -118,6 +119,7 @@ export class CreateEventDto {
   @IsOptional()
   @ToArray()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsUUID(4, { each: true })
   @ApiProperty({ type: [String], required: false })
   coOrganizerOrganizationIds?: string[];

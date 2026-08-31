@@ -61,4 +61,15 @@ describe("free-text field bounds", () => {
     const dto = plainToInstance(CreateEventDto, baseCreateEvent);
     expect(await hasError(dto, "description")).toBe(false);
   });
+
+  it("rejects an over-large co-organizer list", async () => {
+    const dto = plainToInstance(CreateEventDto, {
+      ...baseCreateEvent,
+      coOrganizerOrganizationIds: Array.from(
+        { length: 51 },
+        () => "11111111-1111-4111-8111-111111111111",
+      ),
+    });
+    expect(await hasError(dto, "coOrganizerOrganizationIds")).toBe(true);
+  });
 });
