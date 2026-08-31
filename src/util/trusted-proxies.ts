@@ -77,3 +77,7 @@ export function isTrustedProxy(address: string, trustCloudflare: boolean) {
 
   return list.check(normalized, family === 6 ? "ipv6" : "ipv4");
 }
+
+export function trustProxyHop(address: string) {
+  return isTrustedProxy(address, false);
+}

@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
-import { PER_ROUTE_THROTTLER, WHOLE_APP_THROTTLER } from "./rate-limit";
+import { RATE_LIMIT_POLICIES } from "./rate-limit";
 import { APP_GUARD } from "@nestjs/core";
 import { UsersModule } from "./users/users.module";
 import { EventsModule } from "./events/events.module";
@@ -41,10 +41,7 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
     ArrangersModule,
     RegistrationsModule,
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([
-      { name: PER_ROUTE_THROTTLER, ttl: 60000, limit: 100 },
-      { name: WHOLE_APP_THROTTLER, ttl: 60000, limit: 600 },
-    ]),
+    ThrottlerModule.forRoot(RATE_LIMIT_POLICIES),
     ConfigModule.forRoot({
       validationSchema: Joi.object({
         JWT_ACCESS_TOKEN_EXP_TIME: Joi.number().required(),

@@ -23,7 +23,7 @@ import {
   isZoneProven,
   resolveClientIp,
 } from "./util/client-ip";
-import { isTrustedProxy } from "./util/trusted-proxies";
+import { trustProxyHop } from "./util/trusted-proxies";
 import { oauthSessionOptions } from "./auth/oauth-session";
 import { runWithRequest } from "./abuse-budget/principal-context";
 
@@ -41,10 +41,7 @@ async function bootstrap() {
   /* The hop count in front of the container is not fixed (our Cloudflare zone,
      App Platform's own Cloudflare, then its internal router), so trust the hops
      by address range rather than by count. See util/trusted-proxies.ts. */
-  app
-    .getHttpAdapter()
-    .getInstance()
-    .set("trust proxy", (address: string) => isTrustedProxy(address, false));
+  app.getHttpAdapter().getInstance().set("trust proxy", trustProxyHop);
 
   /* Access log: method, path, status, duration, client IP. Placed before
      helmet so the entire request lifecycle is captured. */

@@ -1,4 +1,6 @@
-import { isTrustedProxy, normalizeIp } from "./trusted-proxies";
+import express, { Request, Response } from "express";
+import request = require("supertest");
+import { isTrustedProxy, normalizeIp, trustProxyHop } from "./trusted-proxies";
 
 describe("normalizeIp", () => {
   it("unwraps the IPv4-mapped form Node reports for IPv4 sockets", () => {
@@ -43,5 +45,34 @@ describe("isTrustedProxy", () => {
 
   it("recognises an IPv6 platform address as a hop", () => {
     expect(isTrustedProxy("fc00::1", false)).toBe(true);
+  });
+});
+
+describe("trustProxyHop wired into Express", () => {
+  function appReportingClientIp() {
+    const app = express();
+
+    app.set("trust proxy", trustProxyHop);
+    app.get("/", (req: Request, res: Response) => {
+      res.json({ ip: req.ip });
+    });
+
+    return app;
+  }
+
+  it("stops at a Cloudflare edge, which is shared by every Cloudflare customer", async () => {
+    const response = await request(appReportingClientIp())
+      .get("/")
+      .set("X-Forwarded-For", "84.211.24.137, 162.158.0.1");
+
+    expect(response.body.ip).toBe("162.158.0.1");
+  });
+
+  it("walks past our own platform hops however many there are", async () => {
+    const response = await request(appReportingClientIp())
+      .get("/")
+      .set("X-Forwarded-For", "84.211.24.137, 10.244.0.7, 10.244.0.9");
+
+    expect(response.body.ip).toBe("84.211.24.137");
   });
 });

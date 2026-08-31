@@ -6,12 +6,17 @@ import request = require("supertest");
 import { CfThrottlerGuard } from "./cf-throttler.guard";
 import {
   PER_ROUTE_THROTTLER,
+  RATE_LIMIT_POLICIES,
   SkipRateLimit,
   WHOLE_APP_THROTTLER,
 } from "./rate-limit";
 
 const PER_ROUTE_LIMIT = 3;
 const WHOLE_APP_LIMIT = 5;
+const LIMITS_SMALL_ENOUGH_TO_REACH: Record<string, number> = {
+  [PER_ROUTE_THROTTLER]: PER_ROUTE_LIMIT,
+  [WHOLE_APP_THROTTLER]: WHOLE_APP_LIMIT,
+};
 const VISITOR = "84.211.24.137";
 const OTHER_VISITOR = "84.211.24.200";
 const CLOUDFLARE_EDGE = "162.158.0.1";
@@ -87,10 +92,12 @@ describe("CfThrottlerGuard over HTTP", () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [
-        ThrottlerModule.forRoot([
-          { name: PER_ROUTE_THROTTLER, ttl: 60000, limit: PER_ROUTE_LIMIT },
-          { name: WHOLE_APP_THROTTLER, ttl: 60000, limit: WHOLE_APP_LIMIT },
-        ]),
+        ThrottlerModule.forRoot(
+          RATE_LIMIT_POLICIES.map((policy) => ({
+            ...policy,
+            limit: LIMITS_SMALL_ENOUGH_TO_REACH[policy.name],
+          })),
+        ),
       ],
       controllers: [ProbeController],
       providers: [{ provide: APP_GUARD, useClass: CfThrottlerGuard }],
