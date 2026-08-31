@@ -2,6 +2,7 @@ import { ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Throttle } from "@nestjs/throttler";
 import { CfThrottlerGuard } from "./cf-throttler.guard";
+import { PER_ROUTE_THROTTLER, WHOLE_APP_THROTTLER } from "./rate-limit";
 
 const CLOUDFLARE_EDGE = "162.158.0.1";
 const PLATFORM_HOP = "10.244.0.7";
@@ -37,12 +38,20 @@ describe("CfThrottlerGuard", () => {
         getTracker: (req: unknown) => Promise<string>;
       }
     ).getTracker(req);
-  const generateKey = (context: ExecutionContext, suffix: string) =>
+  const generateKey = (
+    context: ExecutionContext,
+    suffix: string,
+    name: string,
+  ) =>
     (
       guard as never as {
         generateKey: (c: ExecutionContext, s: string, n: string) => string;
       }
-    ).generateKey(context, suffix, "default");
+    ).generateKey(context, suffix, name);
+  const sharedKey = (context: ExecutionContext, suffix: string) =>
+    generateKey(context, suffix, WHOLE_APP_THROTTLER);
+  const routeKey = (context: ExecutionContext, suffix: string) =>
+    generateKey(context, suffix, PER_ROUTE_THROTTLER);
 
   let guard: CfThrottlerGuard;
   const originalSecret = process.env.CLOUDFLARE_ORIGIN_SECRET;
@@ -76,49 +85,54 @@ describe("CfThrottlerGuard", () => {
   });
 
   describe("bucketing", () => {
-    it("spends one shared allowance across routes that set no limit of their own", () => {
+    it("charges every route to one allowance for the caller", () => {
       expect(
-        generateKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
+        sharedKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
       ).toBe(
-        generateKey(
+        sharedKey(
           contextFor(UnthrottledController, "listOrganizations"),
           VISITOR,
         ),
       );
     });
 
-    it("keeps a route with its own limit out of the shared allowance", () => {
+    it("keeps a single route on its own allowance as well", () => {
       expect(
-        generateKey(contextFor(ThrottledController, "logIn"), VISITOR),
+        routeKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
       ).not.toBe(
-        generateKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
-      );
-    });
-
-    it("gives two routes with their own limits separate allowances", () => {
-      expect(
-        generateKey(contextFor(ThrottledController, "logIn"), VISITOR),
-      ).not.toBe(
-        generateKey(contextFor(ThrottledController, "resetPassword"), VISITOR),
-      );
-    });
-
-    it("keeps a route that narrows only the window out of the shared allowance", () => {
-      expect(
-        generateKey(
-          contextFor(ThrottledController, "requestVerification"),
+        routeKey(
+          contextFor(UnthrottledController, "listOrganizations"),
           VISITOR,
         ),
-      ).not.toBe(
-        generateKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
       );
     });
 
-    it("keeps two visitors apart", () => {
+    it("never spends the same allowance on both counts", () => {
       expect(
-        generateKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
+        sharedKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
       ).not.toBe(
-        generateKey(contextFor(UnthrottledController, "listEvents"), "1.1.1.1"),
+        routeKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
+      );
+    });
+
+    it("leaves a route with its own limit counted per route", () => {
+      expect(
+        routeKey(contextFor(ThrottledController, "logIn"), VISITOR),
+      ).not.toBe(
+        routeKey(contextFor(ThrottledController, "resetPassword"), VISITOR),
+      );
+    });
+
+    it("keeps two visitors apart on both counts", () => {
+      expect(
+        sharedKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
+      ).not.toBe(
+        sharedKey(contextFor(UnthrottledController, "listEvents"), "1.1.1.1"),
+      );
+      expect(
+        routeKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
+      ).not.toBe(
+        routeKey(contextFor(UnthrottledController, "listEvents"), "1.1.1.1"),
       );
     });
   });

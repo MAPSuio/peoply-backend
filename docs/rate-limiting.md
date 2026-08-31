@@ -4,9 +4,23 @@ Author: Victor
 
 ## Oversikt
 
-`ThrottlerModule` i `app.module.ts` gir 100 requests per IP per minutt, håndhevet
-av `CfThrottlerGuard`. Det er den eneste per-IP-kontrollen som er igjen i
+`ThrottlerModule` i `app.module.ts` teller hver request to ganger, håndhevet av
+`CfThrottlerGuard`. Det er den eneste per-IP-kontrollen som er igjen i
 applikasjonen.
+
+| Kvote | Grense | Bøtte |
+| --- | --- | --- |
+| `default` | 100/min | per rute per adresse |
+| `global` | 600/min | hele appen per adresse |
+
+Uten den delte kvoten var «100 per minutt» i praksis 100 per rute ganger rundt 85
+ruter. Taket på 600 er satt mot faktisk trafikk målt 31.08.2026: appen som helhet
+toppet på 41 requests i minuttet, og en innlogget forsidevisning koster 22-23
+kall, så 600 gir rundt 26 sidevisninger i minuttet fra én adresse.
+
+Ruter som skal utenfor begge kvotene bruker `SkipRateLimit()` fra
+`src/rate-limit.ts`. `@SkipThrottle()` alene fritar bare `default`, og en test i
+`rate-limit.spec.ts` feiler om noen tar den i bruk direkte.
 
 Det fantes tidligere en `ThreatDetectionService` som analyserte hver request for
 `.env`- og `wp-admin`-prober, 404-bursts og gjentatte auth-feil, og sendte
