@@ -128,15 +128,17 @@ was previously declared and never read; it is now the thing that decides.
 | registration.create | 200 | 24h | open | prisma extension |
 | follow.create | 500 | 24h | open | prisma extension |
 | mcp.tool | 120 | 1min | closed | registerTool, per tool call |
+| search.text | 30 | 1min | open | prisma extension (any `search:` filter in a where) |
 
 Attending an event is the core function of the product, so `registration.create` and
 `follow.create` fail open: a Valkey outage must not stop people signing up, and their abuse
 ceiling is low. The spam vectors fail closed.
 
-The catalogue deliberately lists only what is enforced. `search.text`, `anon.read`,
+The catalogue deliberately lists only what is enforced. `anon.read`,
 `registration.statusEmail` and `organization.report` were dropped from the initial design
 rather than shipped unwired, because a catalogue entry with no call site implies coverage
-that does not exist.
+that does not exist. `search.text` was dropped for the same reason and added back below,
+once it had a call site.
 
 ## Full-text search (X4)
 
