@@ -138,6 +138,18 @@ describe("McpServerFactory", () => {
     await server.close();
   });
 
+  it("advertises unregistering as destructive, so a client can ask first", async () => {
+    const { client, server } = await connect(["peoply:write"]);
+    const { tools } = await client.listTools();
+
+    expect(
+      tools.find(({ name }) => name === "update_my_registration")?.annotations,
+    ).toMatchObject({ destructiveHint: true });
+
+    await client.close();
+    await server.close();
+  });
+
   it("always performs self-service writes as the key owner", async () => {
     registrations.create.mockResolvedValue({ id: "registration-1" });
     const { client, server } = await connect(["peoply:read", "peoply:write"]);
