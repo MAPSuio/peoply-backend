@@ -1,7 +1,7 @@
 # ADR 0001 — One abuse-budget chokepoint
 
 Status: implemented · 2026-08-31 · supersedes McpRateLimitService
-Context doc: docs/security-review-2026-08-31.md (findings R1, R2, X2, X3, E1, X4)
+Context: the 2026-08-31 security review (kept out of this public repository)
 
 ## Problem
 
