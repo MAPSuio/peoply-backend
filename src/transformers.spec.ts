@@ -67,6 +67,14 @@ describe("query and multipart transformers", () => {
     it.each([[null], [undefined], [42]])("leaves %p undefined", (input) => {
       expect(read({ ids: input }).ids).toBeUndefined();
     });
+
+    it.each([["[}]"], ["[1,]"], ["[a]"]])(
+      "reads bracketed-but-malformed JSON %p as undefined instead of throwing",
+      (input) => {
+        expect(() => read({ ids: input })).not.toThrow();
+        expect(read({ ids: input }).ids).toBeUndefined();
+      },
+    );
   });
 
   describe('ToArray({ type: "int" })', () => {

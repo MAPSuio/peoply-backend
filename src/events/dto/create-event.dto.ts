@@ -56,11 +56,13 @@ export class CreateEventDto {
   @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" }) // custom message when broken
+  @MaxLength(150)
   @ApiProperty()
   title: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(10000)
   @ApiProperty()
   description: string;
 
@@ -73,6 +75,7 @@ export class CreateEventDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   @ApiProperty()
   formQuestion?: string;
 

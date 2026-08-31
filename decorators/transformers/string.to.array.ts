@@ -8,6 +8,14 @@ interface ToArrayOptions {
  * A repeated query parameter reaches us as a real array, a single one as a
  * plain string, and the frontend sends some of them JSON-encoded.
  */
+const parseJsonArrayOrUndefined = (value: string) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+};
+
 const valueToArray = (value: any) => {
   if (value === null || value === undefined) {
     return undefined;
@@ -17,7 +25,7 @@ const valueToArray = (value: any) => {
   }
   if (typeof value === "string") {
     if (value[0] === "[" && value[value.length - 1] === "]") {
-      return JSON.parse(value);
+      return parseJsonArrayOrUndefined(value);
     }
     return value.split(",");
   }

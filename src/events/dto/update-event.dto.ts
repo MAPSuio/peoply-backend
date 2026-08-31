@@ -45,11 +45,13 @@ export class UpdateEventDto extends PartialType(
   @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" })
+  @MaxLength(150)
   @ApiProperty()
   title: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(10000)
   @ApiProperty()
   description: string;
 
