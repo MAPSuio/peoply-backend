@@ -38,6 +38,17 @@ describe("resolveClientIp", () => {
       expect([...buckets]).toEqual(["10.0.0.1"]);
     });
 
+    it("reads the visitor out of the chain App Platform actually presents", () => {
+      expect(
+        resolveClientIp({
+          headers: {
+            "x-forwarded-for": "84.211.24.137, 162.158.0.1, 172.71.148.35",
+          },
+          socket: { remoteAddress: "100.127.4.5" },
+        }),
+      ).toBe("84.211.24.137");
+    });
+
     it("still reads the visitor out of the forwarding chain", () => {
       expect(
         resolveClientIp({
