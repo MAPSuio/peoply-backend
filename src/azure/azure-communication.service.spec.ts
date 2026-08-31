@@ -91,6 +91,33 @@ describe("AzureCommunicationService", () => {
     });
   });
 
+  it("charges one address once, however many recipient lists name it", async () => {
+    const { service } = buildService();
+    const repeated = "member@example.com";
+    const rest = Array.from(
+      { length: MAIL_LIMIT - 1 },
+      (_, index) => `member-${index}@example.com`,
+    );
+
+    await runWithRequest(ARRANGER, async () => {
+      await service.send({
+        senderAddress: "no-reply@peoply.app",
+        recipients: {
+          to: [{ address: repeated }],
+          cc: [{ address: repeated }],
+          bcc: [{ address: repeated }],
+        },
+        content: { subject: "subject", html: "<p>body</p>" },
+      });
+
+      await service.send(messageTo(...rest));
+
+      await expect(
+        service.send(messageTo("one-more@example.com")),
+      ).rejects.toBeInstanceOf(BudgetExceeded);
+    });
+  });
+
   it("refuses the message that would cross the limit rather than truncating it", async () => {
     const { service, beginSend } = buildService();
     const audience = Array.from(

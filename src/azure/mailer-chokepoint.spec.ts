@@ -29,11 +29,4 @@ describe("the mailer is the only way to reach Azure", () => {
 
     expect(offenders).toEqual([]);
   });
-
-  it("counts every recipient of a message against one budget action", () => {
-    const mailer = readFileSync(join(SOURCE_ROOT, MAILER_MODULE), "utf8");
-
-    expect(mailer).toContain('"mail.recipient"');
-    expect(mailer).toContain("bcc");
-  });
 });
