@@ -57,7 +57,7 @@ interface RegistrationRow {
   createdAt: Date;
 }
 
-interface DailyNetRow {
+export interface DailyNetRow {
   day: string;
   net: number;
 }

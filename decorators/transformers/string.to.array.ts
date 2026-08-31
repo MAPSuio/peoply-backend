@@ -1,6 +1,6 @@
 import { createTransformer } from "./create.transformer";
 
-interface ToArrayOptions {
+export interface ToArrayOptions {
   type: "int";
 }
 

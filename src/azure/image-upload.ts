@@ -30,7 +30,7 @@ export const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png"] as const;
 
-type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
+export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
 /**
  * `file.mimetype` is the Content-Type of the multipart part - a header the
