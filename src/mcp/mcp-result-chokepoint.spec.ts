@@ -5,10 +5,14 @@ const MCP_ROOT = __dirname;
 const RESULT_MODULE = "mcp-result.ts";
 const CONTENT_BLOCK = 'type: "text"';
 
-function sourceFilesIn(directory: string) {
-  return readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
-    .map((entry) => join(directory, entry.name));
+function sourceFilesIn(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+
+    if (entry.isDirectory()) return sourceFilesIn(path);
+
+    return entry.isFile() && entry.name.endsWith(".ts") ? [path] : [];
+  });
 }
 
 describe("every tool answer goes through one framed result", () => {
