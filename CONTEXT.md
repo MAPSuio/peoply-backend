@@ -18,3 +18,17 @@ it, so a reader knows where the rules live.
   `GOING`, `WAITLISTED`) lets the holder read a non-public event. `NOT_GOING`
   and `BANNED` are deliberately absent: declining an invitation and being
   thrown out both end access.
+
+- **AbuseBudget** — the module (`src/abuse-budget/`) that answers "may this
+  principal perform this costly action right now?" in one place. One entry,
+  `consume(principal, action, cost)`, backed by a Valkey window. It is not a
+  check call sites make: the charge lives inside the Prisma client as a query
+  extension, so every costed create pays whether it is issued directly or on a
+  `trx` inside `$transaction`, and MCP tool calls are charged one-by-one in
+  `registerTool` so a batch of N pays N. Replaces `McpRateLimitService`. The
+  per-IP HTTP throttler is a different unit and stays. See
+  docs/adr/0001-abuse-budget-chokepoint.md.
+- **Principal** — the identity a budget charge is keyed on: `user:<id>` when
+  authenticated, `mcpKey:<id>` for MCP requests, else `ip:<resolved-client-ip>`.
+  Resolved from request-scoped `AsyncLocalStorage` at the moment of charging,
+  because authentication runs in a guard after the scope is opened.

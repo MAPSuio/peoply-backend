@@ -19,6 +19,7 @@ import {
 } from "./auth/auth-origin";
 import { isOriginSecretConfigured, resolveClientIp } from "./util/client-ip";
 import { oauthSessionOptions } from "./auth/oauth-session";
+import { runWithRequest } from "./abuse-budget/principal-context";
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
@@ -58,6 +59,10 @@ async function bootstrap() {
         "directly. See docs/rate-limiting.md.",
     );
   }
+
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    runWithRequest(req, next);
+  });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SKIP_PATHS.has(req.path)) return next();

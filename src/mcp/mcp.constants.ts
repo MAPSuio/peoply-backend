@@ -10,5 +10,4 @@ export const MCP_KEY_PREFIX = "ppl_mcp";
 export const MCP_DEFAULT_EXPIRY_DAYS = 90;
 export const MCP_MAX_EXPIRY_DAYS = 365;
 export const MCP_MAX_ACTIVE_KEYS_PER_USER = 10;
-export const MCP_REQUESTS_PER_MINUTE = 120;
 export const MCP_KEY_PEPPER_MIN_LENGTH = 32;

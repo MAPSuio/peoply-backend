@@ -12,7 +12,6 @@ import { UsersModule } from "../users/users.module";
 import { McpApiKeyService } from "./mcp-api-key.service";
 import { McpHandlerService } from "./mcp-handler.service";
 import { McpKeysController } from "./mcp-keys.controller";
-import { McpRateLimitService } from "./mcp-rate-limit.service";
 import { McpServerFactory } from "./mcp-server.factory";
 import { McpToolsController } from "./mcp-tools.controller";
 import { McpController } from "./mcp.controller";
@@ -31,12 +30,7 @@ import { McpController } from "./mcp.controller";
     NotificationsModule,
   ],
   controllers: [McpKeysController, McpToolsController, McpController],
-  providers: [
-    McpApiKeyService,
-    McpRateLimitService,
-    McpServerFactory,
-    McpHandlerService,
-  ],
+  providers: [McpApiKeyService, McpServerFactory, McpHandlerService],
   exports: [McpApiKeyService],
 })
 export class McpModule {}

@@ -29,6 +29,7 @@ import { RecommendationsModule } from "./recommendations/recommendations.module"
 import { LocationSearchModule } from "./location-search/location-search.module";
 import { PopupsModule } from "./popups/popups.module";
 import { McpModule } from "./mcp/mcp.module";
+import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
 
 @Module({
   imports: [
@@ -54,6 +55,9 @@ import { McpModule } from "./mcp/mcp.module";
         ...jwtSecretSchema,
         ...mcpKeyPepperSchema,
         DATABASE_URL: Joi.string().required(),
+        REDIS_URL: Joi.string()
+          .uri({ scheme: [/rediss?/] })
+          .optional(),
         // Optional: only managed databases with a private CA need it. Unset
         // locally and in CI, where Postgres runs without TLS.
         DATABASE_CA_CERT: Joi.string().optional(),
@@ -117,6 +121,7 @@ import { McpModule } from "./mcp/mcp.module";
     RecommendationsModule,
     PopupsModule,
     McpModule,
+    AbuseBudgetModule,
   ],
   providers: [
     // Apply rate limiting globally, using CF-Connecting-IP when available
