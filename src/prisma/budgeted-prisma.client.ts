@@ -1,8 +1,10 @@
 import { PrismaClient } from "../generated/prisma/client";
 import type { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
+import { UnauthorizedException } from "@nestjs/common";
 import {
   creationChargesFor,
   refuseCostedUpsert,
+  usesFullTextSearch,
 } from "../abuse-budget/budgeted-prisma.extension";
 import { currentIdentities } from "../abuse-budget/principal-context";
 
@@ -19,6 +21,16 @@ export function withAbuseBudget(
 
           if (identities) {
             refuseCostedUpsert(model, operation);
+
+            if (usesFullTextSearch(args)) {
+              if (!identities.user && !identities.mcpKey) {
+                throw new UnauthorizedException(
+                  "Full-text search requires an authenticated caller",
+                );
+              }
+
+              await budget.consume(identities, "search.text");
+            }
 
             for (const [action, rows] of creationChargesFor(
               model,

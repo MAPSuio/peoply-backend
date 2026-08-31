@@ -1,3 +1,4 @@
+import { UnauthorizedException } from "@nestjs/common";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import { BudgetExceeded } from "../abuse-budget/budget-errors";
 import { SYSTEM_CLOCK } from "../abuse-budget/budget-store";
@@ -212,6 +213,58 @@ describe("budgeted prisma client", () => {
         client.event.create({ data: { title: "over mcp" } as never }),
       ).rejects.toBeInstanceOf(BudgetExceeded);
     });
+
+    await base.$disconnect();
+  });
+});
+
+describe("full-text search gating", () => {
+  it("refuses an anonymous caller the expensive tsvector scan", async () => {
+    const { base, client } = budgetedClient();
+
+    await runWithRequest({ headers: {}, ip: "203.0.113.9" }, async () => {
+      await expect(
+        client.event.findMany({
+          where: { description: { search: "coffee" } },
+          take: 1,
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    await base.$disconnect();
+  });
+
+  it("lets an authenticated caller search and charges the attempt", async () => {
+    const { budget, base, client } = budgetedClient();
+    const consume = jest.spyOn(budget, "consume");
+
+    await asAuthenticatedUser("searcher", async () => {
+      await client.event.findMany({
+        where: { description: { search: "coffee" } },
+        take: 1,
+      });
+    });
+
+    expect(consume).toHaveBeenCalledWith(
+      expect.objectContaining({ user: { kind: "user", id: "searcher" } }),
+      "search.text",
+    );
+
+    await base.$disconnect();
+  });
+
+  it("leaves an anonymous title filter alone", async () => {
+    const { budget, base, client } = budgetedClient();
+    const consume = jest.spyOn(budget, "consume");
+
+    await runWithRequest({ headers: {}, ip: "203.0.113.9" }, async () => {
+      await client.event.findMany({
+        where: { title: { contains: "coffee" } },
+        take: 1,
+      });
+    });
+
+    expect(consume).not.toHaveBeenCalled();
 
     await base.$disconnect();
   });

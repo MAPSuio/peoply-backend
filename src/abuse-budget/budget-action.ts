@@ -43,6 +43,12 @@ export const BUDGET_ACTIONS = {
     failMode: "open",
     keyBy: "user",
   },
+  "search.text": {
+    limit: 30,
+    windowMs: MINUTE_MS,
+    failMode: "open",
+    keyBy: "user",
+  },
   "mcp.tool": {
     limit: 120,
     windowMs: MINUTE_MS,

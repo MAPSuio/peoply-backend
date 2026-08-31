@@ -141,6 +141,25 @@ function chargeNestedWrites(
   }
 }
 
+function isFullTextFilter(value: unknown): boolean {
+  return isRecord(value) && typeof value.search === "string";
+}
+
+function containsFullTextFilter(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(containsFullTextFilter);
+  if (!isRecord(node)) return false;
+
+  return Object.values(node).some(
+    (value) => isFullTextFilter(value) || containsFullTextFilter(value),
+  );
+}
+
+export function usesFullTextSearch(args: unknown): boolean {
+  if (!isRecord(args)) return false;
+
+  return containsFullTextFilter(args.where);
+}
+
 export function creationChargesFor(
   model: string | undefined,
   operation: string,

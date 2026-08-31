@@ -138,6 +138,23 @@ The catalogue deliberately lists only what is enforced. `search.text`, `anon.rea
 rather than shipped unwired, because a catalogue entry with no call site implies coverage
 that does not exist.
 
+## Full-text search (X4)
+
+`GET /events?description=` and `GET /organizations?description=` reach Prisma's `search:`
+filter, which emits `to_tsvector(concat_ws(' ', "description")) @@ to_tsquery($1)`: a per-row
+tsvector build on a 1-vCPU database, previously reachable with no account.
+
+The review recommended a GIN index. That is not implementable here: the one-argument
+`to_tsvector` and `concat_ws` are both STABLE rather than IMMUTABLE, so PostgreSQL refuses
+to build an index on the expression Prisma actually emits (verified against 16). Adding an
+index on an `'english'::regconfig` variant would build, but Prisma would never use it,
+because the emitted predicate would not match.
+
+So the cost is bounded by identity instead. The same funnel detects any `search:` filter
+anywhere in a query's `where`, refuses it when the caller is neither an authenticated user
+nor an MCP key, and charges `search.text` (30/min, fail-open) otherwise. No frontend caller
+sends `description`; it only ever sends `title` and `name`, which stay public.
+
 ## What was deliberately not folded in
 
 - **The event-update email cap** (`MAX_EMAIL_UPDATES_PER_DAY`) stays where it is. It counts
