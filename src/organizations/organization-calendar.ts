@@ -1,4 +1,4 @@
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string;
   urlId: string;
   title: string;
@@ -10,7 +10,7 @@ interface CalendarEvent {
   freeformAddress: string | null;
 }
 
-interface CalendarOrganization {
+export interface CalendarOrganization {
   id: string;
   urlId: string | null;
   name: string;
@@ -23,7 +23,7 @@ function escapeIcsText(value?: string | null) {
 
   return value
     .replace(/\\/g, "\\\\")
-    .replace(/\r?\n/g, "\\n")
+    .replace(/\r\n|\r|\n/g, "\\n")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,");
 }

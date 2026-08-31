@@ -30,11 +30,6 @@ export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {
   removeImage?: boolean;
 
   @IsString()
-  @ApiProperty()
-  @IsOptional()
-  description?: string;
-
-  @IsString()
   @MinLength(3)
   @MaxLength(50)
   @IsLowercase()

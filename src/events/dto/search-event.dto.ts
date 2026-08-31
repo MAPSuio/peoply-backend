@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
   MinLength,
 } from "class-validator";
@@ -37,11 +38,13 @@ export class SearchEventDto extends PagedQueryDto(Prisma.EventScalarFieldEnum) {
   @IsOptional()
   @IsString()
   @MinLength(3)
+  @MaxLength(200)
   @ApiProperty({ required: false })
   title?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   @ApiProperty({ required: false })
   description?: string;
 

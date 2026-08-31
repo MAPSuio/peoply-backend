@@ -30,7 +30,7 @@ export const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png"] as const;
 
-type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
+export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
 /**
  * `file.mimetype` is the Content-Type of the multipart part - a header the
@@ -52,6 +52,9 @@ export const IMAGE_UPLOAD_OPTIONS: MulterOptions = {
   limits: {
     fileSize: MAX_IMAGE_BYTES,
     files: 1,
+    fields: 16,
+    parts: 24,
+    fieldSize: 64 * 1024,
   },
 };
 

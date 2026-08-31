@@ -66,6 +66,31 @@ describe("McpHandlerService", () => {
     expect(apiKeys.verify).not.toHaveBeenCalled();
   });
 
+  it("rejects a JSON-RPC batch array before authenticating or dispatching", async () => {
+    const response = responseMock();
+
+    await service.handle(
+      {
+        headers: { host: "api.peoply.app" },
+        body: [
+          { jsonrpc: "2.0", id: 1, method: "tools/call" },
+          { jsonrpc: "2.0", id: 2, method: "tools/call" },
+        ],
+      } as any,
+      response,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jsonrpc: "2.0",
+        error: expect.objectContaining({ code: -32600 }),
+      }),
+    );
+    expect(apiKeys.verify).not.toHaveBeenCalled();
+    expect(rateLimits.consume).not.toHaveBeenCalled();
+  });
+
   it("returns a bearer challenge when the token is missing", async () => {
     const response = responseMock();
 

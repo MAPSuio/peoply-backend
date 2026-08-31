@@ -80,6 +80,18 @@ export class McpHandlerService implements OnModuleDestroy {
       return;
     }
 
+    if (Array.isArray(req.body)) {
+      res.status(400).json({
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+          code: -32600,
+          message: "JSON-RPC batch requests are not supported",
+        },
+      });
+      return;
+    }
+
     try {
       const token = this.bearerToken(req.headers.authorization);
       const verified = await this.apiKeys.verify(token);

@@ -59,6 +59,7 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
 
     const {
       email,
+      email_verified: emailVerified,
       phone_number: phone,
       given_name: firstName,
       family_name: lastName,
@@ -69,6 +70,10 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
        phone and birth date - both are required columns for a Vipps user. */
     if (!(email && phone && firstName && lastName && birthDate)) {
       throw new UnauthorizedException("Missing user info");
+    }
+
+    if (!emailVerified) {
+      throw new UnauthorizedException("Email not verified");
     }
 
     return await resolveProviderUser(

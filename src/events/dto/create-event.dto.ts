@@ -5,6 +5,7 @@ import {
 } from "../../generated/prisma/client";
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -56,11 +57,13 @@ export class CreateEventDto {
   @IsNotEmpty()
   @IsString()
   @MinLength(3, { message: "title too short" }) // custom message when broken
+  @MaxLength(150)
   @ApiProperty()
   title: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(10000)
   @ApiProperty()
   description: string;
 
@@ -73,6 +76,7 @@ export class CreateEventDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   @ApiProperty()
   formQuestion?: string;
 
@@ -115,6 +119,7 @@ export class CreateEventDto {
   @IsOptional()
   @ToArray()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsUUID(4, { each: true })
   @ApiProperty({ type: [String], required: false })
   coOrganizerOrganizationIds?: string[];

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrganizationsService } from "./organizations.service";
-import { FollowAction, RegStatus } from "../generated/prisma/client";
+import { RegStatus } from "../generated/prisma/client";
 import {
   OrganizationAnalyticsEventItem,
   OrganizationAnalyticsResponse,
@@ -57,9 +57,17 @@ interface RegistrationRow {
   createdAt: Date;
 }
 
-interface FollowerEventRow {
-  action: FollowAction;
-  createdAt: Date;
+export interface DailyNetRow {
+  day: string;
+  net: number;
+}
+
+interface FollowerNetAggregate {
+  net24h: number;
+  net7d: number;
+  net30d: number;
+  netPeriod: number;
+  dailyNets: DailyNetRow[];
 }
 
 interface RegistrationTally {
@@ -273,55 +281,31 @@ function audienceAggregates(
   };
 }
 
-const deltaOf = (followerEvent: FollowerEventRow): number =>
-  followerEvent.action === FollowAction.FOLLOW ? 1 : -1;
-
-const netWithin = (
-  followerEvents: FollowerEventRow[],
-  now: Date,
-  days: number,
-): number =>
-  followerEvents.reduce(
-    (net, followerEvent) =>
-      now.getTime() - followerEvent.createdAt.getTime() <=
-      days * MILLISECONDS_PER_DAY
-        ? net + deltaOf(followerEvent)
-        : net,
-    0,
-  );
-
-function dailyNetBuckets(
-  followerEvents: FollowerEventRow[],
+export function fillDailyNetSeries(
+  dailyNets: DailyNetRow[],
   now: Date,
   periodDays: number,
 ) {
-  const dayBuckets = new Map<string, number>();
+  const netByDay = new Map(dailyNets.map((row) => [row.day, row.net]));
+  const series: { date: string; net: number }[] = [];
   for (let day = periodDays - 1; day >= 0; day--) {
-    dayBuckets.set(
-      utcDate(new Date(now.getTime() - day * MILLISECONDS_PER_DAY)),
-      0,
-    );
+    const date = utcDate(new Date(now.getTime() - day * MILLISECONDS_PER_DAY));
+    series.push({ date, net: netByDay.get(date) ?? 0 });
   }
-  for (const followerEvent of followerEvents) {
-    const day = utcDate(followerEvent.createdAt);
-    if (dayBuckets.has(day)) {
-      dayBuckets.set(day, (dayBuckets.get(day) ?? 0) + deltaOf(followerEvent));
-    }
-  }
-  return [...dayBuckets.entries()].map(([date, net]) => ({ date, net }));
+  return series;
 }
 
 function followerNets(
-  followerEvents: FollowerEventRow[],
+  aggregate: FollowerNetAggregate,
   now: Date,
   periodDays: number,
 ) {
   return {
-    net24h: netWithin(followerEvents, now, 1),
-    net7d: netWithin(followerEvents, now, 7),
-    net30d: netWithin(followerEvents, now, FIXED_NET_WINDOW_DAYS),
-    netPeriod: netWithin(followerEvents, now, periodDays),
-    dailyNet: dailyNetBuckets(followerEvents, now, periodDays),
+    net24h: aggregate.net24h,
+    net7d: aggregate.net7d,
+    net30d: aggregate.net30d,
+    netPeriod: aggregate.netPeriod,
+    dailyNet: fillDailyNetSeries(aggregate.dailyNets, now, periodDays),
   };
 }
 
@@ -399,10 +383,7 @@ export class OrganizationAnalyticsService {
       this.prisma.arrangerFollower.count({
         where: { arrangerId, createdAt: { gte: thirtyDaysAgo } },
       }),
-      this.prisma.arrangerFollowerEvent.findMany({
-        where: { arrangerId, createdAt: { gte: followerLogStart } },
-        select: { action: true, createdAt: true },
-      }),
+      this.aggregateFollowerNets(arrangerId, now, periodDays, followerLogStart),
       this.prisma.userOrganizationRole.count({ where: { organizationId } }),
       this.prisma.userOrganizationRole.count({
         where: { organizationId, createdAt: { gte: periodStart } },
@@ -437,6 +418,53 @@ export class OrganizationAnalyticsService {
       memberNewInPeriod,
       events,
       followerRows,
+    };
+  }
+
+  private async aggregateFollowerNets(
+    arrangerId: string,
+    now: Date,
+    periodDays: number,
+    followerLogStart: Date,
+  ): Promise<FollowerNetAggregate> {
+    const cutoff = (days: number) =>
+      new Date(now.getTime() - days * MILLISECONDS_PER_DAY);
+
+    const [windows, dailyNets] = await Promise.all([
+      this.prisma.$queryRaw<
+        {
+          net24h: number;
+          net7d: number;
+          net30d: number;
+          netPeriod: number;
+        }[]
+      >`
+        SELECT
+          COALESCE(SUM(CASE WHEN created_at >= ${cutoff(1)} THEN delta ELSE 0 END), 0)::int AS "net24h",
+          COALESCE(SUM(CASE WHEN created_at >= ${cutoff(7)} THEN delta ELSE 0 END), 0)::int AS "net7d",
+          COALESCE(SUM(CASE WHEN created_at >= ${cutoff(FIXED_NET_WINDOW_DAYS)} THEN delta ELSE 0 END), 0)::int AS "net30d",
+          COALESCE(SUM(CASE WHEN created_at >= ${cutoff(periodDays)} THEN delta ELSE 0 END), 0)::int AS "netPeriod"
+        FROM (
+          SELECT created_at, CASE WHEN action = 'FOLLOW' THEN 1 ELSE -1 END AS delta
+          FROM arranger_follower_events
+          WHERE arranger_id = ${arrangerId} AND created_at >= ${followerLogStart}
+        ) events
+      `,
+      this.prisma.$queryRaw<DailyNetRow[]>`
+        SELECT to_char(created_at::date, 'YYYY-MM-DD') AS day,
+               SUM(CASE WHEN action = 'FOLLOW' THEN 1 ELSE -1 END)::int AS net
+        FROM arranger_follower_events
+        WHERE arranger_id = ${arrangerId} AND created_at >= ${followerLogStart}
+        GROUP BY created_at::date
+      `,
+    ]);
+
+    return {
+      net24h: windows[0]?.net24h ?? 0,
+      net7d: windows[0]?.net7d ?? 0,
+      net30d: windows[0]?.net30d ?? 0,
+      netPeriod: windows[0]?.netPeriod ?? 0,
+      dailyNets,
     };
   }
 

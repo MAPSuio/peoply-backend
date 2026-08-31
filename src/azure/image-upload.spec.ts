@@ -90,6 +90,14 @@ describe("IMAGE_UPLOAD_OPTIONS", () => {
     expect(IMAGE_UPLOAD_OPTIONS.limits?.files).toBe(1);
   });
 
+  it("bounds the non-file multipart parts so text fields cannot flood the heap", () => {
+    const limits = IMAGE_UPLOAD_OPTIONS.limits;
+
+    expect(limits?.fields).toBe(16);
+    expect(limits?.parts).toBe(24);
+    expect(limits?.fieldSize).toBe(64 * 1024);
+  });
+
   /* The limit exists to bound heap, not to judge the picture. A phone photo
      that would have been refused at 5 MB has to get through, because the next
      step downscales it to a couple of hundred kilobytes anyway. */
