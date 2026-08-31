@@ -2,13 +2,18 @@ import { randomUUID } from "node:crypto";
 import { EmailClient, EmailMessage } from "@azure/communication-email";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
+import { currentIdentities } from "../abuse-budget/principal-context";
 
 @Injectable()
 export class AzureCommunicationService {
   private readonly logger = new Logger(AzureCommunicationService.name);
   private readonly client: EmailClient | null;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly budget: AbuseBudgetService,
+  ) {
     const connectionString = configService.get<string>(
       "AZURE_COMMUNICATION_CONNECTION_STRING",
     );
@@ -47,9 +52,32 @@ export class AzureCommunicationService {
       return null;
     }
 
+    await this.chargeRecipients(emailMessage);
+
     const operationId = randomUUID();
     await this.client.beginSend(emailMessage, { operationId });
 
     return { id: operationId };
   }
+
+  private async chargeRecipients(emailMessage: EmailMessage) {
+    const identities = currentIdentities();
+    if (!identities) return;
+
+    await this.budget.consume(
+      identities,
+      "mail.recipient",
+      recipientCount(emailMessage),
+    );
+  }
+}
+
+function recipientCount(emailMessage: EmailMessage) {
+  const { to, cc, bcc } = emailMessage.recipients;
+
+  return new Set(
+    [...(to ?? []), ...(cc ?? []), ...(bcc ?? [])].map(
+      (recipient) => recipient.address,
+    ),
+  ).size;
 }

@@ -130,6 +130,7 @@ was previously declared and never read; it is now the thing that decides.
 | follow.create | 500 | 24h | open | prisma extension |
 | mcp.tool | 120 | 1min | closed | registerTool, per tool call |
 | search.text | 30 | 1min | open | prisma extension (any `search:` filter in a where) |
+| mail.recipient | 1500 | 24h | open | `AzureCommunicationService.send`, per distinct address |
 
 Attending an event is the core function of the product, so `registration.create` and
 `follow.create` fail open: a Valkey outage must not stop people signing up, and their abuse
@@ -138,8 +139,40 @@ ceiling is low. The spam vectors fail closed.
 The catalogue deliberately lists only what is enforced. `anon.read`,
 `registration.statusEmail` and `organization.report` were dropped from the initial design
 rather than shipped unwired, because a catalogue entry with no call site implies coverage
-that does not exist. `search.text` was dropped for the same reason and added back below,
-once it had a call site.
+that does not exist. `search.text` and `mail.recipient` were dropped for the same reason and
+added back below, once each had a call site. `mail.recipient` replaces what
+`registration.statusEmail` was meant to be, and covers every mail path rather than the one
+route the review named.
+
+## Outgoing mail (E1)
+
+`PATCH /events/:id/registrations/:userId` mails the affected user on every real
+transition to NOT_GOING or BANNED, with no cap, so an arranger holding 200
+registrations could alternate statuses and mail chosen real users about 144,000
+times a day. Not an open relay, since recipients must already be users, but it
+burns the Azure quota and the reputation of the sending domain.
+
+The charge sits in `AzureCommunicationService.send()`, which is the only method
+in the codebase that hands a message to Azure: five call sites across four paths
+reach it, it is injected by class token, and nothing constructs `EmailClient`
+outside it. A test walks `src/` and fails if any shipped file mentions
+`EmailClient` or `beginSend`, so a sixth path cannot appear beside it.
+
+`mail.recipient` is charged per distinct address in `to` plus `cc` plus `bcc`,
+not per call, because one broadcast reaches an entire event. The limit is 1500
+per 24 hours per user, measured against production: the largest live event has
+123 people going, and `events.service.ts` already caps email updates at 5 per
+event per day, so two of the largest events fully updated cost about 1230. The
+attack drops from roughly 144,000 to 1500 a day.
+
+Fail mode is open. The promotion mail runs inside the transaction that frees a
+seat, so refusing it during a store outage would stop people leaving events,
+and the mass path keeps its own database-backed cap regardless of the store.
+
+The scheduled ICS feed mailer sends outside any request, so `currentIdentities()`
+returns nothing and it is not charged. That is deliberate: it picks its own
+recipients (the admins of the feed's own organisation) and no caller can steer
+it.
 
 ## Full-text search (X4)
 
