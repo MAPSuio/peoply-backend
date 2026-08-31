@@ -307,4 +307,37 @@ describe("EventCoOrganizerInvitationsService", () => {
       );
     });
   });
+
+  describe("findAllPendingForUser", () => {
+    beforeEach(() => {
+      prisma.userOrganizationRole.findMany.mockResolvedValue([
+        { organizationId: "org-1" },
+      ]);
+      prisma.eventCoOrganizerInvitation.findMany.mockResolvedValue([]);
+    });
+
+    it("asks for the newest rows the caller needs and no more", async () => {
+      await service.findAllPendingForUser("user-1", 10);
+
+      expect(
+        prisma.eventCoOrganizerInvitation.findMany.mock.calls[0][0],
+      ).toMatchObject({ take: 10 });
+    });
+
+    it("orders on a unique column too, so a page cannot repeat a row", async () => {
+      await service.findAllPendingForUser("user-1", 10);
+
+      expect(
+        prisma.eventCoOrganizerInvitation.findMany.mock.calls[0][0].orderBy,
+      ).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    });
+
+    it("never bounds the roles that decide which organizations count", async () => {
+      await service.findAllPendingForUser("user-1", 10);
+
+      expect(
+        prisma.userOrganizationRole.findMany.mock.calls[0][0].take,
+      ).toBeUndefined();
+    });
+  });
 });

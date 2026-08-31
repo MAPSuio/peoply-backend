@@ -43,7 +43,12 @@ export class OrganizationInvitationsService {
     });
   }
 
-  async findAllPendingInvitationsToUser(userId: string) {
+  /**
+   * @param take how many of the newest pending invitations to return. The
+   * caller merges this list with two others before paging, so it asks for the
+   * head rather than a page.
+   */
+  async findAllPendingInvitationsToUser(userId: string, take: number) {
     const cutoff = new Date(Date.now() - INVITATION_MAX_AGE_MS);
     await this.prisma.organizationInvitation.updateMany({
       where: {
@@ -57,10 +62,12 @@ export class OrganizationInvitationsService {
     });
 
     return this.prisma.organizationInvitation.findMany({
+      take,
       where: {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         organization: true,
       },

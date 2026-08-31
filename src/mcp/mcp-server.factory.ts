@@ -145,20 +145,6 @@ export class McpServerFactory {
     );
   }
 
-  private registerSlicedReadTool(
-    target: McpToolTarget,
-    name: string,
-    metadata: { title: string; description: string },
-    findAll: () => Promise<unknown[]>,
-  ) {
-    this.registerReadTool(
-      target,
-      name,
-      { ...metadata, inputSchema: z.object(paginationSchema) },
-      async ({ skip, take }) => (await findAll()).slice(skip, skip + take),
-    );
-  }
-
   private registerReadTools(target: McpToolTarget, actor: McpActor) {
     this.registerReadTool(
       target,
@@ -295,48 +281,59 @@ export class McpServerFactory {
         ),
     );
 
-    this.registerSlicedReadTool(
+    this.registerReadTool(
       target,
       "list_my_organizations",
       {
         title: "List my organizations",
         description: "List organizations where the connected user has a role.",
+        inputSchema: z.object(paginationSchema),
       },
-      () => this.organizations.findOrgsByUserIdAndRole(actor.id),
+      async ({ skip, take }) =>
+        this.organizations.findOrgsByUserIdAndRole(actor.id, undefined, {
+          skip,
+          take,
+        }),
     );
 
-    this.registerSlicedReadTool(
+    this.registerReadTool(
       target,
       "list_my_arranged_events",
       {
         title: "List events I organize",
         description:
           "List events arranged personally or through organizations administered by the connected user.",
+        inputSchema: z.object(paginationSchema),
       },
-      () =>
+      async ({ skip, take }) =>
         this.eventArrangers.findAllWithEventsArrangedByUserAndOrganizationsOfUser(
           actor.id,
+          { skip, take },
         ),
     );
 
-    this.registerSlicedReadTool(
+    this.registerReadTool(
       target,
       "list_my_notifications",
       {
         title: "List my notifications",
         description: "List pending invitations for the connected user.",
+        inputSchema: z.object(paginationSchema),
       },
-      () => this.notifications.findAllPendingByUserId(actor.id),
+      async ({ skip, take }) =>
+        this.notifications.findAllPendingByUserId(actor.id, { skip, take }),
     );
 
-    this.registerSlicedReadTool(
+    this.registerReadTool(
       target,
       "list_followed_organizers",
       {
         title: "List followed organizers",
         description: "List organizers followed by the connected user.",
+        inputSchema: z.object(paginationSchema),
       },
-      () => this.following.findAll(actor.id),
+      async ({ skip, take }) =>
+        this.following.findAll(actor.id, { skip, take }),
     );
   }
 

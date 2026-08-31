@@ -66,47 +66,43 @@ export class EventInvitationsService {
     });
   }
 
-  async findAllPendingInvitationsToUser(userId: string) {
-    const invites = await this.prisma.eventInvitation.findMany({
-      where: {
-        toUserId: userId,
-        invitationStatus: InvitationStatus.PENDING,
-      },
-      // This result is only scanned for expired events and then discarded, so
-      // it needs the id and the end date and nothing else. It used to pull
-      // `fromUser: true` as well, which never left the process but put a full
-      // user row one refactor away from a response body.
-      include: {
-        event: true,
-      },
-    });
-
-    const expiredEvents = invites.filter((invite) => {
-      return invite.event?.endDate && new Date() > invite.event.endDate;
-    });
-
-    // update invites to ignored for expired events
-    if (expiredEvents.length > 0) {
-      await this.prisma.eventInvitation.updateMany({
-        where: {
-          id: { in: expiredEvents.map((event) => event.id) },
-        },
-        data: {
-          invitationStatus: InvitationStatus.IGNORED,
-        },
-      });
-    }
+  /**
+   * @param take how many of the newest pending invitations to return. The
+   * caller merges this list with two others before paging, so it asks for the
+   * head rather than a page.
+   */
+  async findAllPendingInvitationsToUser(userId: string, take: number) {
+    await this.ignoreInvitationsToEndedEvents(userId);
 
     return this.prisma.eventInvitation.findMany({
+      take,
       where: {
         toUserId: userId,
         invitationStatus: InvitationStatus.PENDING,
       },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         event: true,
         // This is spread verbatim into the notifications payload, so
         // `fromUser: true` handed the inviter's full row to the invitee.
         fromUser: { select: PUBLIC_USER_SELECT },
+      },
+    });
+  }
+
+  private async ignoreInvitationsToEndedEvents(userId: string) {
+    // The read-then-update this replaces loaded every pending invitation with
+    // its whole event row to decide which had expired, so the sweep was
+    // unbounded even once the list it feeds was paged. The database can answer
+    // the same question without handing any of it back.
+    await this.prisma.eventInvitation.updateMany({
+      where: {
+        toUserId: userId,
+        invitationStatus: InvitationStatus.PENDING,
+        event: { endDate: { lt: new Date() } },
+      },
+      data: {
+        invitationStatus: InvitationStatus.IGNORED,
       },
     });
   }

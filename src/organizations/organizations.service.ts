@@ -26,6 +26,8 @@ import { createUuid, isUUID } from "../util/uuid";
 import { DiscordAlertService } from "../discord/discord-alert.service";
 import { toDiscordFieldValue } from "../discord/discord-field";
 import { organizationImageColumns } from "./organization-image-columns";
+import { PaginationDto } from "../util/pagination.dto";
+import { pageBoundsOf } from "../util/pagination";
 
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
 const ORGANIZATION_SOCIAL_LINK_FIELDS = [
@@ -308,17 +310,27 @@ export class OrganizationsService {
     return org;
   }
 
-  async findOrgsByUserIdAndRole(userId: string, role?: OrganizationRole) {
+  async findOrgsByUserIdAndRole(
+    userId: string,
+    role?: OrganizationRole,
+    page: PaginationDto = {},
+  ) {
     /* Find all orgs a user has access to
 
     Args:
       userId - users id
       role - role in org
+      page - skip/take bounds for the returned page
 
     Returns:
       list of org - List<model Organization>
     */
+    const { skip, take } = pageBoundsOf(page);
+
     return await this.prisma.organization.findMany({
+      skip,
+      take,
+      orderBy: [{ name: "asc" }, { id: "asc" }],
       where: {
         organizationRoles: {
           // Prisma drops undefined fields from a where clause, so an

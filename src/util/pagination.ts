@@ -35,3 +35,23 @@ export const MODELS_WHOSE_ROWS_GRANT_ACCESS = [
   "eventArranger",
   "registration",
 ] as const;
+
+/** The `skip`/`take` pair a Prisma query needs, with no field left to default. */
+export type PageBounds = { skip: number; take: number };
+
+/**
+ * Resolves the optional `skip`/`take` a caller sent into bounds a query can
+ * use.
+ *
+ * `take` falls back to {@link MAX_PAGE_SIZE} rather than to a page size,
+ * because the lists that take these bounds answered with every matching row
+ * before they were paginated. A client that never sent `take` — every page of
+ * the web frontend — has to keep getting what it got, so the fallback bounds
+ * the query without narrowing the answer.
+ */
+export function pageBoundsOf(page: {
+  skip?: number;
+  take?: number;
+}): PageBounds {
+  return { skip: page.skip ?? 0, take: page.take ?? MAX_PAGE_SIZE };
+}

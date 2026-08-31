@@ -83,8 +83,12 @@ export class EventCoOrganizerInvitationsService {
    * served by the `userId` index on user_organization_roles, and the result
    * feeds the leading column of the (organization_id, invitation_status)
    * index. A `some` would leave Postgres joining the whole invitation table.
+   *
+   * @param take how many of the newest pending invitations to return. The
+   * caller merges this list with two others before paging, so it asks for the
+   * head rather than a page.
    */
-  async findAllPendingForUser(userId: string) {
+  async findAllPendingForUser(userId: string, take: number) {
     const roles = await this.prisma.userOrganizationRole.findMany({
       take: ALL_ROWS,
       where: { userId, role: { in: CO_ORGANIZER_RESPONDER_ROLES } },
@@ -96,12 +100,13 @@ export class EventCoOrganizerInvitationsService {
     }
 
     return this.prisma.eventCoOrganizerInvitation.findMany({
+      take,
       where: {
         organizationId: { in: roles.map((role) => role.organizationId) },
         invitationStatus: InvitationStatus.PENDING,
       },
       include: INVITATION_INCLUDE,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
   }
 

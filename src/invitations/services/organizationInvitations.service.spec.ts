@@ -102,4 +102,29 @@ describe("OrganizationInvitationsService", () => {
       service.createInvitations(ORG, SENDER, atLimit),
     ).resolves.toEqual([]);
   });
+
+  describe("findAllPendingInvitationsToUser", () => {
+    beforeEach(() => {
+      prisma.organizationInvitation.updateMany = jest
+        .fn()
+        .mockResolvedValue({ count: 0 });
+      prisma.organizationInvitation.findMany.mockResolvedValue([]);
+    });
+
+    it("asks for the newest rows the caller needs and no more", async () => {
+      await service.findAllPendingInvitationsToUser(TARGET, 10);
+
+      expect(
+        prisma.organizationInvitation.findMany.mock.calls[0][0],
+      ).toMatchObject({ take: 10 });
+    });
+
+    it("orders on a unique column too, so a page cannot repeat a row", async () => {
+      await service.findAllPendingInvitationsToUser(TARGET, 10);
+
+      expect(
+        prisma.organizationInvitation.findMany.mock.calls[0][0].orderBy,
+      ).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    });
+  });
 });

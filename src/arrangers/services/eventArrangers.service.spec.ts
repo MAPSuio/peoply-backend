@@ -1,4 +1,5 @@
 import { EventArrangersService } from "./eventArrangers.service";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
 
 describe("EventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsOfUser", () => {
   const MY_ARRANGER = "arr-mine";
@@ -28,6 +29,13 @@ describe("EventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsO
     rows: any[],
     orgs: any[] = [{ arrangerId: MY_ORG_ARRANGER }],
   ) => {
+    /* The service pages over events and then loads the arranger rows for that
+       page, so the fake stands in for both: the event page is the distinct
+       events the given rows belong to, in the order they were given. */
+    const eventPage = [...new Set(rows.map((row) => row.eventId))].map(
+      (id) => ({ id }),
+    );
+
     prisma = {
       organization: { findMany: jest.fn().mockResolvedValue(orgs) },
       user: {
@@ -35,13 +43,25 @@ describe("EventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsO
           .fn()
           .mockResolvedValue({ id: "user-1", arrangerId: MY_ARRANGER }),
       },
+      event: { findMany: jest.fn().mockResolvedValue(eventPage) },
       eventArranger: { findMany: jest.fn().mockResolvedValue(rows) },
     };
     return new EventArrangersService(prisma);
   };
 
-  const run = (service: EventArrangersService) =>
-    service.findAllWithEventsArrangedByUserAndOrganizationsOfUser("user-1");
+  const run = (
+    service: EventArrangersService,
+    page: { skip?: number; take?: number } = {},
+  ) =>
+    service.findAllWithEventsArrangedByUserAndOrganizationsOfUser(
+      "user-1",
+      page,
+    );
+
+  const eventPageQuery = () => prisma.event.findMany.mock.calls[0][0];
+
+  const eventArrangerQuery = () =>
+    prisma.eventArranger.findMany.mock.calls[0][0];
 
   it("marks the caller's own arranger on a co-arranged event", async () => {
     const [row] = await run(setup([coArrangedRow()]));
@@ -96,20 +116,70 @@ describe("EventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsO
   it("queries only the arrangers the caller controls", async () => {
     await run(setup([]));
 
-    const where = prisma.eventArranger.findMany.mock.calls[0][0].where;
-    expect(where.arrangerId.in.sort()).toEqual(
+    const chosenArrangers =
+      eventPageQuery().where.eventArrangers.some.arrangerId.in;
+    expect(chosenArrangers.sort()).toEqual(
       [MY_ARRANGER, MY_ORG_ARRANGER].sort(),
     );
-    expect(where.arrangerId.in).not.toContain(OTHER_ARRANGER);
+    expect(chosenArrangers).not.toContain(OTHER_ARRANGER);
   });
 
   it("does not repeat an arrangerId that is both personal and an org's", async () => {
     // Set semantics: the raw array form would have sent a duplicate to Prisma.
     await run(setup([], [{ arrangerId: MY_ARRANGER }]));
 
-    expect(
-      prisma.eventArranger.findMany.mock.calls[0][0].where.arrangerId.in,
-    ).toEqual([MY_ARRANGER]);
+    expect(eventPageQuery().where.eventArrangers.some.arrangerId.in).toEqual([
+      MY_ARRANGER,
+    ]);
+  });
+
+  it("asks the database for the page rather than every row", async () => {
+    await run(setup([]), { skip: 20, take: 5 });
+
+    expect(eventPageQuery()).toMatchObject({ skip: 20, take: 5 });
+  });
+
+  it("bounds the page at the row cap when the caller sent none", async () => {
+    await run(setup([]));
+
+    expect(eventPageQuery()).toMatchObject({ skip: 0, take: MAX_PAGE_SIZE });
+  });
+
+  it("orders the page, so which events land on it is not up to the planner", async () => {
+    await run(setup([]), { skip: 0, take: 5 });
+
+    expect(eventPageQuery().orderBy).toEqual([
+      { startDate: "desc" },
+      { id: "desc" },
+    ]);
+  });
+
+  it("counts events rather than arranger rows, so a page holds a full page of events", async () => {
+    const service = setup([
+      { ...coArrangedRow(), arrangerId: MY_ARRANGER },
+      coArrangedRow(),
+    ]);
+
+    const page = await run(service, { skip: 0, take: 5 });
+
+    /* Both rows belong to the same event: paging over rows would have spent
+       two of the five slots on it and pushed a real event off the page. */
+    expect(eventPageQuery()).toMatchObject({ skip: 0, take: 5 });
+    expect(page).toHaveLength(1);
+    expect(page[0].eventId).toBe("event-1");
+  });
+
+  it("never bounds the arranger rows belonging to the page it already chose", async () => {
+    await run(setup([coArrangedRow()]), { skip: 0, take: 5 });
+
+    expect(eventArrangerQuery().take).toBeUndefined();
+    expect(eventArrangerQuery().where.eventId.in).toEqual(["event-1"]);
+  });
+
+  it("never bounds the organizations that decide whose events these are", async () => {
+    await run(setup([]), { skip: 0, take: 5 });
+
+    expect(prisma.organization.findMany.mock.calls[0][0].take).toBeUndefined();
   });
 
   it("refuses to run for a user with no arranger", async () => {

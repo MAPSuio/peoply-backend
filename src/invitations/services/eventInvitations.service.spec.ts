@@ -40,4 +40,41 @@ describe("EventInvitationsService", () => {
       service.createInvitations("event-1", "user-1", ["user-2"]),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  describe("findAllPendingInvitationsToUser", () => {
+    const prisma = {
+      eventInvitation: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const service = new EventInvitationsService(prisma as any, {} as any);
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it("lets the database expire invitations to ended events, reading none of them", async () => {
+      await service.findAllPendingInvitationsToUser("user-1", 10);
+
+      const [sweep] = prisma.eventInvitation.updateMany.mock.calls[0];
+      expect(sweep.where.event.endDate.lt).toBeInstanceOf(Date);
+      expect(sweep.data).toEqual({ invitationStatus: "IGNORED" });
+    });
+
+    it("asks for the newest rows the caller needs and no more", async () => {
+      await service.findAllPendingInvitationsToUser("user-1", 10);
+
+      expect(prisma.eventInvitation.findMany.mock.calls[0][0]).toMatchObject({
+        take: 10,
+      });
+    });
+
+    it("orders on a unique column too, so a page cannot repeat a row", async () => {
+      await service.findAllPendingInvitationsToUser("user-1", 10);
+
+      expect(prisma.eventInvitation.findMany.mock.calls[0][0].orderBy).toEqual([
+        { createdAt: "desc" },
+        { id: "desc" },
+      ]);
+    });
+  });
 });
