@@ -1,6 +1,7 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { McpServerFactory } from "./mcp-server.factory";
 import { MCP_TOOL_SUMMARIES } from "./mcp-tool-summaries";
+import { runWithRequest } from "../abuse-budget/principal-context";
 
 const USER_ID = "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b";
 const ARRANGER_ID = "0122cb1d-2572-4fbf-8b09-bf8738d68221";
@@ -35,6 +36,7 @@ describe("McpServerFactory", () => {
     findAllWithEventsArrangedByUserAndOrganizationsOfUser: jest.fn(),
   };
   const notifications = { findAllPendingByUserId: jest.fn() };
+  const abuseBudget = { consume: jest.fn() };
   const factory = new McpServerFactory(
     events as any,
     eventAccess as any,
@@ -45,6 +47,7 @@ describe("McpServerFactory", () => {
     following as any,
     eventArrangers as any,
     notifications as any,
+    abuseBudget as any,
   );
 
   async function connect(scopes: string[]) {
@@ -242,5 +245,81 @@ describe("McpServerFactory", () => {
 
     await client.close();
     await server.close();
+  });
+});
+
+describe("McpServerFactory tool budget", () => {
+  it("charges every tool call in a batch, not once per request", async () => {
+    const organizations = { findAll: jest.fn().mockResolvedValue([]) };
+    const abuseBudget = { consume: jest.fn() };
+    const factory = new McpServerFactory(
+      {} as any,
+      {} as any,
+      organizations as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      abuseBudget as any,
+    );
+
+    const server = factory.create({
+      token: "redacted",
+      clientId: "key-1",
+      scopes: ["peoply:read"],
+      expiresAt: Math.floor(Date.now() / 1000) + 60,
+      extra: {
+        keyId: "key-1",
+        user: {
+          id: "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b",
+          arrangerId: "0122cb1d-2572-4fbf-8b09-bf8738d68221",
+          firstName: "Ada",
+          lastName: "Lovelace",
+          email: "ada@example.com",
+        },
+      },
+    });
+
+    const client = new Client({ name: "test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const toolCallsInOneBatch = 25;
+
+    await runWithRequest(
+      {
+        headers: {},
+        auth: {
+          extra: {
+            keyId: "key-1",
+            user: { id: "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b" },
+          },
+        },
+      },
+      async () => {
+        for (let i = 0; i < toolCallsInOneBatch; i += 1) {
+          await client.callTool({
+            name: "search_organizations",
+            arguments: { skip: 0, take: 1 },
+          });
+        }
+      },
+    );
+
+    expect(abuseBudget.consume).toHaveBeenCalledTimes(toolCallsInOneBatch);
+    expect(abuseBudget.consume).toHaveBeenLastCalledWith(
+      {
+        user: { kind: "user", id: "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b" },
+        mcpKey: { kind: "mcpKey", id: "key-1" },
+        ip: { kind: "ip", id: "unknown" },
+      },
+      "mcp.tool",
+    );
   });
 });

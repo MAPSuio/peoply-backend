@@ -14,7 +14,6 @@ import {
 } from "@modelcontextprotocol/node";
 import { Request, Response } from "express";
 import { McpApiKeyService } from "./mcp-api-key.service";
-import { McpRateLimitService } from "./mcp-rate-limit.service";
 import { McpServerFactory } from "./mcp-server.factory";
 
 const DEFAULT_ALLOWED_HOSTS = ["api.peoply.app"];
@@ -41,7 +40,6 @@ export class McpHandlerService implements OnModuleDestroy {
 
   constructor(
     private readonly apiKeys: McpApiKeyService,
-    private readonly rateLimits: McpRateLimitService,
     private readonly servers: McpServerFactory,
     @Optional() private readonly configService?: ConfigService,
   ) {
@@ -95,13 +93,6 @@ export class McpHandlerService implements OnModuleDestroy {
     try {
       const token = this.bearerToken(req.headers.authorization);
       const verified = await this.apiKeys.verify(token);
-      const rateLimit = this.rateLimits.consume(verified.keyId);
-
-      if (!rateLimit.allowed) {
-        res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
-        res.status(429).json({ error: "MCP API key rate limit exceeded" });
-        return;
-      }
 
       req.auth = {
         token,

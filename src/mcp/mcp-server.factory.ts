@@ -25,6 +25,8 @@ import {
 } from "../registrations/services";
 import { FavoritesService } from "../favorites/favorites.service";
 import { FollowService } from "../users/services";
+import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
+import { currentIdentities } from "../abuse-budget/principal-context";
 import { runMcpTool } from "./mcp-result";
 import { McpToolTarget, type McpToolSummary } from "./mcp-tool-target";
 
@@ -74,6 +76,7 @@ export class McpServerFactory {
     private readonly following: FollowService,
     private readonly eventArrangers: EventArrangersService,
     private readonly notifications: NotificationsService,
+    private readonly abuseBudget: AbuseBudgetService,
   ) {}
 
   create(authInfo?: AuthInfo) {
@@ -123,8 +126,19 @@ export class McpServerFactory {
     run: (input: z.output<z.ZodObject<Shape>>) => Promise<unknown>,
   ) {
     target.add(name, metadata, (input: never) =>
-      runMcpTool(this.logger, () => run(input)),
+      runMcpTool(this.logger, async () => {
+        await this.chargeToolCall();
+        return run(input);
+      }),
     );
+  }
+
+  private async chargeToolCall() {
+    const identities = currentIdentities();
+
+    if (identities) {
+      await this.abuseBudget.consume(identities, "mcp.tool");
+    }
   }
 
   private registerReadTool<Shape extends z.ZodRawShape>(

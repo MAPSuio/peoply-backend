@@ -66,6 +66,7 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
+    "ioredis": "5.9.0",
     "joi": "^18.2.5",
     "node-ical": "^0.27.1",
     "openid-client": "^6.8.7",
