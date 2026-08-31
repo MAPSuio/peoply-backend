@@ -1,9 +1,4 @@
-import {
-  CLOUDFLARE_IP_RANGES,
-  PLATFORM_IP_RANGES,
-  isTrustedProxy,
-  normalizeIp,
-} from "./trusted-proxies";
+import { isTrustedProxy, normalizeIp } from "./trusted-proxies";
 
 describe("normalizeIp", () => {
   it("unwraps the IPv4-mapped form Node reports for IPv4 sockets", () => {
@@ -41,10 +36,12 @@ describe("isTrustedProxy", () => {
     expect(isTrustedProxy("::ffff:10.4.5.6", false)).toBe(true);
   });
 
-  it("covers both Cloudflare address families", () => {
-    expect(CLOUDFLARE_IP_RANGES.some((range) => range.includes(":"))).toBe(
-      true,
-    );
-    expect(PLATFORM_IP_RANGES.some((range) => range.includes(":"))).toBe(true);
+  it("recognises an IPv6 Cloudflare edge address as a hop only when Cloudflare is trusted", () => {
+    expect(isTrustedProxy("2606:4700::1", true)).toBe(true);
+    expect(isTrustedProxy("2606:4700::1", false)).toBe(false);
+  });
+
+  it("recognises an IPv6 platform address as a hop", () => {
+    expect(isTrustedProxy("fc00::1", false)).toBe(true);
   });
 });

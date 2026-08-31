@@ -252,6 +252,19 @@ describe("resolveClientIp across the forwarding chain", () => {
     expect([...buckets]).toEqual([VISITOR]);
   });
 
+  it("gives a caller who fills the chain with infrastructure addresses no say in their bucket", () => {
+    const buckets = new Set(
+      ["10.1.1.1", "10.2.2.2", "10.3.3.3"].map((forged) =>
+        resolveClientIp({
+          headers: { "x-forwarded-for": forged },
+          socket: { remoteAddress: PLATFORM_HOP },
+        }),
+      ),
+    );
+
+    expect([...buckets]).toEqual([PLATFORM_HOP]);
+  });
+
   it("does not skip past a Cloudflare address when Cloudflare is unproven", () => {
     expect(
       resolveClientIp({
@@ -310,7 +323,7 @@ describe("resolveClientIp across the forwarding chain", () => {
     ).toBe(VISITOR);
   });
 
-  it("falls back to the outermost hop when every entry is infrastructure", () => {
+  it("falls back to the peer we accepted the connection from when every entry is infrastructure", () => {
     expect(
       resolveClientIp({
         headers: {
@@ -319,7 +332,7 @@ describe("resolveClientIp across the forwarding chain", () => {
         },
         socket: { remoteAddress: PLATFORM_HOP },
       }),
-    ).toBe(OUR_CLOUDFLARE_EDGE);
+    ).toBe(PLATFORM_HOP);
   });
 });
 

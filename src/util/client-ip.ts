@@ -68,12 +68,18 @@ function provenOwnZone(req: ClientIpRequest) {
   return presented ? secretsMatch(presented, expected) : false;
 }
 
-function forwardingChain(req: ClientIpRequest): string[] {
+function peerAddress(req: ClientIpRequest): string | undefined {
   const peer = req.socket?.remoteAddress ?? req.ip;
-  const hops = listHeaderValues(req, FORWARDED_FOR_HEADER);
+
+  return peer && isAddress(peer) ? normalizeIp(peer) : undefined;
+}
+
+function forwardingChain(req: ClientIpRequest): string[] {
+  const peer = peerAddress(req);
+  const hops = listHeaderValues(req, FORWARDED_FOR_HEADER).filter(isAddress);
   if (peer) hops.push(peer);
 
-  return hops.filter(isAddress).map(normalizeIp).slice(-MAX_INSPECTED_HOPS);
+  return hops.map(normalizeIp).slice(-MAX_INSPECTED_HOPS);
 }
 
 export function resolveClientIp(req: ClientIpRequest): string {
@@ -93,7 +99,7 @@ export function resolveClientIp(req: ClientIpRequest): string {
     ? addressHeader(req, CLOUDFLARE_CLIENT_HEADER)
     : undefined;
 
-  return claimed ?? chain[0] ?? UNKNOWN_CLIENT;
+  return claimed ?? peerAddress(req) ?? UNKNOWN_CLIENT;
 }
 
 export function isOriginSecretConfigured() {

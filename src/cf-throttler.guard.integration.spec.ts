@@ -1,7 +1,7 @@
 import { Controller, Get, INestApplication } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
-import { ThrottlerModule } from "@nestjs/throttler";
+import { Throttle, ThrottlerModule } from "@nestjs/throttler";
 import request = require("supertest");
 import { CfThrottlerGuard } from "./cf-throttler.guard";
 import {
@@ -46,6 +46,12 @@ class ProbeController {
   @Get("sixth")
   sixth() {
     return "sixth";
+  }
+
+  @Throttle({ [PER_ROUTE_THROTTLER]: { limit: 1, ttl: 60000 } })
+  @Get("tightened")
+  tightened() {
+    return "tightened";
   }
 
   @SkipRateLimit()
@@ -132,6 +138,12 @@ describe("CfThrottlerGuard over HTTP", () => {
     );
 
     expect(await statusesFor(app, ["first"], OTHER_VISITOR)).toEqual([200]);
+  });
+
+  it("still holds a route to its own tighter limit, well inside the shared allowance", async () => {
+    expect(await statusesFor(app, ["tightened", "tightened"], VISITOR)).toEqual(
+      [200, 429],
+    );
   });
 
   it("leaves the platform health probe outside both allowances", async () => {

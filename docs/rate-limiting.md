@@ -54,7 +54,7 @@ To ting hindrer det:
    angriperkontrollert streng brukt som Map-nøkkel og limt inn i loggen.
 2. Requesten må vise at den kom gjennom Cloudflare, ved å sende hemmeligheten i
    `CLOUDFLARE_ORIGIN_SECRET` som `X-CF-Origin-Secret`. Requests som ikke kan
-   det faller tilbake på `req.ip`, som Express utleder fra proxy-kjeden.
+   det får headeren ignorert og leses ut av videresendingskjeden i stedet.
 
 ### Hvordan klient-IP-en utledes
 
@@ -83,8 +83,9 @@ som står i den, så hemmeligheten alene løser det ikke.
    kjente proxy-rekkevidder (`util/trusted-proxies.ts`). Første adresse utenfor
    dem er besøkende. Cloudflare-rekkevidder regnes bare som proxy når requesten
    har bevist sonen, siden de deles av alle Cloudflare-kunder.
-3. **`CF-Connecting-IP`**, fortsatt bare med bevist sone, og til slutt ytterste
-   hopp i kjeden.
+3. **`CF-Connecting-IP`**, fortsatt bare med bevist sone, og til slutt adressen
+   vi tok imot forbindelsen fra. Den siste er stabil per avsender, så en som når
+   origin direkte og fyller kjeden med private adresser havner i én bøtte.
 
 Punkt 2 er ikke vanntett alene: Cloudflare *legger til* i en `X-Forwarded-For`
 klienten selv sendte, så en angriper som sender fra en Cloudflare-adresse (en
