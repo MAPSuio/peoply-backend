@@ -83,7 +83,7 @@ describe("McpHandlerService", () => {
       }),
     );
     expect(apiKeys.verify).not.toHaveBeenCalled();
-    expect(rateLimits.consume).not.toHaveBeenCalled();
+    expect(servers.create).not.toHaveBeenCalled();
   });
 
   it("returns a bearer challenge when the token is missing", async () => {

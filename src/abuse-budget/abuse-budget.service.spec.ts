@@ -8,7 +8,15 @@ import {
   type BudgetStore,
   type Clock,
 } from "./budget-tokens";
-import { userPrincipal } from "./principal";
+import {
+  ipPrincipal,
+  mcpKeyPrincipal,
+  userPrincipal,
+  type RequestIdentities,
+} from "./principal";
+
+const MCP_TOOL_LIMIT = 120;
+const EVENT_CREATE_LIMIT = 20;
 
 class FixedClock implements Clock {
   constructor(public value: number) {}
@@ -21,6 +29,22 @@ class ThrowingStore implements BudgetStore {
   async increment(): Promise<never> {
     throw new Error("store down");
   }
+}
+
+function asUser(userId: string): RequestIdentities {
+  return { user: userPrincipal(userId), ip: ipPrincipal("203.0.113.1") };
+}
+
+function asUserOverMcp(userId: string, keyId: string): RequestIdentities {
+  return {
+    user: userPrincipal(userId),
+    mcpKey: mcpKeyPrincipal(keyId),
+    ip: ipPrincipal("203.0.113.1"),
+  };
+}
+
+function asAnonymous(address: string): RequestIdentities {
+  return { ip: ipPrincipal(address) };
 }
 
 async function serviceWith(store: BudgetStore, clock: Clock) {
@@ -39,16 +63,16 @@ describe("AbuseBudgetService", () => {
   it("allows calls up to the action limit and rejects the one past it", async () => {
     const clock = new FixedClock(1_000);
     const service = await serviceWith(new InMemoryBudgetStore(), clock);
-    const principal = userPrincipal("u1");
+    const identities = asUser("u1");
 
     for (let i = 0; i < 3; i += 1) {
       await expect(
-        service.consume(principal, "organization.create"),
+        service.consume(identities, "organization.create"),
       ).resolves.toBeUndefined();
     }
 
     await expect(
-      service.consume(principal, "organization.create"),
+      service.consume(identities, "organization.create"),
     ).rejects.toBeInstanceOf(BudgetExceeded);
   });
 
@@ -57,23 +81,23 @@ describe("AbuseBudgetService", () => {
     const service = await serviceWith(new InMemoryBudgetStore(), clock);
 
     await expect(
-      service.consume(userPrincipal("u1"), "invitation.recipient", 501),
+      service.consume(asUser("u1"), "invitation.recipient", 501),
     ).rejects.toBeInstanceOf(BudgetExceeded);
   });
 
   it("refills the bucket once the window elapses", async () => {
     const clock = new FixedClock(1_000);
     const service = await serviceWith(new InMemoryBudgetStore(), clock);
-    const principal = userPrincipal("u1");
+    const identities = asUser("u1");
 
     for (let i = 0; i < 3; i += 1) {
-      await service.consume(principal, "organization.create");
+      await service.consume(identities, "organization.create");
     }
 
     clock.value = 1_000 + 24 * 60 * 60 * 1000 + 1;
 
     await expect(
-      service.consume(principal, "organization.create"),
+      service.consume(identities, "organization.create"),
     ).resolves.toBeUndefined();
   });
 
@@ -83,30 +107,30 @@ describe("AbuseBudgetService", () => {
     const service = await serviceWith(store, clock);
 
     for (let i = 0; i < 3; i += 1) {
-      await service.consume(userPrincipal("u1"), "organization.create");
+      await service.consume(asUser("u1"), "organization.create");
     }
 
     await expect(
-      service.consume(userPrincipal("u2"), "organization.create"),
+      service.consume(asUser("u2"), "organization.create"),
     ).resolves.toBeUndefined();
     await expect(
-      service.consume(userPrincipal("u1"), "event.create"),
+      service.consume(asUser("u1"), "event.create"),
     ).resolves.toBeUndefined();
   });
 
   it("reports a retry-after that shrinks as the window drains", async () => {
     const clock = new FixedClock(0);
     const service = await serviceWith(new InMemoryBudgetStore(), clock);
-    const principal = userPrincipal("u1");
+    const identities = asUser("u1");
 
     for (let i = 0; i < 3; i += 1) {
-      await service.consume(principal, "organization.create");
+      await service.consume(identities, "organization.create");
     }
 
     clock.value = 23 * 60 * 60 * 1000;
 
     await service
-      .consume(principal, "organization.create")
+      .consume(identities, "organization.create")
       .then(() => {
         throw new Error("expected BudgetExceeded");
       })
@@ -120,7 +144,7 @@ describe("AbuseBudgetService", () => {
     const service = await serviceWith(new ThrowingStore(), new FixedClock(0));
 
     await expect(
-      service.consume(userPrincipal("u1"), "event.create"),
+      service.consume(asUser("u1"), "event.create"),
     ).rejects.toBeInstanceOf(BudgetUnavailable);
   });
 
@@ -128,7 +152,78 @@ describe("AbuseBudgetService", () => {
     const service = await serviceWith(new ThrowingStore(), new FixedClock(0));
 
     await expect(
-      service.consume(userPrincipal("u1"), "registration.create"),
+      service.consume(asUser("u1"), "registration.create"),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("AbuseBudgetService identity selection", () => {
+  it("charges the user bucket for a creation made over MCP, whichever key is used", async () => {
+    const service = await serviceWith(
+      new InMemoryBudgetStore(),
+      new FixedClock(0),
+    );
+
+    for (let i = 0; i < EVENT_CREATE_LIMIT; i += 1) {
+      await service.consume(asUserOverMcp("u1", "key-1"), "event.create");
+    }
+
+    await expect(
+      service.consume(asUserOverMcp("u1", "key-2"), "event.create"),
+    ).rejects.toBeInstanceOf(BudgetExceeded);
+  });
+
+  it("charges the key bucket for mcp.tool, so one user's keys are metered apart", async () => {
+    const service = await serviceWith(
+      new InMemoryBudgetStore(),
+      new FixedClock(0),
+    );
+
+    for (let i = 0; i < MCP_TOOL_LIMIT; i += 1) {
+      await service.consume(asUserOverMcp("u1", "key-1"), "mcp.tool");
+    }
+
+    await expect(
+      service.consume(asUserOverMcp("u1", "key-1"), "mcp.tool"),
+    ).rejects.toBeInstanceOf(BudgetExceeded);
+    await expect(
+      service.consume(asUserOverMcp("u1", "key-2"), "mcp.tool"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("falls back to the most specific identity present when the configured one is absent", async () => {
+    const service = await serviceWith(
+      new InMemoryBudgetStore(),
+      new FixedClock(0),
+    );
+
+    for (let i = 0; i < MCP_TOOL_LIMIT; i += 1) {
+      await service.consume(asUser("u1"), "mcp.tool");
+    }
+
+    await expect(
+      service.consume(asUser("u1"), "mcp.tool"),
+    ).rejects.toBeInstanceOf(BudgetExceeded);
+    await expect(
+      service.consume(asUser("u2"), "mcp.tool"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("falls back to the address when nobody is authenticated", async () => {
+    const service = await serviceWith(
+      new InMemoryBudgetStore(),
+      new FixedClock(0),
+    );
+
+    for (let i = 0; i < EVENT_CREATE_LIMIT; i += 1) {
+      await service.consume(asAnonymous("198.51.100.7"), "event.create");
+    }
+
+    await expect(
+      service.consume(asAnonymous("198.51.100.7"), "event.create"),
+    ).rejects.toBeInstanceOf(BudgetExceeded);
+    await expect(
+      service.consume(asAnonymous("198.51.100.8"), "event.create"),
     ).resolves.toBeUndefined();
   });
 });

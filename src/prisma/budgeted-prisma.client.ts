@@ -1,10 +1,10 @@
 import { PrismaClient } from "../generated/prisma/client";
 import type { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import {
-  costedCreateAction,
-  rowsCreatedBy,
+  creationChargesFor,
+  refuseCostedUpsert,
 } from "../abuse-budget/budgeted-prisma.extension";
-import { currentPrincipal } from "../abuse-budget/principal-context";
+import { currentIdentities } from "../abuse-budget/principal-context";
 
 export function withAbuseBudget(
   client: PrismaClient,
@@ -15,11 +15,18 @@ export function withAbuseBudget(
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
-          const action = costedCreateAction(model, operation);
-          const principal = action ? currentPrincipal() : null;
+          const identities = currentIdentities();
 
-          if (action && principal) {
-            await budget.consume(principal, action, rowsCreatedBy(args));
+          if (identities) {
+            refuseCostedUpsert(model, operation);
+
+            for (const [action, rows] of creationChargesFor(
+              model,
+              operation,
+              args,
+            )) {
+              await budget.consume(identities, action, rows);
+            }
           }
 
           return query(args);

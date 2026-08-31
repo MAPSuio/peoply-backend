@@ -293,7 +293,15 @@ describe("McpServerFactory tool budget", () => {
     const toolCallsInOneBatch = 25;
 
     await runWithRequest(
-      { headers: {}, auth: { extra: { keyId: "key-1" } } },
+      {
+        headers: {},
+        auth: {
+          extra: {
+            keyId: "key-1",
+            user: { id: "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b" },
+          },
+        },
+      },
       async () => {
         for (let i = 0; i < toolCallsInOneBatch; i += 1) {
           await client.callTool({
@@ -306,7 +314,11 @@ describe("McpServerFactory tool budget", () => {
 
     expect(abuseBudget.consume).toHaveBeenCalledTimes(toolCallsInOneBatch);
     expect(abuseBudget.consume).toHaveBeenLastCalledWith(
-      { kind: "mcpKey", id: "key-1" },
+      {
+        user: { kind: "user", id: "2d2bfaad-3eb9-4f1b-8657-c0263eeacc5b" },
+        mcpKey: { kind: "mcpKey", id: "key-1" },
+        ip: { kind: "ip", id: "unknown" },
+      },
       "mcp.tool",
     );
   });

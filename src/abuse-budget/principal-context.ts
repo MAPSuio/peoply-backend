@@ -4,12 +4,12 @@ import {
   ipPrincipal,
   mcpKeyPrincipal,
   userPrincipal,
-  type Principal,
+  type RequestIdentities,
 } from "./principal";
 
 export interface PrincipalRequest extends ClientIpRequest {
   user?: { id?: string };
-  auth?: { extra?: { keyId?: string } };
+  auth?: { extra?: { keyId?: string; user?: { id?: string } } };
 }
 
 interface RequestScope {
@@ -22,20 +22,19 @@ export function runWithRequest<T>(request: PrincipalRequest, run: () => T): T {
   return storage.run({ request }, run);
 }
 
-function principalOfRequest(request: PrincipalRequest): Principal {
+function identitiesOfRequest(request: PrincipalRequest): RequestIdentities {
+  const authenticatedUserId = request.user?.id ?? request.auth?.extra?.user?.id;
   const mcpKeyId = request.auth?.extra?.keyId;
 
-  if (mcpKeyId) return mcpKeyPrincipal(mcpKeyId);
-
-  const authenticatedUserId = request.user?.id;
-
-  if (authenticatedUserId) return userPrincipal(authenticatedUserId);
-
-  return ipPrincipal(resolveClientIp(request));
+  return {
+    user: authenticatedUserId ? userPrincipal(authenticatedUserId) : undefined,
+    mcpKey: mcpKeyId ? mcpKeyPrincipal(mcpKeyId) : undefined,
+    ip: ipPrincipal(resolveClientIp(request)),
+  };
 }
 
-export function currentPrincipal(): Principal | null {
+export function currentIdentities(): RequestIdentities | null {
   const scope = storage.getStore();
 
-  return scope ? principalOfRequest(scope.request) : null;
+  return scope ? identitiesOfRequest(scope.request) : null;
 }

@@ -26,7 +26,7 @@ import {
 import { FavoritesService } from "../favorites/favorites.service";
 import { FollowService } from "../users/services";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
-import { currentPrincipal } from "../abuse-budget/principal-context";
+import { currentIdentities } from "../abuse-budget/principal-context";
 import { runMcpTool } from "./mcp-result";
 import { McpToolTarget, type McpToolSummary } from "./mcp-tool-target";
 
@@ -134,10 +134,10 @@ export class McpServerFactory {
   }
 
   private async chargeToolCall() {
-    const principal = currentPrincipal();
+    const identities = currentIdentities();
 
-    if (principal) {
-      await this.abuseBudget.consume(principal, "mcp.tool");
+    if (identities) {
+      await this.abuseBudget.consume(identities, "mcp.tool");
     }
   }
 

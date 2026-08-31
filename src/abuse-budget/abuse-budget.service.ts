@@ -7,7 +7,11 @@ import {
   type Clock,
   type BudgetStore,
 } from "./budget-tokens";
-import { type Principal, principalKey } from "./principal";
+import {
+  principalKey,
+  selectPrincipal,
+  type RequestIdentities,
+} from "./principal";
 
 @Injectable()
 export class AbuseBudgetService {
@@ -19,11 +23,12 @@ export class AbuseBudgetService {
   ) {}
 
   async consume(
-    principal: Principal,
+    identities: RequestIdentities,
     action: BudgetAction,
     cost = 1,
   ): Promise<void> {
     const config = BUDGET_ACTIONS[action];
+    const principal = selectPrincipal(identities, config.keyBy);
     const key = `abuse:${action}:${principalKey(principal)}`;
     const now = this.clock.now();
 
