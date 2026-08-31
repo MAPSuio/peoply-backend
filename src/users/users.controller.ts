@@ -40,6 +40,7 @@ import { SearchUserDto } from "./dto/search-user.dto";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AuthService } from "../auth/auth.service";
 import { AdministrationService } from "../administration/administration.service";
+import { PaginationDto } from "../util/pagination.dto";
 
 @Controller("users")
 export class UsersController {
@@ -250,35 +251,50 @@ export class UsersController {
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/arranging")
-  async getArrangedEvents(@Req() req: any) {
+  async getArrangedEvents(@Req() req: any, @Query() page: PaginationDto) {
     const user: User = req.user;
     return this.eventArrangersService.findAllWithEventsArrangedByUserAndOrganizationsOfUser(
       user.id,
+      page,
     );
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/organizations")
-  async getOrganizations(@Req() req: any, @Param("userId") userId: string) {
+  async getOrganizations(
+    @Param("userId") userId: string,
+    @Query() page: PaginationDto,
+  ) {
     /* gets all orgs that user is admin for
     Args:
       userId: id of user
+      page: skip/take bounds for the returned page
     Returns:
       list of orgs
     */
-    return this.organizationsService.findOrgsByUserIdAndRole(userId);
+    return this.organizationsService.findOrgsByUserIdAndRole(
+      userId,
+      undefined,
+      page,
+    );
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/notifications")
-  async getNotifications(@Param("userId") userId: string) {
-    return this.notificationsService.findAllPendingByUserId(userId);
+  async getNotifications(
+    @Param("userId") userId: string,
+    @Query() page: PaginationDto,
+  ) {
+    return this.notificationsService.findAllPendingByUserId(userId, page);
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
   @Get(":userId/following")
-  async getFollowing(@Param("userId") userId: string) {
-    return this.followService.findAll(userId);
+  async getFollowing(
+    @Param("userId") userId: string,
+    @Query() page: PaginationDto,
+  ) {
+    return this.followService.findAll(userId, page);
   }
 
   @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)

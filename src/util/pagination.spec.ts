@@ -6,7 +6,7 @@ import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
 import { SearchOrganizationDto } from "../organizations/dto/search-organization.dto";
 import { SearchUserRegistrationDto } from "../registrations/dto/search-user-registration.dto";
 import { SearchUserDto } from "../users/dto/search-user.dto";
-import { MAX_PAGE_SIZE } from "./pagination";
+import { MAX_PAGE_SIZE, pageBoundsOf } from "./pagination";
 
 const searchDtos = [
   ["SearchEventDto", SearchEventDto],
@@ -192,5 +192,19 @@ describe("SearchFavoritesDto eventId validation", () => {
     );
 
     expect(errors).toHaveLength(0);
+  });
+});
+
+describe("pageBoundsOf", () => {
+  it("starts at the first row when the caller sent no skip", () => {
+    expect(pageBoundsOf({ take: 10 }).skip).toBe(0);
+  });
+
+  it("falls back to the row cap so an absent take still bounds the query", () => {
+    expect(pageBoundsOf({}).take).toBe(MAX_PAGE_SIZE);
+  });
+
+  it("keeps the bounds the caller did send", () => {
+    expect(pageBoundsOf({ skip: 20, take: 5 })).toEqual({ skip: 20, take: 5 });
   });
 });

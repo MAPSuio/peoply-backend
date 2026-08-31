@@ -1,4 +1,5 @@
 import { OrganizationsService } from "./organizations.service";
+import { MAX_PAGE_SIZE } from "../util/pagination";
 
 describe("OrganizationsService", () => {
   const prisma = {
@@ -339,6 +340,32 @@ describe("OrganizationsService", () => {
       // hand-built filter objects collapse into one.
       expect(someFilter()).toEqual({ userId: "user-1", role: undefined });
       expect(someFilter().role).toBeUndefined();
+    });
+
+    it("asks the database for the page rather than every row", async () => {
+      prisma.organization.findMany.mockResolvedValueOnce([]);
+
+      await service.findOrgsByUserIdAndRole("user-1", undefined, {
+        skip: 10,
+        take: 5,
+      });
+
+      expect(prisma.organization.findMany.mock.calls[0][0]).toMatchObject({
+        skip: 10,
+        take: 5,
+        orderBy: { name: "asc" },
+      });
+    });
+
+    it("bounds the page at the row cap when the caller sent none", async () => {
+      prisma.organization.findMany.mockResolvedValueOnce([]);
+
+      await service.findOrgsByUserIdAndRole("user-1");
+
+      expect(prisma.organization.findMany.mock.calls[0][0]).toMatchObject({
+        skip: 0,
+        take: MAX_PAGE_SIZE,
+      });
     });
   });
 });

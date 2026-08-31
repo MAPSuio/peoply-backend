@@ -38,9 +38,22 @@ der feil svar er verre enn tregt svar.
 
 ## Hva som gjenstår
 
-De øvrige `findMany` uten grense er fortsatt ubundne, og de vokser med bruk:
-`EventInvitation`, `ArrangerFollower` og `EventUpdate` er de største. De trenger
-ekte paginering, som er en API-endring, ikke en konstant. Se issue #215.
+De øvrige `findMany` uten grense er fortsatt ubundne, og de vokser med bruk.
+`EventUpdate` er den største som står igjen. De trenger ekte paginering, som er
+en API-endring, ikke en konstant. Se issue #215.
+
+`EventInvitation`, `OrganizationInvitation`, `EventCoOrganizerInvitation`,
+`ArrangerFollower` og listene bak `/users/:userId/arranging` og
+`/users/:userId/organizations` er tatt i issue #227. De tar nå `skip`/`take`
+gjennom `pageBoundsOf` i `src/util/pagination.ts`, som lar `take` falle tilbake
+til `MAX_PAGE_SIZE` når kallstedet ikke oppgir noe: spørringen får en grense
+uten at en klient som aldri sendte `take` får et kortere svar enn før.
+
+Varsler er den eneste av dem som ikke kan pagineres i én spørring. Tre kilder
+slås sammen og sorteres på `createdAt`, og en side kan i sin helhet komme fra
+én av dem, så hver kilde henter sine nyeste `skip + take` rader før
+sammenslåingen. Færre enn det, og en rad som hører hjemme på siden mangler i
+alle listene som ble lest.
 
 ## Å legge til en modell
 

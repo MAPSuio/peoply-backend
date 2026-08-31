@@ -4,16 +4,23 @@ import { ArrangerNotFoundException } from "../../arrangers/exceptions";
 import { UserDoesNotExistException } from "../exceptions";
 import { PUBLIC_USER_SELECT } from "../user.select";
 import { FollowAction } from "../../generated/prisma/client";
+import { PaginationDto } from "../../util/pagination.dto";
+import { pageBoundsOf } from "../../util/pagination";
 
 @Injectable()
 export class FollowService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(userId: string) {
+  async findAll(userId: string, page: PaginationDto = {}) {
+    const { skip, take } = pageBoundsOf(page);
+
     return await this.prisma.arrangerFollower.findMany({
+      skip,
+      take,
       where: {
         userId,
       },
+      orderBy: { createdAt: "desc" },
       include: {
         arranger: {
           include: {

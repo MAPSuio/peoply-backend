@@ -6,8 +6,8 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";
-import { MAX_PAGE_SIZE } from "../../util/pagination";
-import { ALL_ROWS } from "../../util/pagination";
+import { ALL_ROWS, MAX_PAGE_SIZE, pageBoundsOf } from "../../util/pagination";
+import { PaginationDto } from "../../util/pagination.dto";
 
 export type PublicEventsOptions = {
   fromDate?: Date;
@@ -89,8 +89,17 @@ export class EventArrangersService {
     });
   }
 
-  async findAllWithEventsArrangedByUserAndOrganizationsOfUser(userId: string) {
+  async findAllWithEventsArrangedByUserAndOrganizationsOfUser(
+    userId: string,
+    page: PaginationDto = {},
+  ) {
+    const { skip, take } = pageBoundsOf(page);
+
+    /* This set decides which events count as the caller's, so a truncated read
+       of it silently drops whole organizations from the answer. It is the page
+       of events below that is bounded, never this. */
     const orgs = await this.prismaService.organization.findMany({
+      take: ALL_ROWS,
       where: {
         organizationRoles: {
           some: {
@@ -121,7 +130,12 @@ export class EventArrangersService {
     ]);
 
     const rows = await this.prismaService.eventArranger.findMany({
-      take: ALL_ROWS,
+      skip,
+      take,
+      /* A page is only a page under a deterministic order, or which events land
+         on it is up to the query planner. Newest first is what a "my events"
+         list is read for. */
+      orderBy: { event: { startDate: "desc" } },
       where: {
         arrangerId: {
           in: [...myArrangerIds],

@@ -1,6 +1,7 @@
 import { FollowService } from "./follower.service";
 import { UserDoesNotExistException } from "../exceptions";
 import { ArrangerNotFoundException } from "../../arrangers/exceptions";
+import { MAX_PAGE_SIZE } from "../../util/pagination";
 
 describe("FollowService", () => {
   const prisma = {
@@ -13,6 +14,7 @@ describe("FollowService", () => {
     arrangerFollower: {
       create: jest.fn(),
       delete: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     arrangerFollowerEvent: {
       create: jest.fn(),
@@ -31,6 +33,27 @@ describe("FollowService", () => {
       Promise.all(ops),
     );
     service = new FollowService(prisma as any);
+  });
+
+  describe("findAll", () => {
+    it("asks the database for the page rather than every row", async () => {
+      await service.findAll("user-1", { skip: 30, take: 10 });
+
+      expect(prisma.arrangerFollower.findMany.mock.calls[0][0]).toMatchObject({
+        skip: 30,
+        take: 10,
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    it("bounds the page at the row cap when the caller sent none", async () => {
+      await service.findAll("user-1");
+
+      expect(prisma.arrangerFollower.findMany.mock.calls[0][0]).toMatchObject({
+        skip: 0,
+        take: MAX_PAGE_SIZE,
+      });
+    });
   });
 
   describe("follow", () => {

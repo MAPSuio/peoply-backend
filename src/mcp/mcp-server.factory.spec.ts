@@ -77,6 +77,37 @@ describe("McpServerFactory", () => {
     jest.clearAllMocks();
   });
 
+  /* Every tool here used to read its whole list and slice the page out in
+     memory, so `skip`/`take` bounded the answer but never the query. The
+     bounds have to reach the service for that to stop being true. */
+  const boundedListTools = [
+    ["list_my_organizations", () => organizations.findOrgsByUserIdAndRole],
+    [
+      "list_my_arranged_events",
+      () =>
+        eventArrangers.findAllWithEventsArrangedByUserAndOrganizationsOfUser,
+    ],
+    ["list_my_notifications", () => notifications.findAllPendingByUserId],
+    ["list_followed_organizers", () => following.findAll],
+  ] as const;
+
+  it.each(boundedListTools)(
+    "%s hands the page bounds to the database, not to a slice",
+    async (name, source) => {
+      source().mockResolvedValue([]);
+      const { client, server } = await connect(["peoply:read"]);
+
+      await client.callTool({ name, arguments: { skip: 40, take: 10 } });
+
+      const [actorId, ...rest] = source().mock.calls[0];
+      expect(actorId).toBe(USER_ID);
+      expect(rest).toContainEqual({ skip: 40, take: 10 });
+
+      await client.close();
+      await server.close();
+    },
+  );
+
   it("rejects missing authenticated actor data", () => {
     expect(() => factory.create()).toThrow();
   });
