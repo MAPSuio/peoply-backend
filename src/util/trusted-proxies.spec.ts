@@ -46,6 +46,11 @@ describe("isTrustedProxy", () => {
   it("recognises an IPv6 platform address as a hop", () => {
     expect(isTrustedProxy("fc00::1", false)).toBe(true);
   });
+
+  it("treats the App Platform router, which answers from RFC 6598 space, as a hop", () => {
+    expect(isTrustedProxy("100.127.4.5", false)).toBe(true);
+    expect(isTrustedProxy("100.64.0.1", false)).toBe(true);
+  });
 });
 
 describe("trustProxyHop wired into Express", () => {
