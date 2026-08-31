@@ -42,40 +42,42 @@ To ting hindrer det:
    `CLOUDFLARE_ORIGIN_SECRET` som `X-CF-Origin-Secret`. Requests som ikke kan
    det faller tilbake på `req.ip`, som Express utleder fra proxy-kjeden.
 
-### Kjent problem: klient-IP-en er per i dag Cloudflares, ikke brukerens
+### Hvordan klient-IP-en utledes
 
-Målt 16.08.2026 mot produksjon: en request sendt fra IP `84.211.24.137` ble
-logget som `172.71.148.35`, altså en Cloudflare-edge. Det gjelder all trafikk,
-ikke bare bot-prober.
-
-Konsekvensen er at grensen på 100 requests per minutt deles av alle brukere bak
-samme Cloudflare-edge i stedet for å gjelde per bruker. Med rundt seks API-kall
-per sidevisning skal det ikke veldig mange samtidige besøkende til før grensen
-nås av helt normal trafikk. Det har ikke slått ut ennå (ingen 429 i loggen), men
-det er en felle som utløses av at det går bra, ikke av at det går dårlig.
-
-Årsaken er at det er to Cloudflare-lag i kjeden, ikke ett:
+Målt 16.08.2026 mot produksjon: en request sendt fra `84.211.24.137` ble logget
+som `172.71.148.35`, altså en Cloudflare-edge. Årsaken er at det er to
+Cloudflare-lag i kjeden, ikke ett:
 
 ```
 bruker → Cloudflare (peoply.app) → Cloudflare (DigitalOcean) → App Platform → container
 ```
 
-`whale-app-yksnk.ondigitalocean.app` slår opp til 172.66.0.96 og 162.159.140.98
-og svarer med `server: cloudflare` og `cf-ray`. App Platform fronter altså hver
-app med sin egen Cloudflare. Den overskriver `CF-Connecting-IP` med IP-en som
-koblet seg til den, og det er vår egen Cloudflare-edge. Headeren blir ikke
-strippet, den blir skrevet over av en Cloudflare vi ikke styrer.
+App Platform fronter hver app med sin egen Cloudflare, og den overskriver
+`CF-Connecting-IP` med adressen som koblet seg til den, altså vår egen edge.
+Headeren blir ikke strippet, den blir skrevet over av en Cloudflare vi ikke
+styrer. `CLOUDFLARE_ORIGIN_SECRET` avgjør om vi *stoler på* headeren, ikke hva
+som står i den, så hemmeligheten alene løser det ikke.
 
-Det betyr også at `CLOUDFLARE_ORIGIN_SECRET` ikke løser dette. Hemmeligheten
-avgjør om vi *stoler på* headeren, ikke hva som står i den.
+`resolveClientIp()` prøver derfor tre ting, i denne rekkefølgen:
 
-Den ekte klient-IP-en må derfor hentes fra `X-Forwarded-For`. Med to proxy-lag
-er `trust proxy 1` for lavt: Express teller hopp fra appen og utover, så den
-lander på det innerste Cloudflare-laget. Før det endres må det verifiseres hva
-som faktisk kommer frem, siden en klient kan sende sin egen `X-Forwarded-For`
-og Cloudflare legger til bakerst i stedet for å erstatte. Å plukke det første
-elementet i blinde ville gjort headeren forfalskbar igjen, altså nøyaktig den
-bypassen `client-ip.ts` finnes for å lukke.
+1. **`X-Peoply-Client-IP`, når requesten kan bevise at den kom gjennom sonen
+   vår.** Samme transform-regel som setter hemmeligheten setter denne fra
+   `ip.src`. Den er den eneste kilden en angriper ikke kan påvirke: DigitalOcean
+   sin Cloudflare rører ikke ukjente headere, og uten hemmeligheten blir headeren
+   ignorert.
+2. **`X-Forwarded-For` lest fra høyre mot venstre**, forbi adresser som ligger i
+   kjente proxy-rekkevidder (`util/trusted-proxies.ts`). Første adresse utenfor
+   dem er besøkende. Cloudflare-rekkevidder regnes bare som proxy når requesten
+   har bevist sonen, siden de deles av alle Cloudflare-kunder.
+3. **`CF-Connecting-IP`**, fortsatt bare med bevist sone, og til slutt ytterste
+   hopp i kjeden.
+
+Punkt 2 er ikke vanntett alene: Cloudflare *legger til* i en `X-Forwarded-For`
+klienten selv sendte, så en angriper som sender fra en Cloudflare-adresse (en
+Worker eller en Tunnel) kan legge inn en oppdiktet adresse til venstre og få den
+lest som besøkende. Det er derfor punkt 1 finnes, og derfor appen logger en
+advarsel første gang en request med gyldig hemmelighet kommer inn *uten*
+`X-Peoply-Client-IP`.
 
 ### Oppsett av origin-hemmeligheten
 
@@ -85,8 +87,12 @@ bypassen `client-ip.ts` finnes for å lukke.
    ```
 2. Sett `CLOUDFLARE_ORIGIN_SECRET` i app-spec-en på DigitalOcean.
 3. I Cloudflare: **Rules → Transform Rules → Modify Request Header** → legg til
-   en regel som setter `X-CF-Origin-Secret` til samme verdi på all trafikk mot
-   origin.
+   en regel som på all trafikk mot origin setter:
+   - `X-CF-Origin-Secret` til samme verdi (statisk)
+   - `X-Peoply-Client-IP` til uttrykket `ip.src` (dynamisk)
+
+   Begge må stå i samme regel. Uten den andre faller klient-IP-en tilbake på
+   `X-Forwarded-For`, som en angriper bak Cloudflare kan styre.
 
 Uten variabelen kjører appen som før, men logger en advarsel ved oppstart:
 bypassen er da fortsatt åpen.

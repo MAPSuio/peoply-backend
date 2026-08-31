@@ -18,6 +18,9 @@ class ThrottledController {
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   resetPassword() {}
+
+  @Throttle({ default: { ttl: 30000 } })
+  requestVerification() {}
 }
 
 function contextFor(controller: new () => unknown, handler: string) {
@@ -97,6 +100,17 @@ describe("CfThrottlerGuard", () => {
         generateKey(contextFor(ThrottledController, "logIn"), VISITOR),
       ).not.toBe(
         generateKey(contextFor(ThrottledController, "resetPassword"), VISITOR),
+      );
+    });
+
+    it("keeps a route that narrows only the window out of the shared allowance", () => {
+      expect(
+        generateKey(
+          contextFor(ThrottledController, "requestVerification"),
+          VISITOR,
+        ),
+      ).not.toBe(
+        generateKey(contextFor(UnthrottledController, "listEvents"), VISITOR),
       );
     });
 

@@ -17,7 +17,12 @@ import {
   isUntrustedOrigin,
   parseTrustedOrigins,
 } from "./auth/auth-origin";
-import { isOriginSecretConfigured, resolveClientIp } from "./util/client-ip";
+import {
+  isClientIpStamped,
+  isOriginSecretConfigured,
+  isZoneProven,
+  resolveClientIp,
+} from "./util/client-ip";
 import { isTrustedProxy } from "./util/trusted-proxies";
 import { oauthSessionOptions } from "./auth/oauth-session";
 import { runWithRequest } from "./abuse-budget/principal-context";
@@ -39,29 +44,18 @@ async function bootstrap() {
   app
     .getHttpAdapter()
     .getInstance()
-    .set("trust proxy", (address: string) => isTrustedProxy(address, true));
+    .set("trust proxy", (address: string) => isTrustedProxy(address, false));
 
   /* Access log: method, path, status, duration, client IP. Placed before
-     helmet so the entire request lifecycle is captured.
-
-     Note what the IP is worth. Requests reach the origin through Cloudflare,
-     and CF-Connecting-IP is not making it through, so what gets logged is a
-     Cloudflare edge address shared by many visitors rather than any one of
-     them. Useful for "is anything reaching us and what is it answering",
-     which is what this log is for; not usable for attributing traffic to a
-     client. */
+     helmet so the entire request lifecycle is captured. */
   const httpLogger = new Logger("HTTP");
   const SKIP_PATHS = new Set(["/_health", "/readiness"]);
 
-  // Without the shared secret there is no way to tell a request that came
-  // through Cloudflare from one sent straight to the origin, so CF-Connecting-IP
-  // has to be taken at face value and the per-IP rate limit can be sidestepped
-  // by rotating it. Say so rather than letting it look protected.
   if (!isOriginSecretConfigured()) {
     new Logger("Bootstrap").warn(
-      "CLOUDFLARE_ORIGIN_SECRET is not set — CF-Connecting-IP is trusted " +
-        "unverified, so rate limiting can be bypassed by reaching the origin " +
-        "directly. See docs/rate-limiting.md.",
+      "CLOUDFLARE_ORIGIN_SECRET is not set, so no request can prove it came " +
+        "through our Cloudflare zone and the client address is read off the " +
+        "forwarding chain alone. See docs/rate-limiting.md.",
     );
   }
 
@@ -69,8 +63,21 @@ async function bootstrap() {
     runWithRequest(req, next);
   });
 
+  let missingStampReported = false;
+
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (SKIP_PATHS.has(req.path)) return next();
+
+    if (!missingStampReported && isZoneProven(req) && !isClientIpStamped(req)) {
+      missingStampReported = true;
+      new Logger("Bootstrap").warn(
+        "Requests arrive from our Cloudflare zone without X-Peoply-Client-IP, " +
+          "so the client address is read off the forwarding chain, which a " +
+          "caller relaying through Cloudflare can steer. Add the header to the " +
+          "transform rule — see docs/rate-limiting.md.",
+      );
+    }
+
     const start = Date.now();
     res.on("finish", () => {
       const ms = Date.now() - start;

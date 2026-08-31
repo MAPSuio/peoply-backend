@@ -1,11 +1,25 @@
 import { createHash } from "node:crypto";
 import { ExecutionContext, Injectable } from "@nestjs/common";
 import { ThrottlerGuard } from "@nestjs/throttler";
-import { THROTTLER_LIMIT } from "@nestjs/throttler/dist/throttler.constants";
+import {
+  THROTTLER_BLOCK_DURATION,
+  THROTTLER_KEY_GENERATOR,
+  THROTTLER_LIMIT,
+  THROTTLER_TRACKER,
+  THROTTLER_TTL,
+} from "@nestjs/throttler/dist/throttler.constants";
 import { Request } from "express";
 import { resolveClientIp } from "./util/client-ip";
 
 const SHARED_ALLOWANCE = "shared";
+
+const ROUTE_LEVEL_KEYS = [
+  THROTTLER_LIMIT,
+  THROTTLER_TTL,
+  THROTTLER_BLOCK_DURATION,
+  THROTTLER_TRACKER,
+  THROTTLER_KEY_GENERATOR,
+];
 
 @Injectable()
 export class CfThrottlerGuard extends ThrottlerGuard {
@@ -24,11 +38,13 @@ export class CfThrottlerGuard extends ThrottlerGuard {
   }
 
   private allowanceFor(context: ExecutionContext, name: string) {
-    const declaresOwnLimit = this.reflector.getAllAndOverride<
-      number | undefined
-    >(THROTTLER_LIMIT + name, [context.getHandler(), context.getClass()]);
+    const targets = [context.getHandler(), context.getClass()];
+    const declaresOwnTerms = ROUTE_LEVEL_KEYS.some(
+      (key) =>
+        this.reflector.getAllAndOverride(key + name, targets) !== undefined,
+    );
 
-    if (declaresOwnLimit === undefined) return SHARED_ALLOWANCE;
+    if (!declaresOwnTerms) return SHARED_ALLOWANCE;
 
     return `${context.getClass().name}-${context.getHandler().name}`;
   }
