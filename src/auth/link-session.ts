@@ -12,7 +12,15 @@ export interface PendingLink {
   sub: string;
   profile: CreateUserDto;
   matchedUserId: string;
+  parkedAt: number;
 }
+
+/**
+ * How long the confirm modal stays answerable. A parked link is an identity
+ * waiting to be attached to an account, so it should not outlive the sitting
+ * in which it was offered.
+ */
+export const PENDING_LINK_MAX_AGE_MS = 10 * 60 * 1000;
 
 /** The link state account linking keeps in the express oauth session. */
 export interface LinkSessionKeys {
@@ -38,8 +46,16 @@ export const takeLinkUserId = (session: LinkSessionKeys | undefined) => {
   return linkUserId;
 };
 
-export const takePendingLink = (session: LinkSessionKeys | undefined) => {
+export const takePendingLink = (
+  session: LinkSessionKeys | undefined,
+  nowMs: number,
+) => {
   const pendingLink = session?.pendingLink;
   if (session) delete session.pendingLink;
-  return pendingLink;
+
+  if (!pendingLink) return undefined;
+
+  const age = nowMs - pendingLink.parkedAt;
+
+  return age >= 0 && age <= PENDING_LINK_MAX_AGE_MS ? pendingLink : undefined;
 };
