@@ -38,6 +38,12 @@ export function costedCreateAction(
   return costedActionOfModel(model);
 }
 
+function costedUpsertRefusal(model: string) {
+  return new Error(
+    `${model} carries a creation budget and must not be upserted from request-scoped code, because an upsert that updates would still pay for a create. Decide between create and update at the call site.`,
+  );
+}
+
 export function refuseCostedUpsert(
   model: string | undefined,
   operation: string,
@@ -45,9 +51,7 @@ export function refuseCostedUpsert(
   if (operation !== "upsert" || !model) return;
   if (costedActionOfModel(model) === null) return;
 
-  throw new Error(
-    `${model} carries a creation budget and must not be upserted from request-scoped code, because an upsert that updates would still pay for a create. Decide between create and update at the call site.`,
-  );
+  throw costedUpsertRefusal(model);
 }
 
 export function rowsCreatedBy(args: unknown): number {
@@ -82,11 +86,22 @@ function changedRecordsIn(relationWrite: Record<string, unknown>) {
   );
 }
 
+function upsertedRecordsIn(relationWrite: Record<string, unknown>) {
+  return recordsIn(relationWrite.upsert).flatMap((entry) => [
+    ...recordsIn(entry.create),
+    ...recordsIn(entry.update),
+  ]);
+}
+
 function chargeRelationWrite(
   targetModel: string,
   relationWrite: Record<string, unknown>,
   charges: CreationCharges,
 ) {
+  if (relationWrite.upsert !== undefined && costedActionOfModel(targetModel)) {
+    throw costedUpsertRefusal(targetModel);
+  }
+
   const createdRows = recordsIn(relationWrite.create);
   const batchedRows = isRecord(relationWrite.createMany)
     ? recordsIn(relationWrite.createMany.data)
@@ -107,6 +122,7 @@ function chargeRelationWrite(
     charges,
   );
   chargeNestedWrites(targetModel, changedRecordsIn(relationWrite), charges);
+  chargeNestedWrites(targetModel, upsertedRecordsIn(relationWrite), charges);
 }
 
 function chargeNestedWrites(

@@ -218,3 +218,41 @@ describe("creationChargesFor", () => {
     ).toEqual({});
   });
 });
+
+describe("nested upsert on a costed relation", () => {
+  it("refuses a nested upsert of a costed model", () => {
+    expect(() =>
+      creationChargesFor("Event", "update", {
+        where: { id: "e1" },
+        data: { registrations: { upsert: { create: {}, update: {} } } },
+      }),
+    ).toThrow(/must not be upserted/);
+  });
+
+  it("still charges costed creates buried under an uncosted upsert", () => {
+    const charges = creationChargesFor("Organization", "update", {
+      where: { id: "o1" },
+      data: {
+        arranger: {
+          upsert: {
+            create: { arrangerFollowerEvents: { create: [{}, {}] } },
+            update: {},
+          },
+        },
+      },
+    });
+
+    expect(charges.get("follow.create")).toBe(2);
+  });
+
+  it("descends through an uncosted relation to reach a costed create", () => {
+    const charges = creationChargesFor("Organization", "update", {
+      where: { id: "o1" },
+      data: {
+        arranger: { create: { arrangerFollowerEvents: { create: [{}] } } },
+      },
+    });
+
+    expect(charges.get("follow.create")).toBe(1);
+  });
+});
