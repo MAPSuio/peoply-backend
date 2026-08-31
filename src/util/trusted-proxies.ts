@@ -3,7 +3,7 @@ import { BlockList, isIP } from "node:net";
 /* From https://www.cloudflare.com/ips-v4 and ips-v6, fetched 2026-08-16.
    A missing range makes an edge address look like a visitor, so re-fetch
    both lists when Cloudflare announces a change. */
-export const CLOUDFLARE_IP_RANGES = [
+const CLOUDFLARE_IP_RANGES = [
   "173.245.48.0/20",
   "103.21.244.0/22",
   "103.22.200.0/22",
@@ -28,7 +28,7 @@ export const CLOUDFLARE_IP_RANGES = [
   "2c0f:f248::/32",
 ];
 
-export const PLATFORM_IP_RANGES = [
+const PLATFORM_IP_RANGES = [
   "127.0.0.0/8",
   "10.0.0.0/8",
   "172.16.0.0/12",
