@@ -17,6 +17,7 @@ import {
   NotImplementedException,
   Param,
   ParseArrayPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -173,8 +174,7 @@ export class EventsController {
   @EventArrangerRoles(EventArrangerRole.ADMIN)
   @UseGuards(AuthenticatedGuard, EventRolesGuard)
   @Delete(":id")
-  async remove(@Param("id") id: string) {
-    //the user has to be the arranger or the admin of the organization
+  async remove(@Param("id", ParseUUIDPipe) id: string) {
     return this.eventsService.remove(id);
   }
 

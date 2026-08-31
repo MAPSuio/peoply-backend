@@ -81,6 +81,12 @@ describe("McpHandlerService", () => {
     );
 
     expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jsonrpc: "2.0",
+        error: expect.objectContaining({ code: -32600 }),
+      }),
+    );
     expect(apiKeys.verify).not.toHaveBeenCalled();
     expect(rateLimits.consume).not.toHaveBeenCalled();
   });

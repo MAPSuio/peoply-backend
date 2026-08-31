@@ -57,6 +57,20 @@ describe("free-text field bounds", () => {
     expect(await hasError(dto, "name")).toBe(true);
   });
 
+  it("rejects an over-long organization search description", async () => {
+    const dto = plainToInstance(SearchOrganizationDto, {
+      description: "x".repeat(201),
+    });
+    expect(await hasError(dto, "description")).toBe(true);
+  });
+
+  it("accepts an organization search description within the bound", async () => {
+    const dto = plainToInstance(SearchOrganizationDto, {
+      description: "x".repeat(200),
+    });
+    expect(await hasError(dto, "description")).toBe(false);
+  });
+
   it("accepts a normal event description", async () => {
     const dto = plainToInstance(CreateEventDto, baseCreateEvent);
     expect(await hasError(dto, "description")).toBe(false);

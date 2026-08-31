@@ -93,10 +93,9 @@ describe("IMAGE_UPLOAD_OPTIONS", () => {
   it("bounds the non-file multipart parts so text fields cannot flood the heap", () => {
     const limits = IMAGE_UPLOAD_OPTIONS.limits;
 
-    expect(limits?.fields).toBeLessThanOrEqual(32);
-    expect(limits?.parts).toBeLessThanOrEqual(64);
-    expect(limits?.fieldSize).toBeLessThanOrEqual(64 * 1024);
-    expect(limits?.fields).toBeGreaterThan(0);
+    expect(limits?.fields).toBe(16);
+    expect(limits?.parts).toBe(24);
+    expect(limits?.fieldSize).toBe(64 * 1024);
   });
 
   /* The limit exists to bound heap, not to judge the picture. A phone photo

@@ -34,6 +34,17 @@ const NON_ARRANGER_COUNTABLE_STATUSES = new Set<RegStatus>([
   RegStatus.WAITLISTED,
 ]);
 
+function countableStatusFilter(
+  regStatus: RegStatus | undefined,
+  isArranger: boolean,
+) {
+  if (regStatus) return { regStatus };
+
+  if (isArranger) return {};
+
+  return { regStatus: { in: [...NON_ARRANGER_COUNTABLE_STATUSES] } };
+}
+
 @Injectable()
 export class ArrangerRegistrationService extends CommonRegistrationService {
   async findAll(searchProps: SearchEventRegistrationDto, eventId: string) {
@@ -123,9 +134,10 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     }
 
     return await this.prismaService.registration.count({
-      where: searchProps.regStatus
-        ? { eventId: eventId, regStatus: searchProps.regStatus }
-        : { eventId: eventId },
+      where: {
+        eventId,
+        ...countableStatusFilter(searchProps.regStatus, isArranger),
+      },
     });
   }
 

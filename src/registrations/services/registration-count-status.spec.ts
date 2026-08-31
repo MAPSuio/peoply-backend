@@ -54,4 +54,27 @@ describe("getRegistrationCount status visibility", () => {
       ).rejects.toBeInstanceOf(EventNotFoundException);
     },
   );
+
+  it("counts only attending statuses when a non-arranger omits regStatus", async () => {
+    const { service, prisma } = buildService();
+
+    await service.getRegistrationCount({} as any, EVENT_ID, false);
+
+    expect(prisma.registration.count).toHaveBeenCalledWith({
+      where: {
+        eventId: EVENT_ID,
+        regStatus: { in: [RegStatus.GOING, RegStatus.WAITLISTED] },
+      },
+    });
+  });
+
+  it("counts every status when an arranger omits regStatus", async () => {
+    const { service, prisma } = buildService();
+
+    await service.getRegistrationCount({} as any, EVENT_ID, true);
+
+    expect(prisma.registration.count).toHaveBeenCalledWith({
+      where: { eventId: EVENT_ID },
+    });
+  });
 });
