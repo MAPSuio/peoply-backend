@@ -49,9 +49,10 @@ for correctness — but the IP fallback still needs `src/util/trusted-proxies.ts
 ### 3. Fail-closed on mutation, fail-open on read
 `BudgetUnavailable` is handled per action, not globally:
 - `failMode: 'closed'` — creation, email/Discord sends, MCP writes → 503, operation refused.
-- `failMode: 'open'` — anonymous reads and search → allowed, logged, uncounted.
+- `failMode: 'open'` — anonymous reads and identified search → allowed, logged, uncounted.
 A Redis outage becomes a read-only-ish degradation, not a full outage, and the abuse window
-during an outage is reads only.
+during an outage is reads only. Fail-open decides only what a store outage does, and it sits
+behind the authentication gate, so an anonymous full-text search is refused either way.
 
 ### 4. Charge inside the client, not at the call site
 
@@ -128,15 +129,34 @@ was previously declared and never read; it is now the thing that decides.
 | registration.create | 200 | 24h | open | prisma extension |
 | follow.create | 500 | 24h | open | prisma extension |
 | mcp.tool | 120 | 1min | closed | registerTool, per tool call |
+| search.text | 30 | 1min | open | prisma extension (any `search:` filter in a where) |
 
 Attending an event is the core function of the product, so `registration.create` and
 `follow.create` fail open: a Valkey outage must not stop people signing up, and their abuse
 ceiling is low. The spam vectors fail closed.
 
-The catalogue deliberately lists only what is enforced. `search.text`, `anon.read`,
+The catalogue deliberately lists only what is enforced. `anon.read`,
 `registration.statusEmail` and `organization.report` were dropped from the initial design
 rather than shipped unwired, because a catalogue entry with no call site implies coverage
-that does not exist.
+that does not exist. `search.text` was dropped for the same reason and added back below,
+once it had a call site.
+
+## Full-text search (X4)
+
+`GET /events?description=` and `GET /organizations?description=` reach Prisma's `search:`
+filter, which emits `to_tsvector(concat_ws(' ', "description")) @@ to_tsquery($1)`: a per-row
+tsvector build on a 1-vCPU database, previously reachable with no account.
+
+The review recommended a GIN index. That is not implementable here: the one-argument
+`to_tsvector` and `concat_ws` are both STABLE rather than IMMUTABLE, so PostgreSQL refuses
+to build an index on the expression Prisma actually emits (verified against 16). Adding an
+index on an `'english'::regconfig` variant would build, but Prisma would never use it,
+because the emitted predicate would not match.
+
+So the cost is bounded by identity instead. The same funnel detects any `search:` filter
+anywhere in a query's `where`, refuses it when the caller is neither an authenticated user
+nor an MCP key, and charges `search.text` (30/min, fail-open) otherwise. No frontend caller
+sends `description`; it only ever sends `title` and `name`, which stay public.
 
 ## What was deliberately not folded in
 

@@ -6,6 +6,7 @@ import {
   creationChargesFor,
   refuseCostedUpsert,
   rowsCreatedBy,
+  usesFullTextSearch,
 } from "./budgeted-prisma.extension";
 
 const prismaModelNames = new Set(
@@ -254,5 +255,29 @@ describe("nested upsert on a costed relation", () => {
     });
 
     expect(charges.get("follow.create")).toBe(1);
+  });
+});
+
+describe("full-text search detection", () => {
+  it("spots a search filter on a scalar field", () => {
+    expect(
+      usesFullTextSearch({ where: { description: { search: "coffee" } } }),
+    ).toBe(true);
+  });
+
+  it("spots a search filter nested under a boolean combinator", () => {
+    expect(
+      usesFullTextSearch({
+        where: { AND: [{ OR: [{ description: { search: "coffee" } }] }] },
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores ordinary filters and a field literally named search", () => {
+    expect(
+      usesFullTextSearch({ where: { title: { contains: "coffee" } } }),
+    ).toBe(false);
+    expect(usesFullTextSearch({ where: { search: "coffee" } })).toBe(false);
+    expect(usesFullTextSearch(undefined)).toBe(false);
   });
 });

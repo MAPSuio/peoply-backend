@@ -1,6 +1,8 @@
+import { UnauthorizedException } from "@nestjs/common";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
+import { BUDGET_ACTIONS } from "../abuse-budget/budget-action";
 import { BudgetExceeded } from "../abuse-budget/budget-errors";
-import { SYSTEM_CLOCK } from "../abuse-budget/budget-store";
+import { SYSTEM_CLOCK, type BudgetStore } from "../abuse-budget/budget-store";
 import { InMemoryBudgetStore } from "../abuse-budget/in-memory-budget-store";
 import { runWithRequest } from "../abuse-budget/principal-context";
 import {
@@ -23,6 +25,25 @@ function budgetedClient() {
   const base = new PrismaClient({ adapter: createPrismaAdapter() });
 
   return { budget, base, client: withAbuseBudget(base, budget) };
+}
+
+class UnavailableBudgetStore implements BudgetStore {
+  async increment(
+    _key: string,
+    _cost: number,
+    _windowMs: number,
+    _nowMs: number,
+  ): Promise<never> {
+    throw new Error("budget store unavailable");
+  }
+}
+
+function budgetedClientWithUnavailableStore() {
+  const store = new UnavailableBudgetStore();
+  const budget = new AbuseBudgetService(store, SYSTEM_CLOCK);
+  const base = new PrismaClient({ adapter: createPrismaAdapter() });
+
+  return { store, budget, base, client: withAbuseBudget(base, budget) };
 }
 
 function identitiesOf(userId: string): RequestIdentities {
@@ -212,6 +233,101 @@ describe("budgeted prisma client", () => {
         client.event.create({ data: { title: "over mcp" } as never }),
       ).rejects.toBeInstanceOf(BudgetExceeded);
     });
+
+    await base.$disconnect();
+  });
+});
+
+describe("full-text search gating", () => {
+  it("refuses an anonymous caller the expensive tsvector scan", async () => {
+    const { base, client } = budgetedClient();
+
+    await runWithRequest({ headers: {}, ip: "203.0.113.9" }, async () => {
+      await expect(
+        client.event.findMany({
+          where: { description: { search: "coffee" } },
+          take: 1,
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    await base.$disconnect();
+  });
+
+  it("lets an authenticated caller search and charges the attempt", async () => {
+    const { budget, base, client } = budgetedClient();
+    const consume = jest.spyOn(budget, "consume");
+
+    await asAuthenticatedUser("searcher", async () => {
+      await client.event.findMany({
+        where: { description: { search: "coffee" } },
+        take: 1,
+      });
+    });
+
+    expect(consume).toHaveBeenCalledWith(
+      expect.objectContaining({ user: { kind: "user", id: "searcher" } }),
+      "search.text",
+    );
+
+    await base.$disconnect();
+  });
+
+  it("leaves an anonymous title filter alone", async () => {
+    const { budget, base, client } = budgetedClient();
+    const consume = jest.spyOn(budget, "consume");
+
+    await runWithRequest({ headers: {}, ip: "203.0.113.9" }, async () => {
+      await client.event.findMany({
+        where: { title: { contains: "coffee" } },
+        take: 1,
+      });
+    });
+
+    expect(consume).not.toHaveBeenCalled();
+
+    await base.$disconnect();
+  });
+});
+
+describe("full-text search gating while the budget store is unavailable", () => {
+  it("refuses an anonymous caller before it reaches the budget store", async () => {
+    const { budget, base, client } = budgetedClientWithUnavailableStore();
+    const consume = jest.spyOn(budget, "consume");
+
+    await runWithRequest({ headers: {}, ip: "203.0.113.9" }, async () => {
+      await expect(
+        client.event.findMany({
+          where: { description: { search: "coffee" } },
+          take: 1,
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    expect(consume).not.toHaveBeenCalled();
+
+    await base.$disconnect();
+  });
+
+  it("still serves an authenticated caller because search.text fails open", async () => {
+    const { store, base, client } = budgetedClientWithUnavailableStore();
+    const increment = jest.spyOn(store, "increment");
+
+    await asAuthenticatedUser("searcher", async () => {
+      await expect(
+        client.event.findMany({
+          where: { description: { search: "coffee" } },
+          take: 1,
+        }),
+      ).resolves.toEqual([]);
+    });
+
+    expect(increment).toHaveBeenCalledWith(
+      "abuse:search.text:user:searcher",
+      1,
+      BUDGET_ACTIONS["search.text"].windowMs,
+      expect.any(Number),
+    );
 
     await base.$disconnect();
   });
