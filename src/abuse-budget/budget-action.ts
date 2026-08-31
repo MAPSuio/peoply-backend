@@ -49,6 +49,12 @@ export const BUDGET_ACTIONS = {
     failMode: "open",
     keyBy: "user",
   },
+  "mail.recipient": {
+    limit: 1500,
+    windowMs: DAY_MS,
+    failMode: "open",
+    keyBy: "user",
+  },
   "mcp.tool": {
     limit: 120,
     windowMs: MINUTE_MS,
