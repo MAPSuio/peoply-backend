@@ -1,3 +1,4 @@
+import type { ToolAnnotations } from "@modelcontextprotocol/server";
 // fallow-ignore-file code-duplication -- each remaining clone is one tool's declaration; folding them into a generic table would hide which service and which permission every tool goes through
 import {
   ForbiddenException,
@@ -121,7 +122,7 @@ export class McpServerFactory {
       title: string;
       description: string;
       inputSchema?: z.ZodObject<Shape>;
-      annotations: Record<string, boolean>;
+      annotations: ToolAnnotations;
     },
     run: (input: z.output<z.ZodObject<Shape>>) => Promise<unknown>,
   ) {
@@ -383,7 +384,7 @@ export class McpServerFactory {
           status: z.enum([RegStatus.GOING, RegStatus.NOT_GOING]),
           formAnswer: z.string().max(4000).optional(),
         }),
-        annotations: { readOnlyHint: false, destructiveHint: false },
+        annotations: { readOnlyHint: false, destructiveHint: true },
       },
       async ({ eventId, status, formAnswer }) =>
         this.registrations.update(actor.id, {

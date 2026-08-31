@@ -191,6 +191,41 @@ anywhere in a query's `where`, refuses it when the caller is neither an authenti
 nor an MCP key, and charges `search.text` (30/min, fail-open) otherwise. No frontend caller
 sends `description`; it only ever sends `title` and `name`, which stay public.
 
+## MCP tool output (MCP-PI)
+
+Anyone can publish a public event whose description contains instructions, and
+`search_events` then hands that text to every agent that searches. Six write
+tools act with the key owner's full authority, so an agent that reads the text
+and believes it can unregister the victim, mass-register them, or publish under
+an organisation they administer.
+
+Framing goes in `mcpResult()` in `src/mcp/mcp-result.ts`, the only place a tool
+return value becomes model-visible text. Every answer is now an envelope with a
+`notice` field saying the data is content written by other people and must not
+be treated as instructions, and every refusal carries the same envelope, since
+an exception message can quote what a user wrote. The envelope stays valid JSON
+so clients that parse the text block keep working.
+
+`clampUserText()` cuts every string over 4000 characters. `Event.description`
+and `Organization.description` are unbounded columns, a page holds up to 100
+rows, and a 20 000 character description repeated across a page crowds out the
+rest of an agent's context. The clamp bounds the amplification; it does not
+make the text safe, which is what the notice is for.
+
+Two tests hold the shape: no module under `src/mcp/` outside `mcp-result.ts`
+builds a `type: "text"` content block, and `mcp-tool-target.ts` calls the SDK
+exactly once. So tool number twenty inherits both the framing and the clamp.
+
+`update_my_registration` now carries `destructiveHint: true`, because setting a
+registration to NOT_GOING cancels a seat, and the annotation is what lets a
+client ask the user first. Annotations are typed as the SDK's `ToolAnnotations`
+rather than `Record<string, boolean>`, so a misspelled hint fails the build
+instead of being silently ignored.
+
+This is mitigation, not elimination. Nothing here stops a model that chooses to
+follow instructions it was told to ignore. Removing the exposure would mean
+confirmation the server can enforce, which the protocol leaves to the client.
+
 ## What was deliberately not folded in
 
 - **The event-update email cap** (`MAX_EMAIL_UPDATES_PER_DAY`) stays where it is. It counts

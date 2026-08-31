@@ -1,11 +1,31 @@
 import { HttpException, Logger } from "@nestjs/common";
 import type { CallToolResult } from "@modelcontextprotocol/server";
+import { UNTRUSTED_DATA_NOTICE, clampUserText } from "./untrusted-content";
 
 function mcpResult(value: unknown): CallToolResult {
-  const structuredContent = { data: value };
+  const structuredContent = {
+    notice: UNTRUSTED_DATA_NOTICE,
+    data: clampUserText(value),
+  };
+
   return {
     content: [{ type: "text", text: JSON.stringify(structuredContent) }],
     structuredContent,
+  };
+}
+
+function mcpRefusal(message: string): CallToolResult {
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          notice: UNTRUSTED_DATA_NOTICE,
+          error: clampUserText(message),
+        }),
+      },
+    ],
+    isError: true,
   };
 }
 
@@ -25,16 +45,10 @@ export async function runMcpTool(
       const message = Array.isArray(responseMessage)
         ? responseMessage.join(", ")
         : (responseMessage ?? "Request refused");
-      return {
-        content: [{ type: "text", text: message }],
-        isError: true,
-      };
+      return mcpRefusal(message);
     }
 
     logger.error(error instanceof Error ? error.stack : error);
-    return {
-      content: [{ type: "text", text: "The Peoply request failed" }],
-      isError: true,
-    };
+    return mcpRefusal("The Peoply request failed");
   }
 }
