@@ -1,7 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import { BudgetExceeded } from "../abuse-budget/budget-errors";
-import { SYSTEM_CLOCK } from "../abuse-budget/budget-store";
+import { SYSTEM_CLOCK, type BudgetStore } from "../abuse-budget/budget-store";
 import { InMemoryBudgetStore } from "../abuse-budget/in-memory-budget-store";
 import { runWithRequest } from "../abuse-budget/principal-context";
 import {
@@ -19,6 +19,22 @@ const EVENT_CREATE_LIMIT = 20;
 function budgetedClient() {
   const budget = new AbuseBudgetService(
     new InMemoryBudgetStore(),
+    SYSTEM_CLOCK,
+  );
+  const base = new PrismaClient({ adapter: createPrismaAdapter() });
+
+  return { budget, base, client: withAbuseBudget(base, budget) };
+}
+
+class UnavailableBudgetStore implements BudgetStore {
+  async increment(): Promise<never> {
+    throw new Error("budget store unavailable");
+  }
+}
+
+function budgetedClientWithUnavailableStore() {
+  const budget = new AbuseBudgetService(
+    new UnavailableBudgetStore(),
     SYSTEM_CLOCK,
   );
   const base = new PrismaClient({ adapter: createPrismaAdapter() });
@@ -265,6 +281,41 @@ describe("full-text search gating", () => {
     });
 
     expect(consume).not.toHaveBeenCalled();
+
+    await base.$disconnect();
+  });
+});
+
+describe("full-text search gating while the budget store is unavailable", () => {
+  it("refuses an anonymous caller before it reaches the budget store", async () => {
+    const { budget, base, client } = budgetedClientWithUnavailableStore();
+    const consume = jest.spyOn(budget, "consume");
+
+    await runWithRequest({ headers: {}, ip: "203.0.113.9" }, async () => {
+      await expect(
+        client.event.findMany({
+          where: { description: { search: "coffee" } },
+          take: 1,
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    expect(consume).not.toHaveBeenCalled();
+
+    await base.$disconnect();
+  });
+
+  it("still serves an authenticated caller because search.text fails open", async () => {
+    const { base, client } = budgetedClientWithUnavailableStore();
+
+    await asAuthenticatedUser("searcher", async () => {
+      await expect(
+        client.event.findMany({
+          where: { description: { search: "coffee" } },
+          take: 1,
+        }),
+      ).resolves.toEqual([]);
+    });
 
     await base.$disconnect();
   });
