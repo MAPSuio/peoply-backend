@@ -49,9 +49,10 @@ for correctness — but the IP fallback still needs `src/util/trusted-proxies.ts
 ### 3. Fail-closed on mutation, fail-open on read
 `BudgetUnavailable` is handled per action, not globally:
 - `failMode: 'closed'` — creation, email/Discord sends, MCP writes → 503, operation refused.
-- `failMode: 'open'` — anonymous reads and search → allowed, logged, uncounted.
+- `failMode: 'open'` — anonymous reads and identified search → allowed, logged, uncounted.
 A Redis outage becomes a read-only-ish degradation, not a full outage, and the abuse window
-during an outage is reads only.
+during an outage is reads only. Fail-open decides only what a store outage does, and it sits
+behind the authentication gate, so an anonymous full-text search is refused either way.
 
 ### 4. Charge inside the client, not at the call site
 
