@@ -78,7 +78,7 @@ function publicRoutesIn(path: string): string[] {
   });
 }
 
-export function opensAWholeController(source: string): boolean {
+function opensAWholeController(source: string): boolean {
   const lines = source.split("\n");
 
   return lines.some((line, index) => {
