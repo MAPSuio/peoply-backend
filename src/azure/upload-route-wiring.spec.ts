@@ -1,5 +1,8 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { INTERCEPTORS_METADATA } from "@nestjs/common/constants";
+import { getMetadataStorage } from "class-validator";
+import type { UploadDto } from "./image-upload";
 
 const SOURCE_ROOT = join(__dirname, "..");
 
@@ -11,7 +14,10 @@ function controllerFiles(directory: string): string[] {
 
     if (entry.isDirectory() && entry.name !== "generated") {
       found.push(...controllerFiles(path));
-    } else if (entry.name.endsWith(".controller.ts")) {
+    } else if (
+      entry.name.endsWith(".controller.ts") &&
+      !entry.name.endsWith(".spec.ts")
+    ) {
       found.push(path);
     }
   }
@@ -19,58 +25,104 @@ function controllerFiles(directory: string): string[] {
   return found;
 }
 
-type UploadRoute = { file: string; interceptorDto: string; bodyDto: string };
+type RegisteredLimits = { fields?: number; parts?: number; files?: number };
 
-function uploadRoutesIn(file: string): UploadRoute[] {
-  const source = readFileSync(file, "utf8");
-  const routes: UploadRoute[] = [];
-  const interceptor =
-    /FileInterceptor\(\s*"[^"]+"\s*,\s*imageUploadOptionsFor\((\w+)\)\s*\)/g;
+type UploadRoute = {
+  name: string;
+  limits: RegisteredLimits;
+  dto: UploadDto | undefined;
+};
 
-  for (const match of source.matchAll(interceptor)) {
-    const afterInterceptor = source.slice(match.index + match[0].length);
-    const body = afterInterceptor.match(/@Body\(\)\s+\w+\s*:\s*(\w+)/);
+function multerLimitsOf(interceptor: unknown): RegisteredLimits | undefined {
+  try {
+    const instance = new (interceptor as new () => { multer?: unknown })();
+    const multer = instance.multer as { limits?: RegisteredLimits } | undefined;
 
-    routes.push({
-      file,
-      interceptorDto: match[1],
-      bodyDto: body?.[1] ?? "no @Body() found",
-    });
+    return multer?.limits;
+  } catch {
+    return undefined;
   }
-
-  return routes;
 }
 
-const ALL_CONTROLLERS = controllerFiles(SOURCE_ROOT);
-const UPLOAD_ROUTES = ALL_CONTROLLERS.flatMap(uploadRoutesIn);
+function boundDtoOf(prototype: object, method: string): UploadDto | undefined {
+  const parameterTypes: UploadDto[] =
+    Reflect.getMetadata("design:paramtypes", prototype, method) ?? [];
 
-describe("upload route wiring", () => {
-  it("finds every upload route the application exposes", () => {
-    expect(UPLOAD_ROUTES).toHaveLength(4);
-  });
+  return parameterTypes.find(
+    (type) =>
+      typeof type === "function" &&
+      getMetadataStorage().getTargetValidationMetadatas(type, "", true, false)
+        .length > 0,
+  );
+}
 
-  /* The limit is only right if it is derived from the DTO that route actually
-     binds. Passing a smaller DTO reinstates the 400 this whole module exists
-     to stop, and every test that builds its own controller would still pass. */
-  it.each(UPLOAD_ROUTES)(
-    "derives $interceptorDto from the DTO the handler binds in $file",
-    ({ interceptorDto, bodyDto }) => {
-      expect(interceptorDto).toBe(bodyDto);
-    },
+function uploadRoutesOf(
+  controller: new (...args: never[]) => object,
+): UploadRoute[] {
+  const prototype = controller.prototype;
+
+  return Object.getOwnPropertyNames(prototype)
+    .filter((method) => method !== "constructor")
+    .flatMap((method) => {
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, method);
+      const interceptors: unknown[] =
+        Reflect.getMetadata(INTERCEPTORS_METADATA, descriptor?.value) ?? [];
+
+      return interceptors
+        .map(multerLimitsOf)
+        .filter((limits): limits is RegisteredLimits => limits !== undefined)
+        .map((limits) => ({
+          name: `${controller.name}.${method}`,
+          limits,
+          dto: boundDtoOf(prototype, method),
+        }));
+    });
+}
+
+const UPLOAD_ROUTES: UploadRoute[] = controllerFiles(SOURCE_ROOT).flatMap(
+  (file) =>
+    Object.values(require(file) as Record<string, unknown>)
+      .filter(
+        (exported): exported is new (...args: never[]) => object =>
+          typeof exported === "function" && exported.prototype !== undefined,
+      )
+      .flatMap(uploadRoutesOf),
+);
+
+function acceptedFieldCount(dto: UploadDto): number {
+  const names = new Set(
+    getMetadataStorage()
+      .getTargetValidationMetadatas(dto, "", true, false)
+      .map((metadata) => metadata.propertyName),
   );
 
-  it("leaves no upload route on a hand-written options object", () => {
-    const unwired = ALL_CONTROLLERS.filter((file) => {
-      const source = readFileSync(file, "utf8");
+  return names.size;
+}
 
-      return (
-        source.includes("FileInterceptor(") &&
-        /FileInterceptor\(\s*"[^"]+"\s*,(?!\s*imageUploadOptionsFor\()/.test(
-          source,
-        )
-      );
-    });
-
-    expect(unwired).toEqual([]);
+describe("upload routes as the application registers them", () => {
+  it("finds every route that accepts a file", () => {
+    expect(UPLOAD_ROUTES.map((route) => route.name).sort()).toEqual([
+      "EventsController.create",
+      "EventsController.update",
+      "OrganizationsController.update",
+      "UsersController.updateUser",
+    ]);
   });
+
+  /* Read off the interceptor the route is really decorated with, not off a
+     controller the test builds itself: a route wired to a smaller DTO
+     reinstates the 400 that took event editing down, and a test with its own
+     controller would stay green through it. */
+  it.each(UPLOAD_ROUTES)(
+    "lets $name send every field its own bound DTO accepts",
+    ({ limits, dto }) => {
+      expect(dto).toBeDefined();
+      expect(limits.fields).toBeGreaterThanOrEqual(
+        acceptedFieldCount(dto as UploadDto),
+      );
+      expect(limits.parts).toBeGreaterThanOrEqual(
+        (limits.fields ?? 0) + (limits.files ?? 0),
+      );
+    },
+  );
 });
