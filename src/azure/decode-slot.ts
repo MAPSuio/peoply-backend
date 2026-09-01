@@ -11,7 +11,7 @@
  * under a second. Production has stored 663 images in its lifetime; two of
  * them arriving in the same second is not a load pattern, it is an attack.
  */
-export const MAX_CONCURRENT_DECODES = 1;
+const MAX_CONCURRENT_DECODES = 1;
 
 /**
  * How many may wait for the slot before we start refusing.
