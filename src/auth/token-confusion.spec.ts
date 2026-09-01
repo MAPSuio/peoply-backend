@@ -1,7 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import * as Joi from "joi";
+import { AccessSessionService } from "./access-session.service";
 import { jwtSecretSchema } from "./jwt-secret.schema";
-import { AccessStrategy } from "./strategies/access.strategy";
 
 /* Two independent barriers against a refresh token being accepted as an
    access token. Either alone closes the hole; both are cheap. */
@@ -31,50 +31,58 @@ describe("access/refresh token confusion", () => {
     });
   });
 
-  describe("AccessStrategy rejects a refresh payload", () => {
-    const userService = { findById: jest.fn() } as any;
-    const configService = {
-      get: () => "access-secret",
-      getOrThrow: () => "access-secret",
-    } as any;
+  describe("AccessSessionService rejects a refresh payload", () => {
+    const SESSION_ID = "session-1";
+    const user = { id: "user-1", refreshTokenId: SESSION_ID };
 
-    let strategy: AccessStrategy;
+    const jwtService = { verify: jest.fn() } as any;
+    const usersService = { findById: jest.fn() } as any;
+
+    let accessSession: AccessSessionService;
 
     beforeEach(() => {
       jest.clearAllMocks();
-      userService.findById.mockResolvedValue({ id: "user-1" });
-      strategy = new AccessStrategy(configService, userService);
+      usersService.findById.mockResolvedValue(user);
+      accessSession = new AccessSessionService(jwtService, usersService);
     });
 
     it("refuses a payload carrying tokenId", async () => {
       /* What getRefreshToken signs. Only the secret used to be in the way. */
       await expect(
-        strategy.validate({ sub: "user-1", tokenId: "refresh-id" }),
+        accessSession.userFromPayload({
+          sub: "user-1",
+          sid: SESSION_ID,
+          tokenId: "refresh-id",
+        }),
       ).rejects.toThrow(UnauthorizedException);
 
-      expect(userService.findById).not.toHaveBeenCalled();
+      expect(usersService.findById).not.toHaveBeenCalled();
     });
 
     it("refuses it even when tokenId is null", async () => {
       /* refreshTokenId is nullable, so a user who never refreshed gets
          tokenId: null - present, and still not an access token. */
       await expect(
-        strategy.validate({ sub: "user-1", tokenId: null }),
+        accessSession.userFromPayload({
+          sub: "user-1",
+          sid: SESSION_ID,
+          tokenId: null,
+        }),
       ).rejects.toThrow(UnauthorizedException);
     });
 
     it("still accepts a real access payload", async () => {
-      await expect(strategy.validate({ sub: "user-1" })).resolves.toEqual({
-        id: "user-1",
-      });
+      await expect(
+        accessSession.userFromPayload({ sub: "user-1", sid: SESSION_ID }),
+      ).resolves.toEqual(user);
     });
 
     it("still rejects an access payload for a deleted user", async () => {
-      userService.findById.mockResolvedValueOnce(null);
+      usersService.findById.mockResolvedValueOnce(null);
 
-      await expect(strategy.validate({ sub: "gone" })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        accessSession.userFromPayload({ sub: "gone", sid: SESSION_ID }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });

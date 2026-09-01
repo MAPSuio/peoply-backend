@@ -1,6 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { UsersService } from "../../users/services";
-import { AuthService } from "../auth.service";
+import { AccessSessionService } from "../access-session.service";
 
 /*
     Verify that the provided userId is the same as the userId in the JWT.
@@ -15,16 +14,12 @@ import { AuthService } from "../auth.service";
 */
 @Injectable()
 export class UserIdVerificationGuard implements CanActivate {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly accessSession: AccessSessionService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     //fetch the user id from the request
     const request = context.switchToHttp().getRequest();
-    const valid = this.authService.validateJWT(request.cookies.access);
-    const validUser = await this.usersService.findById(valid.sub);
+    const validUser = await this.accessSession.userFromRequest(request);
     //fetch the user id from the request params
     const requestedUserId = request.params.userId;
 
@@ -33,10 +28,6 @@ export class UserIdVerificationGuard implements CanActivate {
       throw new Error("Can't find userId in url params");
     }
 
-    //if you are not logged in, you can't access this route
-    if (!validUser) {
-      return false;
-    }
     //check that the user is the same as the one requested
     if (validUser.id === requestedUserId) {
       return true;

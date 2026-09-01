@@ -42,6 +42,18 @@ describe("AuthService", () => {
     service = new AuthService(jwtService, configService);
   });
 
+  it("names the session the access token was minted for", () => {
+    service.getAccessToken({
+      id: "user-1",
+      refreshTokenId: "session-1",
+    } as never);
+
+    expect(jwtService.sign).toHaveBeenCalledWith({
+      sub: "user-1",
+      sid: "session-1",
+    });
+  });
+
   it("uses SameSite=None for access cookies", () => {
     expect(service.getAccessCookieOptions()).toMatchObject({
       sameSite: "none",

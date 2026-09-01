@@ -13,15 +13,13 @@ import {
 import { Observable } from "rxjs";
 import { EVENT_ARRANGER_ROLES_KEY } from "../../../decorators/eventArrangerRoles.decorator";
 import { EventAccessService } from "../../event-access/event-access.service";
-import { UsersService } from "../../users/services";
-import { AuthService } from "../auth.service";
+import { AccessSessionService } from "../access-session.service";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 
 @Injectable()
 export class IsArrangerInterceptor implements NestInterceptor {
   constructor(
-    private authService: AuthService,
-    private usersService: UsersService,
+    private readonly accessSession: AccessSessionService,
     private reflector: Reflector,
     private readonly eventAccess: EventAccessService,
   ) {}
@@ -33,19 +31,13 @@ export class IsArrangerInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest();
 
     try {
-      const valid = this.authService.validateJWT(req.cookies.access);
-      const user = await this.usersService.findById(valid.sub);
+      const user = await this.accessSession.userFromRequest(req);
 
-      if (user) {
-        req.user = user;
+      req.user = user;
 
-        try {
-          req.isArranger = await this.isArranger(context, req, user);
-        } catch (Exception) {
-          req.isArranger = false;
-        }
-      } else {
-        req.user = undefined;
+      try {
+        req.isArranger = await this.isArranger(context, req, user);
+      } catch (Exception) {
         req.isArranger = false;
       }
     } catch (Exception) {

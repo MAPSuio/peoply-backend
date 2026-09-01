@@ -1,8 +1,4 @@
-jest.mock("../auth.service", () => ({
-  AuthService: class AuthService {},
-}));
-
-import { ExecutionContext } from "@nestjs/common";
+import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { EventArrangerRole, User } from "../../generated/prisma/client";
 import { EVENT_ARRANGER_ROLES_KEY } from "../../../decorators/eventArrangerRoles.decorator";
@@ -16,8 +12,7 @@ import { IsArrangerInterceptor } from "./isArranger.interceptor";
  * because the arranger lookup did.
  */
 describe("IsArrangerInterceptor", () => {
-  const authService = { validateJWT: jest.fn() } as any;
-  const usersService = { findById: jest.fn() } as any;
+  const accessSession = { userFromRequest: jest.fn() } as any;
   const eventAccess = { arrangerRoleFor: jest.fn() } as any;
 
   const user = { id: "user-1", arrangerId: "arranger-user-1" } as User;
@@ -46,13 +41,11 @@ describe("IsArrangerInterceptor", () => {
     jest.clearAllMocks();
     req = { cookies: { access: "token" }, params: { id: "event-1" } };
     interceptor = new IsArrangerInterceptor(
-      authService,
-      usersService,
+      accessSession,
       reflectorFor([EventArrangerRole.ADMIN]),
       eventAccess,
     );
-    authService.validateJWT.mockReturnValue({ sub: "user-1" });
-    usersService.findById.mockResolvedValue(user);
+    accessSession.userFromRequest.mockResolvedValue(user);
     eventAccess.arrangerRoleFor.mockResolvedValue(EventArrangerRole.ADMIN);
   });
 
@@ -98,9 +91,9 @@ describe("IsArrangerInterceptor", () => {
   });
 
   it("leaves both unset-but-false when the token is invalid", async () => {
-    authService.validateJWT.mockImplementationOnce(() => {
-      throw new Error("invalid token");
-    });
+    accessSession.userFromRequest.mockRejectedValueOnce(
+      new UnauthorizedException(),
+    );
 
     await run();
 
@@ -110,7 +103,9 @@ describe("IsArrangerInterceptor", () => {
   });
 
   it("reports false when the token resolves to no user", async () => {
-    usersService.findById.mockResolvedValueOnce(null);
+    accessSession.userFromRequest.mockRejectedValueOnce(
+      new UnauthorizedException(),
+    );
 
     await run();
 

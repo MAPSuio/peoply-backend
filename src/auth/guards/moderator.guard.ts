@@ -4,8 +4,7 @@ import {
   ExecutionContext,
   ForbiddenException,
 } from "@nestjs/common";
-import { AuthService } from "../auth.service";
-import { UsersService } from "../../users/services";
+import { AccessSessionService } from "../access-session.service";
 
 /**
  * Restricts access to users whose email is listed in the
@@ -14,10 +13,7 @@ import { UsersService } from "../../users/services";
  */
 @Injectable()
 export class ModeratorGuard implements CanActivate {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly accessSession: AccessSessionService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const allowed = (process.env.MODERATOR_EMAILS ?? "")
@@ -30,10 +26,9 @@ export class ModeratorGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const valid = this.authService.validateJWT(request.cookies.access);
-    const user = await this.usersService.findById(valid.sub);
+    const user = await this.accessSession.userFromRequest(request);
 
-    if (!user || !allowed.includes(user.email.toLowerCase())) {
+    if (!allowed.includes(user.email.toLowerCase())) {
       throw new ForbiddenException("Insufficient privileges");
     }
 

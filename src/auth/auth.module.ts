@@ -7,6 +7,7 @@ import {
   RequestMethod,
 } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
+import { AccessSessionService } from "./access-session.service";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { LegacyRefreshCookieMiddleware } from "./legacy-refresh-cookie.middleware";
@@ -76,12 +77,13 @@ const GoogleStrategyFactory = {
     VippsStrategyFactory,
     GoogleStrategyFactory,
     AuthService,
+    AccessSessionService,
     AccessStrategy,
     RefreshStrategy,
     LegacyRefreshCookieMiddleware,
     SessionMarkerBackfillMiddleware,
   ],
-  exports: [AuthService],
+  exports: [AuthService, AccessSessionService],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

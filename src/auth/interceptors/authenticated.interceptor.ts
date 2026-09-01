@@ -5,15 +5,11 @@ import {
   CallHandler,
 } from "@nestjs/common";
 import { Observable } from "rxjs";
-import { UsersService } from "../../users/services";
-import { AuthService } from "../auth.service";
+import { AccessSessionService } from "../access-session.service";
 
 @Injectable()
 export class AuthenticatedInterceptor implements NestInterceptor {
-  constructor(
-    private authService: AuthService,
-    private usersService: UsersService,
-  ) {}
+  constructor(private readonly accessSession: AccessSessionService) {}
 
   async intercept(
     context: ExecutionContext,
@@ -22,9 +18,7 @@ export class AuthenticatedInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest();
 
     try {
-      const valid = this.authService.validateJWT(req.cookies.access);
-      const user = await this.usersService.findById(valid.sub);
-      req.user = user;
+      req.user = await this.accessSession.userFromRequest(req);
     } catch (Exception) {
       req.user = undefined;
     }

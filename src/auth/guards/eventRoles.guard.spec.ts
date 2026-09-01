@@ -1,8 +1,4 @@
-jest.mock("../auth.service", () => ({
-  AuthService: class AuthService {},
-}));
-
-import { ExecutionContext } from "@nestjs/common";
+import { ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { EventArrangerRole } from "../../generated/prisma/client";
 import { EVENT_ARRANGER_ROLES_KEY } from "../../../decorators/eventArrangerRoles.decorator";
@@ -16,8 +12,7 @@ import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
  * request.
  */
 describe("EventRolesGuard", () => {
-  const authService = { validateJWT: jest.fn() } as any;
-  const usersService = { findById: jest.fn() } as any;
+  const accessSession = { userFromRequest: jest.fn() } as any;
   const eventAccess = { arrangerRoleFor: jest.fn() } as any;
 
   const user = { id: "user-1", arrangerId: "arranger-user-1" };
@@ -33,12 +28,7 @@ describe("EventRolesGuard", () => {
       ),
     } as unknown as Reflector;
 
-    return new EventRolesGuard(
-      reflector,
-      authService,
-      usersService,
-      eventAccess,
-    );
+    return new EventRolesGuard(reflector, accessSession, eventAccess);
   };
 
   const run = (guard: EventRolesGuard) =>
@@ -50,26 +40,26 @@ describe("EventRolesGuard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete request.eventArrangerRole;
-    authService.validateJWT.mockReturnValue({ sub: "user-1" });
-    usersService.findById.mockResolvedValue(user);
+    accessSession.userFromRequest.mockResolvedValue(user);
     eventAccess.arrangerRoleFor.mockResolvedValue(EventArrangerRole.ADMIN);
   });
 
   it("throws when the handler declares no organization roles", async () => {
     const guard = new EventRolesGuard(
       { get: jest.fn().mockReturnValue(undefined) } as unknown as Reflector,
-      authService,
-      usersService,
+      accessSession,
       eventAccess,
     );
 
     await expect(run(guard)).rejects.toBeInstanceOf(RolesNotFoundException);
   });
 
-  it("returns false when the token resolves to no user, without consulting EventAccess", async () => {
-    usersService.findById.mockResolvedValueOnce(null);
+  it("refuses the caller when the token resolves to no user, without consulting EventAccess", async () => {
+    accessSession.userFromRequest.mockRejectedValueOnce(
+      new UnauthorizedException(),
+    );
 
-    await expect(run(guardFor())).resolves.toBe(false);
+    await expect(run(guardFor())).rejects.toThrow(UnauthorizedException);
     expect(eventAccess.arrangerRoleFor).not.toHaveBeenCalled();
   });
 
