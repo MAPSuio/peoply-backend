@@ -30,6 +30,32 @@ const JPEG_QUALITY = 82;
 const MAX_INPUT_PIXELS = 100_000_000;
 
 /**
+ * Longest edge, in pixels, an image is allowed to have on the way in.
+ *
+ * The pixel ceiling above does not bound either edge, and peak memory follows
+ * the width rather than the pixel count: libvips holds whole scanlines, so a
+ * 100000x1000 PNG is exactly 100 megapixels, weighs 3.2 MB on the wire, passes
+ * every other limit here and still peaks at 467 MB of RSS in a 512 MB
+ * container. The same 100 megapixels at ordinary proportions costs 181 MB.
+ *
+ * 20000 measured at 238 MB, which leaves room for a second upload to be in
+ * flight. Nothing real comes close: a 48 megapixel phone is 8000 across, and
+ * the widest image in production is 5184.
+ */
+export const MAX_IMAGE_INPUT_EDGE_PX = 20_000;
+
+/**
+ * What the upload path catches to answer 400 rather than 500.
+ *
+ * The reasons an image is refused before decoding are open-ended - pixels
+ * today, edge length now, whatever the next measurement turns up - and every
+ * one of them wants the same answer at the boundary. Catching the base means
+ * the next one is handled the day it is written rather than the day someone
+ * notices the 500s.
+ */
+export class ImageRejectedError extends Error {}
+
+/**
  * Thrown instead of sharp's raw error when an image decodes to more pixels
  * than the caller allows, so the upload path can answer 400 with something a
  * person can act on rather than 500 with a stack trace.
@@ -38,7 +64,7 @@ const MAX_INPUT_PIXELS = 100_000_000;
  * phone, so the message leads with what to do and keeps the measurement as the
  * detail it is.
  */
-export class ImageTooLargeError extends Error {
+export class ImageTooLargeError extends ImageRejectedError {
   constructor(
     readonly megapixels: number,
     readonly limit: number,
@@ -49,6 +75,21 @@ export class ImageTooLargeError extends Error {
         `megapixels, limit is ${(limit / 1e6).toFixed(0)}.)`,
     );
     this.name = "ImageTooLargeError";
+  }
+}
+
+/** Thrown when one edge is long enough to hurt on its own. */
+export class ImageTooWideError extends ImageRejectedError {
+  constructor(
+    readonly edgePixels: number,
+    readonly limit: number,
+  ) {
+    super(
+      "This image is too long on one side for us to process. Export it at a " +
+        `smaller resolution and try again. (${edgePixels} pixels on the ` +
+        `longest side, limit is ${limit}.)`,
+    );
+    this.name = "ImageTooWideError";
   }
 }
 
@@ -80,8 +121,15 @@ export function needsDownscaling(width: number, height: number) {
  * An export tool will happily attach a fully opaque alpha channel to a
  * photograph. Reading `hasAlpha` alone therefore classifies plain photos as
  * "needs transparency" and keeps them in PNG, which is what made 162 images
- * grow rather than shrink. `stats()` decodes the image to answer this, so it
- * only runs when there is an alpha channel to ask about.
+ * grow rather than shrink.
+ *
+ * `stats()` is the expensive part: unlike the resize, it materialises the
+ * whole decoded image rather than streaming it in strips. Measured on a
+ * 100 megapixel PNG with an alpha channel, 11.45 MB on the wire and well
+ * inside the upload limit: metadata() 81 MB of RSS, the resize 163 MB,
+ * stats() on the same input 507 MB, against a 512 MB container. So it runs on
+ * the downscaled copy, which asks the same question of at most 1600x1600
+ * pixels, and only when there is an alpha channel to ask about.
  */
 async function usesTransparency(
   input: Buffer,
@@ -144,9 +192,17 @@ async function usesTransparency(
  * with, because re-encoding it to strip a tag would cost more than the tag.
  */
 /** Refuses an image whose decoded size the caller cannot afford. */
-async function assertWithinPixelCeiling(input: Buffer, maxInputPixels: number) {
+async function assertDecodable(input: Buffer, maxInputPixels: number) {
   const probe = await sharp(input, { limitInputPixels: false }).metadata();
-  const megapixels = ((probe.width ?? 0) * (probe.height ?? 0)) / 1e6;
+  const width = probe.width ?? 0;
+  const height = probe.height ?? 0;
+  const longestEdge = Math.max(width, height);
+
+  if (longestEdge > MAX_IMAGE_INPUT_EDGE_PX) {
+    throw new ImageTooWideError(longestEdge, MAX_IMAGE_INPUT_EDGE_PX);
+  }
+
+  const megapixels = (width * height) / 1e6;
 
   if (megapixels * 1e6 > maxInputPixels) {
     throw new ImageTooLargeError(megapixels, maxInputPixels);
@@ -161,36 +217,51 @@ function dimensionsOf(metadata: Metadata, bytes: number): ImageDimensions {
   };
 }
 
+function downscale(input: Buffer, maxInputPixels: number) {
+  return (
+    sharp(input, { limitInputPixels: maxInputPixels })
+      .rotate()
+      /* No `withoutEnlargement`: the caller only gets here when an edge is
+         already over the limit, so `inside` can only shrink. */
+      .resize({
+        width: MAX_IMAGE_EDGE_PX,
+        height: MAX_IMAGE_EDGE_PX,
+        fit: "inside",
+      })
+  );
+}
+
+function flattenToJpeg(pipeline: ReturnType<typeof downscale>) {
+  return pipeline
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: JPEG_QUALITY, mozjpeg: true });
+}
+
 /** Resizes to the edge limit and encodes in whichever format the content wants. */
 async function encodeDownscaled(
   input: Buffer,
   metadata: Metadata,
   maxInputPixels: number,
 ) {
-  const keepAlpha = await usesTransparency(
-    input,
-    metadata.hasAlpha,
-    maxInputPixels,
-  );
+  if (!metadata.hasAlpha) {
+    return {
+      buffer: await flattenToJpeg(downscale(input, maxInputPixels)).toBuffer(),
+      format: "jpeg" as const,
+    };
+  }
 
-  const pipeline = sharp(input, { limitInputPixels: maxInputPixels })
-    .rotate()
-    /* No `withoutEnlargement`: the caller only gets here when an edge is
-       already over the limit, so `inside` can only shrink. */
-    .resize({
-      width: MAX_IMAGE_EDGE_PX,
-      height: MAX_IMAGE_EDGE_PX,
-      fit: "inside",
-    });
+  const downscaled = await downscale(input, maxInputPixels)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 
-  const buffer = await (keepAlpha
-    ? pipeline.png({ compressionLevel: 9 })
-    : pipeline
-        .flatten({ background: "#ffffff" })
-        .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
-  ).toBuffer();
+  if (await usesTransparency(downscaled, true, maxInputPixels)) {
+    return { buffer: downscaled, format: "png" as const };
+  }
 
-  return { buffer, format: keepAlpha ? ("png" as const) : ("jpeg" as const) };
+  return {
+    buffer: await flattenToJpeg(sharp(downscaled)).toBuffer(),
+    format: "jpeg" as const,
+  };
 }
 
 export async function normalizeImage(
@@ -206,7 +277,7 @@ export async function normalizeImage(
      memory image by image. */
   maxInputPixels: number = MAX_INPUT_PIXELS,
 ): Promise<NormalizedImage> {
-  await assertWithinPixelCeiling(input, maxInputPixels);
+  await assertDecodable(input, maxInputPixels);
 
   const metadata = await sharp(input, {
     limitInputPixels: maxInputPixels,
