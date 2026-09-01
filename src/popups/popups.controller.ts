@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import {
   Body,
   Controller,
@@ -12,7 +13,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { BROWSER_CACHE_TTL, BrowserCacheFor } from "../util/browser-cache";
-import { AuthenticatedGuard } from "../auth/guards";
 import { AdministrationService } from "../administration/administration.service";
 import { CreatePopupDto } from "./dto/create-popup.dto";
 import { UpdatePopupDto } from "./dto/update-popup.dto";
@@ -25,27 +25,25 @@ export class PopupsController {
     private readonly administrationService: AdministrationService,
   ) {}
 
+  @Public()
   @Get("active")
   @BrowserCacheFor(BROWSER_CACHE_TTL.scheduledContent)
   findActive() {
     return this.popupsService.findActive();
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get()
   async findAll(@Req() req: any) {
     await this.administrationService.ensureAdmin(req.user.id);
     return this.popupsService.findAll();
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Post()
   async create(@Req() req: any, @Body() dto: CreatePopupDto) {
     await this.administrationService.ensureAdmin(req.user.id);
     return this.popupsService.create(dto);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Patch(":popupId")
   async update(
     @Req() req: any,
@@ -56,7 +54,6 @@ export class PopupsController {
     return this.popupsService.update(popupId, dto);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Delete(":popupId")
   @HttpCode(204)
   async remove(

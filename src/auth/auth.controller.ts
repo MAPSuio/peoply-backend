@@ -1,4 +1,5 @@
 // auth/auth.controller.ts
+import { Public } from "./public.decorator";
 import {
   BadRequestException,
   Body,
@@ -439,11 +440,13 @@ export class AuthController {
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(FreshLoginSessionGuard, VippsGuard)
+  @Public()
   @Get("/login")
   async login() {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(FreshLoginSessionGuard, GoogleGuard)
+  @Public()
   @Get("/login/google")
   async loginGoogle() {}
 
@@ -452,11 +455,13 @@ export class AuthController {
      rather than being recognised after the fact. */
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(ConfirmLinkGuard, VippsGuard)
+  @Public()
   @Get("/confirm-link")
   async confirmLinkVipps() {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(ConfirmLinkGuard, GoogleGuard)
+  @Public()
   @Get("/confirm-link/google")
   async confirmLinkGoogle() {}
 
@@ -465,19 +470,20 @@ export class AuthController {
      LinkIntentGuard writes the intent into the session, and the provider
      guard never returns — it ends in the redirect to the IdP. */
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @UseGuards(AuthenticatedGuard, LinkIntentGuard, VippsGuard)
+  @UseGuards(LinkIntentGuard, VippsGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/link")
   async linkVipps() {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @UseGuards(AuthenticatedGuard, LinkIntentGuard, GoogleGuard)
+  @UseGuards(LinkIntentGuard, GoogleGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/link/google")
   async linkGoogle() {}
 
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @UseGuards(RefreshGuard)
+  @Public()
   @Post("/refresh")
   async refresh(@Req() req: any, @Res() res: any) {
     this.authService.assertTrustedOrigin(req.headers, {
@@ -489,12 +495,12 @@ export class AuthController {
     return res.sendStatus(200);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get("/user")
   async user(@Req() req: any) {
     return { user: withoutRefreshTokenId(req.user) };
   }
 
+  @Public()
   @Get("/dev-users")
   async localAuthUsers(@Req() req: Request) {
     this.assertLocalAuthRequest(req);
@@ -504,6 +510,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Get("/dev-login")
   async localAuthBrowserLogin(
     @Req() req: Request,
@@ -518,6 +525,7 @@ export class AuthController {
     return res.redirect(this.resolveLocalAuthRedirect());
   }
 
+  @Public()
   @Post("/dev-login")
   async localAuthLogin(
     @Req() req: Request,
@@ -535,6 +543,7 @@ export class AuthController {
     return res.status(200).send({ user: refreshedUser });
   }
 
+  @Public()
   @Post("/dev-logout")
   async localAuthLogout(@Req() req: Request, @Res() res: Response) {
     this.assertLocalAuthRequest(req);
@@ -546,6 +555,7 @@ export class AuthController {
 
   @UseGuards(VippsGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
+  @Public()
   @Get("/callback")
   async loginCallback(@Req() req: any, @Res() res: Response) {
     return await this.completeOidcCallback(
@@ -558,6 +568,7 @@ export class AuthController {
 
   @UseGuards(GoogleGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
+  @Public()
   @Get("/callback/google")
   async loginGoogleCallback(@Req() req: any, @Res() res: Response) {
     return await this.completeOidcCallback(
@@ -568,7 +579,6 @@ export class AuthController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Post("/logout")
   async logout(@Req() req: any, @Res() res: Response) {
     this.authService.assertTrustedOrigin(req.headers, {

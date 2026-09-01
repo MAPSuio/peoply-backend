@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import { Controller, Get, Query, Req, UseInterceptors } from "@nestjs/common";
 import { AuthenticatedInterceptor } from "../auth/interceptors/authenticated.interceptor";
 import { User } from "../generated/prisma/client";
@@ -13,6 +14,7 @@ export class RecommendationsController {
   /* Public endpoints: logged-in users get personalized results, anonymous
    * visitors get the popularity-based ranking. */
 
+  @Public()
   @Get("events")
   @UseInterceptors(AuthenticatedInterceptor)
   async findEvents(@Req() req: any, @Query() query: SearchRecommendationsDto) {
@@ -20,6 +22,7 @@ export class RecommendationsController {
     return this.recommendationsService.recommendEvents(user?.id, query.take);
   }
 
+  @Public()
   @Get("organizations")
   @UseInterceptors(AuthenticatedInterceptor)
   async findOrganizations(

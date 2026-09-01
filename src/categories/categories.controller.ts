@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import { Controller, Get } from "@nestjs/common";
 import { BROWSER_CACHE_TTL, BrowserCacheFor } from "../util/browser-cache";
 import { CategoriesService } from "./categories.service";
@@ -6,6 +7,7 @@ import { CategoriesService } from "./categories.service";
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  @Public()
   @Get()
   @BrowserCacheFor(BROWSER_CACHE_TTL.referenceTables)
   async findAll() {

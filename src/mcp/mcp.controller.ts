@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import { All, Controller, Req, Res } from "@nestjs/common";
 import { ApiExcludeController } from "@nestjs/swagger";
 import { Request, Response } from "express";
@@ -8,6 +9,7 @@ import { McpHandlerService } from "./mcp-handler.service";
 export class McpController {
   constructor(private readonly handler: McpHandlerService) {}
 
+  @Public()
   @All()
   handle(@Req() req: Request, @Res() res: Response) {
     return this.handler.handle(req, res);

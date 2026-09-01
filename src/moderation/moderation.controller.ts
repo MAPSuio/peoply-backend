@@ -6,7 +6,6 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { AuthenticatedGuard } from "../auth/guards";
 import { ModeratorGuard } from "../auth/guards/moderator.guard";
 import { ModerationRangeDto } from "./dto/moderation-range.dto";
 import { CountableModel, ModerationService } from "./moderation.service";
@@ -21,7 +20,7 @@ const RESOURCE_MODELS: Record<string, CountableModel> = {
 };
 
 @Controller("moderation")
-@UseGuards(AuthenticatedGuard, ModeratorGuard)
+@UseGuards(ModeratorGuard)
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 

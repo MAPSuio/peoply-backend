@@ -16,7 +16,14 @@ const LIVENESS_URL = `${BASE_URL}/_health`;
  * configuration is broken still boots and still serves the docs page. Before
  * this ran here, CI called that a pass.
  */
-const REQUIRED_URLS = [`${BASE_URL}/readiness`, `${BASE_URL}/api/`];
+const REQUIRED_URLS = [
+  `${BASE_URL}/readiness`,
+  `${BASE_URL}/api/`,
+  `${BASE_URL}/categories`,
+  `${BASE_URL}/events`,
+];
+
+const SESSION_REQUIRED_PATHS = ["/users/me", "/users", "/mcp/keys"];
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,6 +117,20 @@ async function assertServing() {
   }
 
   await assertAuthorizationRequest();
+  await assertSessionRequired();
+}
+
+async function assertSessionRequired() {
+  for (const path of SESSION_REQUIRED_PATHS) {
+    const url = `${BASE_URL}${path}`;
+    const status = await request(url);
+
+    if (status !== 401) {
+      throw new Error(`${url} answered HTTP ${status} without a session`);
+    }
+
+    console.log(`${url} -> HTTP 401 without a session`);
+  }
 }
 
 async function main() {

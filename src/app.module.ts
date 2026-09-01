@@ -4,6 +4,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { RATE_LIMIT_POLICIES } from "./rate-limit";
 import { APP_GUARD } from "@nestjs/core";
+import { SessionRequiredGuard } from "./auth/guards/session-required.guard";
 import { UsersModule } from "./users/users.module";
 import { EventsModule } from "./events/events.module";
 import { RegistrationsModule } from "./registrations/registrations.module";
@@ -122,6 +123,10 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
     {
       provide: APP_GUARD,
       useClass: CfThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: SessionRequiredGuard,
     },
   ],
 })

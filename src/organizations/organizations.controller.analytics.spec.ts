@@ -1,6 +1,6 @@
 import { OrganizationsController } from "./organizations.controller";
-import { AuthenticatedGuard } from "../auth/guards/authenticated.guard";
 import { OrganizationRolesGuard } from "../auth/guards/organizationRoles.guard";
+import { IS_PUBLIC_ROUTE } from "../auth/public.decorator";
 import { OrganizationRole } from "../generated/prisma/client";
 
 /* The access rule IS the feature's security requirement: analytics is
@@ -25,9 +25,11 @@ describe("OrganizationsController analytics route", () => {
     expect(roles).toHaveLength(3);
   });
 
-  it("is protected by the authentication and organization-role guards", () => {
-    const guards = Reflect.getMetadata("__guards__", handler);
-    expect(guards).toEqual([AuthenticatedGuard, OrganizationRolesGuard]);
+  it("demands a session and an organization role", () => {
+    expect(Reflect.getMetadata(IS_PUBLIC_ROUTE, handler)).toBeUndefined();
+    expect(Reflect.getMetadata("__guards__", handler)).toEqual([
+      OrganizationRolesGuard,
+    ]);
   });
 
   it("is mounted at :orgId/analytics so the guard can resolve the org param", () => {
