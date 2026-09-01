@@ -128,6 +128,17 @@ describe("every authenticated entry point after a logout", () => {
   );
 
   it.each(interceptors)(
+    "%s leaves no user on the request for a token that names no session",
+    async (_name, build) => {
+      const request = freshRequest() as Record<string, unknown>;
+
+      await build(missing()).intercept(contextFor(request), nextHandler);
+
+      expect(request.user).toBeUndefined();
+    },
+  );
+
+  it.each(interceptors)(
     "%s still exposes the user of the current session",
     async (_name, build) => {
       const request = freshRequest() as Record<string, unknown>;
