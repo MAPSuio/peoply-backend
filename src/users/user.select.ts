@@ -29,3 +29,7 @@ export const PUBLIC_USER_PROFILE_SELECT = {
   ...PUBLIC_USER_SELECT,
   description: true,
 } satisfies Prisma.UserSelect;
+
+export type PublicUserProfile = Prisma.UserGetPayload<{
+  select: typeof PUBLIC_USER_PROFILE_SELECT;
+}>;

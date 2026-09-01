@@ -30,7 +30,10 @@ import {
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
-import { PUBLIC_USER_PROFILE_SELECT } from "../user.select";
+import {
+  PUBLIC_USER_PROFILE_SELECT,
+  type PublicUserProfile,
+} from "../user.select";
 import { ALL_ROWS } from "../../util/pagination";
 
 /**
@@ -322,6 +325,13 @@ export class UsersService {
     }
 
     return users;
+  }
+
+  async findPublicProfileById(id: string): Promise<PublicUserProfile | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: PUBLIC_USER_PROFILE_SELECT,
+    });
   }
 
   async findById(id: string) {
