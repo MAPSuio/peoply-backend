@@ -38,15 +38,19 @@ describe("OrganizationAnalyticsService", () => {
     );
   };
   const organizationsService = {
-    findByRefOrThrow: jest.fn(),
+    findByRefForRoleHolderOrThrow: jest.fn(),
   };
 
   const org = { id: "org-1", arrangerId: "arranger-1" };
 
+  /* Analytics is owner-facing, so the lookup takes the caller and answers the
+     membership question itself rather than trusting the route decorator. */
+  const ROLE_HOLDER = "user-1";
+
   let service: OrganizationAnalyticsService;
 
   const emptyMocks = () => {
-    organizationsService.findByRefOrThrow.mockResolvedValue(org);
+    organizationsService.findByRefForRoleHolderOrThrow.mockResolvedValue(org);
     prisma.arrangerFollower.count.mockResolvedValue(0);
     prisma.arrangerFollower.findMany.mockResolvedValue([]);
     mockFollowerQueries({ net24h: 0, net7d: 0, net30d: 0, netPeriod: 0 });
@@ -70,11 +74,11 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("resolves the organization by ref and queries with its arrangerId", async () => {
-    await service.getAnalytics("my-org");
+    await service.getAnalytics("my-org", ROLE_HOLDER);
 
-    expect(organizationsService.findByRefOrThrow).toHaveBeenCalledWith(
-      "my-org",
-    );
+    expect(
+      organizationsService.findByRefForRoleHolderOrThrow,
+    ).toHaveBeenCalledWith("my-org", ROLE_HOLDER);
     expect(prisma.arrangerFollower.count).toHaveBeenCalledWith({
       where: { arrangerId: "arranger-1" },
     });
@@ -86,7 +90,7 @@ describe("OrganizationAnalyticsService", () => {
   it("passes the aggregated follower net windows through to the response", async () => {
     mockFollowerQueries({ net24h: 0, net7d: 1, net30d: 1, netPeriod: 1 });
 
-    const result = await service.getAnalytics("org-1");
+    const result = await service.getAnalytics("org-1", ROLE_HOLDER);
 
     expect(result.followers.net24h).toBe(0);
     expect(result.followers.net7d).toBe(1);
@@ -100,7 +104,9 @@ describe("OrganizationAnalyticsService", () => {
       { day: "2026-07-25", net: -1 },
     ]);
 
-    const { dailyNet } = (await service.getAnalytics("org-1", "30d")).followers;
+    const { dailyNet } = (
+      await service.getAnalytics("org-1", ROLE_HOLDER, "30d")
+    ).followers;
 
     expect(dailyNet).toHaveLength(30);
     expect(dailyNet[0].date).toBe("2026-07-22");
@@ -119,7 +125,7 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("keeps the follower gross window fixed at 30 days", async () => {
-    await service.getAnalytics("org-1");
+    await service.getAnalytics("org-1", ROLE_HOLDER);
 
     const grossCall = prisma.arrangerFollower.count.mock.calls.find(
       ([args]: any[]) => args.where.createdAt,
@@ -213,7 +219,8 @@ describe("OrganizationAnalyticsService", () => {
     });
 
     it("computes per-event counts and fill rates, items ascending by startDate", async () => {
-      const { items } = (await service.getAnalytics("org-1")).events;
+      const { items } = (await service.getAnalytics("org-1", ROLE_HOLDER))
+        .events;
 
       expect(items.map((item) => item.id)).toEqual(["e2", "e1", "e3"]);
       expect(items[1]).toEqual({
@@ -231,7 +238,7 @@ describe("OrganizationAnalyticsService", () => {
     });
 
     it("computes capacity aggregates: totals, averages, sold-out rate and demand", async () => {
-      const { events: agg } = await service.getAnalytics("org-1");
+      const { events: agg } = await service.getAnalytics("org-1", ROLE_HOLDER);
 
       expect(agg.totalGoing).toBe(5);
       expect(agg.totalWaitlisted).toBe(1);
@@ -244,7 +251,7 @@ describe("OrganizationAnalyticsService", () => {
     });
 
     it("computes signup timing: median lead, last-minute share, publish lead, dropout", async () => {
-      const { events: agg } = await service.getAnalytics("org-1");
+      const { events: agg } = await service.getAnalytics("org-1", ROLE_HOLDER);
 
       // GOING leads in days: [7, 1, 7, 1, 8] -> median 7.
       expect(agg.medianSignupLeadDays).toBe(7);
@@ -255,7 +262,7 @@ describe("OrganizationAnalyticsService", () => {
     });
 
     it("buckets attendance by Europe/Oslo weekday and time of day", async () => {
-      const { events: agg } = await service.getAnalytics("org-1");
+      const { events: agg } = await service.getAnalytics("org-1", ROLE_HOLDER);
 
       expect(agg.byWeekday).toHaveLength(7);
       expect(agg.byWeekday.map((bucket) => bucket.weekday)).toEqual([
@@ -286,7 +293,7 @@ describe("OrganizationAnalyticsService", () => {
     });
 
     it("computes the audience block from unique GOING users and the follower cross", async () => {
-      const { audience } = await service.getAnalytics("org-1");
+      const { audience } = await service.getAnalytics("org-1", ROLE_HOLDER);
 
       expect(audience.uniqueAttendees).toBe(3);
       // u1 (e1+e2) and u2 (e1+e3) returned, u5 did not.
@@ -297,7 +304,7 @@ describe("OrganizationAnalyticsService", () => {
     });
 
     it("never exposes user ids in the payload", async () => {
-      const payload = await service.getAnalytics("org-1");
+      const payload = await service.getAnalytics("org-1", ROLE_HOLDER);
 
       expect(JSON.stringify(payload)).not.toContain("userId");
       expect(JSON.stringify(payload)).not.toMatch(/"u[1-9]"/);
@@ -305,7 +312,7 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("scopes the event query to the arranger, the period window and unarchived events", async () => {
-    await service.getAnalytics("org-1");
+    await service.getAnalytics("org-1", ROLE_HOLDER);
 
     const [args] = prisma.event.findMany.mock.calls[0];
     expect(args.where.eventArrangers).toEqual({
@@ -321,7 +328,7 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("windows the event and member queries by the requested period", async () => {
-    await service.getAnalytics("org-1", "7d");
+    await service.getAnalytics("org-1", ROLE_HOLDER, "7d");
 
     const [eventArgs] = prisma.event.findMany.mock.calls[0];
     expect(eventArgs.where.startDate.gte).toEqual(
@@ -336,21 +343,21 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("sizes dailyNet to the period, capped at one year", async () => {
-    const week = await service.getAnalytics("org-1", "7d");
+    const week = await service.getAnalytics("org-1", ROLE_HOLDER, "7d");
     expect(week.followers.dailyNet).toHaveLength(7);
     expect(week.period).toBe("7d");
 
-    const day = await service.getAnalytics("org-1", "24h");
+    const day = await service.getAnalytics("org-1", ROLE_HOLDER, "24h");
     expect(day.followers.dailyNet).toHaveLength(1);
 
-    const year = await service.getAnalytics("org-1", "1y");
+    const year = await service.getAnalytics("org-1", ROLE_HOLDER, "1y");
     expect(year.followers.dailyNet).toHaveLength(365);
   });
 
   it("keeps the fixed net windows distinct from the period net", async () => {
     mockFollowerQueries({ net24h: 1, net7d: 1, net30d: 1, netPeriod: 2 });
 
-    const result = await service.getAnalytics("org-1", "1y");
+    const result = await service.getAnalytics("org-1", ROLE_HOLDER, "1y");
 
     expect(result.followers.net24h).toBe(1);
     expect(result.followers.net30d).toBe(1);
@@ -369,7 +376,7 @@ describe("OrganizationAnalyticsService", () => {
       },
     ]);
 
-    await service.getAnalytics("org-1");
+    await service.getAnalytics("org-1", ROLE_HOLDER);
 
     const [args] = prisma.registration.findMany.mock.calls[0];
     expect(args.where.eventId).toEqual({ in: ["e1"] });
@@ -379,7 +386,7 @@ describe("OrganizationAnalyticsService", () => {
   });
 
   it("returns zeros and nulls for an organization with no activity", async () => {
-    const payload = await service.getAnalytics("org-1");
+    const payload = await service.getAnalytics("org-1", ROLE_HOLDER);
 
     expect(payload.generatedAt).toBe(NOW.toISOString());
     expect(payload.followers).toMatchObject({

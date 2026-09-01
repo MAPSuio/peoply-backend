@@ -318,9 +318,13 @@ export class OrganizationAnalyticsService {
 
   async getAnalytics(
     orgIdOrUrlId: string,
+    userId: string,
     period: AnalyticsPeriod = DEFAULT_ANALYTICS_PERIOD,
   ): Promise<OrganizationAnalyticsResponse> {
-    const org = await this.organizationsService.findByRefOrThrow(orgIdOrUrlId);
+    const org = await this.organizationsService.findByRefForRoleHolderOrThrow(
+      orgIdOrUrlId,
+      userId,
+    );
     const now = new Date();
     const periodDays = ANALYTICS_PERIOD_DAYS[period];
     const sources = await this.fetchSources(

@@ -423,10 +423,15 @@ export class OrganizationsController {
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/analytics")
   async getAnalytics(
+    @Req() req: any,
     @Param("orgId") orgId: string,
     @Query() query: OrganizationAnalyticsQueryDto,
   ) {
-    return this.organizationAnalyticsService.getAnalytics(orgId, query.period);
+    return this.organizationAnalyticsService.getAnalytics(
+      orgId,
+      req.user.id,
+      query.period,
+    );
   }
 
   @OrganizationRoles(
@@ -508,7 +513,7 @@ export class OrganizationsController {
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
   @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
   @Get(":orgId/followers")
-  async getFollowers(@Param("orgId") orgId: string) {
-    return this.organizationsService.getFollowers(orgId);
+  async getFollowers(@Req() req: any, @Param("orgId") orgId: string) {
+    return this.organizationsService.getFollowers(orgId, req.user.id);
   }
 }

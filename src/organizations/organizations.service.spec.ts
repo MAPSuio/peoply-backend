@@ -1,5 +1,6 @@
 import { OrganizationsService } from "./organizations.service";
 import { MAX_PAGE_SIZE } from "../util/pagination";
+import { OrganizationDoesNotExistException } from "./exceptions";
 
 describe("OrganizationsService", () => {
   const prisma = {
@@ -17,6 +18,9 @@ describe("OrganizationsService", () => {
     },
     userOrganizationRole: {
       findFirst: jest.fn(),
+    },
+    arrangerFollower: {
+      findMany: jest.fn().mockResolvedValue([]),
     },
     /* The cooldown check and the report insert now share one transaction
        behind a row lock on the organization, so the mock has to hand the
@@ -52,6 +56,7 @@ describe("OrganizationsService", () => {
     const storedOrganization = {
       id: "3f2b8c1a-4d5e-4f6a-8b9c-0d1e2f3a4b5c",
       name: "MAPS",
+      approved: true,
       _count: { organizationRoles: 2 },
     };
 
@@ -88,6 +93,125 @@ describe("OrganizationsService", () => {
         include: memberCountAggregate,
       });
       expect(organization.memberCount).toBe(2);
+    });
+
+    /**
+     * A pending organization is a moderation queue entry, not a page. The
+     * listing has always filtered it out, and events belonging to one are
+     * hidden, but this lookup did not: an anonymous caller who knew the urlId
+     * got 200 and the whole row back, `approved: false` included.
+     */
+    it("hides an organization still waiting for moderation", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        ...storedOrganization,
+        approved: false,
+      });
+
+      await expect(
+        service.findByRefOrThrow(storedOrganization.id),
+      ).rejects.toThrow(OrganizationDoesNotExistException);
+    });
+
+    /**
+     * 404 rather than 403, so the answer is the same whether the organization
+     * is pending or absent. Telling an anonymous caller "this exists but you
+     * may not see it" is the enumeration oracle the filter is there to close.
+     */
+    it("answers the same way for a pending organization as for a missing one", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce(null);
+      const missing = await service
+        .findByRefOrThrow("absent")
+        .catch((error) => error);
+
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        ...storedOrganization,
+        approved: false,
+      });
+      const pending = await service
+        .findByRefOrThrow("pending")
+        .catch((error) => error);
+
+      expect(pending.constructor).toBe(missing.constructor);
+      expect(pending.getStatus?.()).toBe(missing.getStatus?.());
+    });
+  });
+
+  /**
+   * The two callers that must keep seeing a pending organization are the
+   * owner-facing ones: a founder has to be able to open their own analytics
+   * while moderation is still deciding. Making them pass the caller means the
+   * exception is enforced by this function rather than by whoever remembers
+   * to put a guard on the route.
+   */
+  describe("findByRefForRoleHolderOrThrow", () => {
+    const pending = {
+      id: "3f2b8c1a-4d5e-4f6a-8b9c-0d1e2f3a4b5c",
+      name: "MAPS",
+      approved: false,
+      _count: { organizationRoles: 2 },
+    };
+
+    it("shows a pending organization to one of its members", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce(pending);
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce({
+        role: "OWNER",
+      });
+
+      const organization = await service.findByRefForRoleHolderOrThrow(
+        pending.id,
+        "user-1",
+      );
+
+      expect(organization.memberCount).toBe(2);
+    });
+
+    it("hides it from a signed-in stranger", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce(pending);
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.findByRefForRoleHolderOrThrow(pending.id, "stranger"),
+      ).rejects.toThrow(OrganizationDoesNotExistException);
+    });
+
+    it("gives an owner the follower list of their pending organization", async () => {
+      const followers = [{ user: { id: "follower-1" } }];
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        ...pending,
+        arrangerId: "arranger-1",
+      });
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce({
+        role: "OWNER",
+      });
+      prisma.arrangerFollower.findMany.mockResolvedValueOnce(followers);
+
+      await expect(
+        service.getFollowers(pending.id, "owner-1"),
+      ).resolves.toEqual(followers);
+      expect(prisma.arrangerFollower.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { arrangerId: "arranger-1" } }),
+      );
+    });
+
+    it("refuses a stranger the follower list of a pending organization", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce(pending);
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.getFollowers(pending.id, "stranger"),
+      ).rejects.toThrow(OrganizationDoesNotExistException);
+      expect(prisma.arrangerFollower.findMany).not.toHaveBeenCalled();
+    });
+
+    it("does not ask about membership when the organization is approved", async () => {
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        ...pending,
+        approved: true,
+      });
+
+      await service.findByRefForRoleHolderOrThrow(pending.id, "user-1");
+
+      expect(prisma.userOrganizationRole.findFirst).not.toHaveBeenCalled();
     });
   });
 
