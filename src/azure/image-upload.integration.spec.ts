@@ -11,13 +11,15 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import { getMetadataStorage } from "class-validator";
 import request from "supertest";
-import { MAX_FIELD_BYTES, imageUploadOptionsFor } from "./image-upload";
+import {
+  MAX_FIELD_BYTES,
+  type UploadDto,
+  imageUploadOptionsFor,
+} from "./image-upload";
 import { CreateEventDto } from "../events/dto/create-event.dto";
 import { UpdateEventDto } from "../events/dto/update-event.dto";
 import { UpdateUserDto } from "../users/dto";
 import { UpdateOrganizationDto } from "../organizations/dto/update-organization.dto";
-
-type UploadDto = new (...args: never[]) => object;
 
 function acceptedFieldNames(dto: UploadDto): string[] {
   const names = new Set<string>();

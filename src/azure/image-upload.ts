@@ -65,7 +65,7 @@ const rejectAnythingButAnImage: MulterOptions["fileFilter"] = (
   callback(null, true);
 };
 
-type UploadDto = new (...args: never[]) => object;
+export type UploadDto = new (...args: never[]) => object;
 
 function acceptedFieldCount(dto: UploadDto): number {
   const names = new Set<string>();

@@ -1,6 +1,7 @@
 import { getMetadataStorage } from "class-validator";
 import {
   MULTIPART_FIELD_HEADROOM,
+  type UploadDto,
   imageUploadOptionsFor,
 } from "./image-upload";
 import { CreateEventDto } from "../events/dto/create-event.dto";
@@ -8,7 +9,7 @@ import { UpdateEventDto } from "../events/dto/update-event.dto";
 import { UpdateUserDto } from "../users/dto";
 import { UpdateOrganizationDto } from "../organizations/dto/update-organization.dto";
 
-function acceptedFieldNames(dto: new (...args: never[]) => object): string[] {
+function acceptedFieldNames(dto: UploadDto): string[] {
   const names = new Set<string>();
 
   for (const metadata of getMetadataStorage().getTargetValidationMetadatas(
