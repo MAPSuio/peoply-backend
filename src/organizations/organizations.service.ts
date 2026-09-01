@@ -166,10 +166,56 @@ export class OrganizationsService {
     });
   }
 
-  /** Looks an organization up by id or urlId, and 404s when it is missing.
+  /** Looks an approved organization up by id or urlId, and 404s otherwise.
       Carries `memberCount` as an aggregate so the public organization page can
-      show it without access to the member list itself. */
+      show it without access to the member list itself.
+
+      An organization waiting for moderation is a queue entry rather than a
+      page. The listing has filtered those out since it was written and their
+      events are hidden, but this lookup did not, so an anonymous caller who
+      knew a urlId got the whole row back with `approved: false` in it. A
+      pending organization now answers exactly as a missing one does, because
+      "exists, but not for you" is the enumeration oracle the filter exists to
+      close. */
   async findByRefOrThrow(orgIdOrUrlId: string) {
+    const organization = await this.loadByRefOrThrow(orgIdOrUrlId);
+
+    if (!organization.approved) {
+      throw new OrganizationDoesNotExistException(orgIdOrUrlId);
+    }
+
+    return organization;
+  }
+
+  /** The same lookup for the owner-facing routes, which must keep working
+      while moderation decides: a founder can read their own analytics and
+      follower list the day they sign up.
+
+      It takes the caller and checks membership itself rather than trusting
+      that the route carries `OrganizationRolesGuard`. The guard is a decorator
+      someone has to remember on the next route; this is a question the
+      function cannot be answered without. */
+  async findByRefForRoleHolderOrThrow(orgIdOrUrlId: string, userId: string) {
+    const organization = await this.loadByRefOrThrow(orgIdOrUrlId);
+
+    if (organization.approved) {
+      return organization;
+    }
+
+    const holdsARole = await this.checkUserRole(
+      userId,
+      organization.id,
+      Object.values(OrganizationRole),
+    );
+
+    if (!holdsARole) {
+      throw new OrganizationDoesNotExistException(orgIdOrUrlId);
+    }
+
+    return organization;
+  }
+
+  private async loadByRefOrThrow(orgIdOrUrlId: string) {
     const org = await this.prisma.organization.findUnique({
       where: isUUID(orgIdOrUrlId)
         ? { id: orgIdOrUrlId }
@@ -701,8 +747,8 @@ export class OrganizationsService {
     });
   }
 
-  async getFollowers(orgId: string) {
-    const org = await this.findByRefOrThrow(orgId);
+  async getFollowers(orgId: string, userId: string) {
+    const org = await this.findByRefForRoleHolderOrThrow(orgId, userId);
 
     return await this.prisma.arrangerFollower.findMany({
       where: {
