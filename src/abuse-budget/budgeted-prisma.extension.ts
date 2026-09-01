@@ -7,6 +7,7 @@ export const COSTED_CREATE_ACTIONS = {
   eventInvitation: "invitation.recipient",
   registration: "registration.create",
   arrangerFollowerEvent: "follow.create",
+  organizationReport: "organization.report",
 } as const satisfies Record<string, BudgetAction>;
 
 const CREATE_OPERATIONS = new Set([

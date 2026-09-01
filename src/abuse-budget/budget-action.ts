@@ -10,6 +10,7 @@ interface BudgetActionConfig {
 }
 
 const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const BUDGET_ACTIONS = {
@@ -46,6 +47,12 @@ export const BUDGET_ACTIONS = {
   "search.text": {
     limit: 30,
     windowMs: MINUTE_MS,
+    failMode: "open",
+    keyBy: "user",
+  },
+  "organization.report": {
+    limit: 10,
+    windowMs: HOUR_MS,
     failMode: "open",
     keyBy: "user",
   },

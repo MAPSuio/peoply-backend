@@ -281,3 +281,11 @@ describe("full-text search detection", () => {
     expect(usesFullTextSearch(undefined)).toBe(false);
   });
 });
+
+describe("reporting an organization", () => {
+  it("is charged, so one account cannot ping the channel once per organization", () => {
+    expect(costedCreateAction("organizationReport", "create")).toBe(
+      "organization.report",
+    );
+  });
+});
