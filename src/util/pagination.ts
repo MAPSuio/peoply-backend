@@ -16,6 +16,13 @@
 export const MAX_PAGE_SIZE = 500;
 
 /**
+ * The page a search endpoint answers with when the caller asks for no
+ * particular size. The search services applied it as a literal of their own
+ * while the API documented the row cap, so the two disagreed on six routes.
+ */
+export const DEFAULT_SEARCH_PAGE_SIZE = 10;
+
+/**
  * `take` for a query whose answer is only correct if it returns every matching
  * row. Prisma reads a missing `take` and this as the same thing, so it changes
  * no behaviour: it exists so the decision is written down at the call site

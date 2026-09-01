@@ -10,13 +10,13 @@ import {
   MinLength,
 } from "class-validator";
 import { MAX_PAGE_SIZE } from "../../util/pagination";
-import { PaginationDto } from "../../util/pagination.dto";
+import { SearchPaginationDto } from "../../util/pagination.dto";
 import { MaxSearchTokens } from "../../../decorators/validators/maxSearchTokens.validator";
 
 /** Ten pages of the largest allowed page size. */
 const MAX_SKIP = MAX_PAGE_SIZE * 10;
 
-export class SearchUserDto extends PaginationDto {
+export class SearchUserDto extends SearchPaginationDto {
   /* Every whitespace-separated token becomes its own AND group, each holding
      up to eight `ILIKE` predicates (four spelling variants x firstName and
      lastName). With no upper bound a ~9 KB query built roughly 20 000

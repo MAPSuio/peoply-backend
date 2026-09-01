@@ -29,7 +29,7 @@ import {
 } from "../../generated/prisma/client";
 import { UserRegistrationService } from "../../registrations/services";
 import { createUuid } from "../../util/uuid";
-import { MAX_PAGE_SIZE } from "../../util/pagination";
+import { DEFAULT_SEARCH_PAGE_SIZE, MAX_PAGE_SIZE } from "../../util/pagination";
 import {
   PUBLIC_USER_PROFILE_SELECT,
   type PublicUserProfile,
@@ -242,7 +242,7 @@ export class UsersService {
   }
 
   async findAll(searchProps: SearchUserDto = {}) {
-    const { name, skip = 0, take = 10 } = searchProps;
+    const { name, skip = 0, take = DEFAULT_SEARCH_PAGE_SIZE } = searchProps;
     const normalizedName = name ? normalizeWhitespace(name) : "";
     const nameTokens = normalizedName
       ? normalizedName.split(" ").filter(Boolean)
