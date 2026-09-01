@@ -9,7 +9,6 @@ import {
   ParseUUIDPipe,
   Post,
   Req,
-  UseGuards,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { User } from "../generated/prisma/client";

@@ -78,7 +78,40 @@ function publicRoutesIn(path: string): string[] {
   });
 }
 
+function controllersMarkedPublicWholesale(path: string): string[] {
+  const lines = readFileSync(path, "utf8").split("\n");
+
+  return lines.flatMap((line, index) => {
+    if (!line.startsWith("@Controller(")) {
+      return [];
+    }
+
+    const above = lines
+      .slice(0, index)
+      .reverse()
+      .findIndex((previous) => !previous.trim().startsWith("@"));
+    const decorators = lines.slice(
+      index - (above === -1 ? index : above),
+      index,
+    );
+
+    return decorators.some((decorator) =>
+      decorator.trim().startsWith("@Public()"),
+    )
+      ? [relative(SOURCE_ROOT, path)]
+      : [];
+  });
+}
+
 describe("routes anyone may call", () => {
+  it("are never opened a whole controller at a time", () => {
+    const wholesale = controllerFiles(SOURCE_ROOT).flatMap(
+      controllersMarkedPublicWholesale,
+    );
+
+    expect(wholesale).toEqual([]);
+  });
+
   it("are exactly the ones listed here, so opening one is a deliberate act", () => {
     const marked = controllerFiles(SOURCE_ROOT).flatMap(publicRoutesIn).sort();
 
