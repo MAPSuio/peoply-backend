@@ -78,6 +78,27 @@ function publicRoutesIn(path: string): string[] {
   });
 }
 
+function decoratorBlockAbove(lines: string[], classLine: number): string {
+  let boundary = classLine - 1;
+
+  while (boundary >= 0) {
+    const line = lines[boundary].trim();
+    const isNoise =
+      line === "" ||
+      line.startsWith("//") ||
+      line.startsWith("*") ||
+      line.startsWith("/*");
+
+    if (!isNoise && (line.endsWith(";") || line === "}")) {
+      break;
+    }
+
+    boundary -= 1;
+  }
+
+  return lines.slice(boundary + 1, classLine).join("\n");
+}
+
 function opensAWholeController(source: string): boolean {
   const lines = source.split("\n");
 
@@ -86,22 +107,9 @@ function opensAWholeController(source: string): boolean {
       return false;
     }
 
-    const decorators: string[] = [];
-    for (let above = index - 1; above >= 0; above -= 1) {
-      const previous = lines[above].trim();
-      if (previous === "" || previous.startsWith("//")) {
-        continue;
-      }
-      if (!previous.startsWith("@") && !previous.startsWith(")")) {
-        break;
-      }
-      decorators.push(previous);
-    }
+    const block = decoratorBlockAbove(lines, index);
 
-    return (
-      decorators.some((decorator) => decorator.startsWith("@Controller(")) &&
-      decorators.some((decorator) => decorator.startsWith("@Public()"))
-    );
+    return block.includes("@Controller(") && block.includes("@Public()");
   });
 }
 
@@ -119,6 +127,12 @@ describe("routes anyone may call", () => {
     ['@Controller("probe")\n@Public()\nexport class ProbeController {}'],
     [
       '@ApiTags("x")\n@Controller("probe")\n@Public()\nclass ProbeController {}',
+    ],
+    [
+      'import { Controller } from "@nestjs/common";\n\n@Public()\n@Controller({\n  path: "probe",\n})\nexport class ProbeController {}',
+    ],
+    [
+      '@Controller({\n  path: "probe",\n  scope: Scope.REQUEST,\n})\n@Public()\nexport class ProbeController {}',
     ],
   ])("is spotted whichever order the decorators are written in", (source) => {
     expect(opensAWholeController(source)).toBe(true);
