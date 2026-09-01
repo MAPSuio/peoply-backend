@@ -20,7 +20,7 @@ export class PaginationDto {
   @IsInt()
   @Min(0)
   @Type(() => Number)
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, minimum: 0 })
   skip?: number;
 
   @IsOptional()
@@ -30,6 +30,7 @@ export class PaginationDto {
   @Type(() => Number)
   @ApiProperty({
     required: false,
+    minimum: 0,
     maximum: MAX_PAGE_SIZE,
     default: MAX_PAGE_SIZE,
   })

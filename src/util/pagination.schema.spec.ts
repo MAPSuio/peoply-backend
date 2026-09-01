@@ -20,6 +20,9 @@ type DocumentedParameter = {
   schema?: { maximum?: number; minimum?: number; default?: number };
 };
 
+const FAR_ABOVE_ANY_PAGE_BOUND = MAX_PAGE_SIZE * 1000;
+const FAR_BELOW_ANY_PAGE_BOUND = -FAR_ABOVE_ANY_PAGE_BOUND;
+
 async function documentedQueryParameters(): Promise<DocumentedParameter[]> {
   const moduleRef = await Test.createTestingModule({
     controllers: [PaginationProbeController],
@@ -39,20 +42,20 @@ async function documentedQueryParameters(): Promise<DocumentedParameter[]> {
   }
 }
 
-function acceptsTake(take: number): boolean {
+function accepts(field: string, value: number): boolean {
   return (
-    validateSync(plainToInstance(PaginationDto, { take: String(take) }))
+    validateSync(plainToInstance(PaginationDto, { [field]: String(value) }))
       .length === 0
   );
 }
 
-function largestAcceptedTake(): number {
+function largestAccepted(field: string): number {
   let accepted = 0;
-  let rejected = MAX_PAGE_SIZE * 1000;
+  let rejected = FAR_ABOVE_ANY_PAGE_BOUND;
 
   while (rejected - accepted > 1) {
     const candidate = Math.floor((accepted + rejected) / 2);
-    if (acceptsTake(candidate)) {
+    if (accepts(field, candidate)) {
       accepted = candidate;
     } else {
       rejected = candidate;
@@ -62,20 +65,36 @@ function largestAcceptedTake(): number {
   return accepted;
 }
 
-describe("the documented pagination schema matches what the server does", () => {
+function smallestAccepted(field: string): number {
+  let accepted = 0;
+  let rejected = FAR_BELOW_ANY_PAGE_BOUND;
+
+  while (accepted - rejected > 1) {
+    const candidate = Math.ceil((accepted + rejected) / 2);
+    if (accepts(field, candidate)) {
+      accepted = candidate;
+    } else {
+      rejected = candidate;
+    }
+  }
+
+  return accepted;
+}
+
+describe("the documented pagination schema matches what the server enforces", () => {
   let parameters: DocumentedParameter[];
 
   beforeAll(async () => {
     parameters = await documentedQueryParameters();
   });
 
-  const takeParameter = () => {
+  const documented = (name: string): DocumentedParameter => {
     const parameter = parameters.find(
-      (candidate) => candidate.name === "take" && candidate.in === "query",
+      (candidate) => candidate.name === name && candidate.in === "query",
     );
     if (!parameter) {
       throw new Error(
-        `take is missing from the generated query parameters: ${parameters
+        `${name} is missing from the generated query parameters: ${parameters
           .map((candidate) => candidate.name)
           .join(", ")}`,
       );
@@ -83,24 +102,23 @@ describe("the documented pagination schema matches what the server does", () => 
     return parameter;
   };
 
-  it("documents a maximum for take", () => {
-    expect(takeParameter().schema?.maximum).toBeDefined();
+  it.each(["skip", "take"])(
+    "documents the smallest %s the validator accepts",
+    (field) => {
+      expect(documented(field).schema?.minimum).toBe(smallestAccepted(field));
+    },
+  );
+
+  it("documents the largest take the validator accepts", () => {
+    expect(documented("take").schema?.maximum).toBe(largestAccepted("take"));
   });
 
-  it("documents the maximum the validator actually enforces", () => {
-    expect(takeParameter().schema?.maximum).toBe(largestAcceptedTake());
+  it("documents the default the server applies to an absent take", () => {
+    expect(documented("take").schema?.default).toBe(pageBoundsOf({}).take);
   });
 
-  it("documents the default the server actually applies to an absent take", () => {
-    expect(takeParameter().schema?.default).toBe(pageBoundsOf({}).take);
-  });
-
-  it("documents skip as an offset the first page can use", () => {
-    const skip = parameters.find(
-      (candidate) => candidate.name === "skip" && candidate.in === "query",
-    );
-
-    expect(skip).toBeDefined();
-    expect(skip?.schema?.minimum ?? 0).toBe(0);
+  it("leaves skip unbounded above, the way the validator does", () => {
+    expect(documented("skip").schema?.maximum).toBeUndefined();
+    expect(accepts("skip", FAR_ABOVE_ANY_PAGE_BOUND)).toBe(true);
   });
 });
