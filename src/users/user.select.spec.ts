@@ -1,7 +1,10 @@
 import { EventArrangersService } from "../arrangers/services/eventArrangers.service";
 import { EventInvitationsService } from "../invitations/services/eventInvitations.service";
 import { FollowService } from "./services/follower.service";
-import { PUBLIC_USER_SELECT } from "./user.select";
+import { Test } from "@nestjs/testing";
+import { UsersController } from "./users.controller";
+import { UsersService } from "./services";
+import { PUBLIC_USER_PROFILE_SELECT, PUBLIC_USER_SELECT } from "./user.select";
 
 /**
  * Fields on `User` that must never be returned for someone other than the
@@ -34,6 +37,62 @@ describe("PUBLIC_USER_SELECT", () => {
 
   it.each(SENSITIVE_USER_FIELDS)("does not expose %s", (field) => {
     expect(PUBLIC_USER_SELECT).not.toHaveProperty(field);
+  });
+});
+
+describe("PUBLIC_USER_PROFILE_SELECT", () => {
+  it("adds the self-written description and nothing else", () => {
+    expect(Object.keys(PUBLIC_USER_PROFILE_SELECT).sort()).toEqual([
+      "description",
+      "firstName",
+      "id",
+      "image",
+      "lastName",
+    ]);
+  });
+
+  it.each(SENSITIVE_USER_FIELDS)("does not expose %s", (field) => {
+    expect(PUBLIC_USER_PROFILE_SELECT).not.toHaveProperty(field);
+  });
+});
+
+/* GET /users/:id has no session behind it: the profile page is generated
+   statically. It used to read the whole row and pick five fields by hand in
+   the controller, one edit away from returning allergens to anyone with a
+   uuid. */
+describe("GET /users/:id, which anyone may call", () => {
+  const profileFrom = async (findPublicProfileById: jest.Mock) =>
+    (
+      await Test.createTestingModule({ controllers: [UsersController] })
+        .useMocker((token) =>
+          token === UsersService ? { findPublicProfileById } : {},
+        )
+        .compile()
+    ).get(UsersController);
+
+  it("asks for the narrow projection, not the row", async () => {
+    const profile = {
+      id: "b0a4f0de-2f1e-4a0e-9d3c-5a2b6c7d8e9f",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      image: null,
+      description: null,
+    };
+    const findPublicProfileById = jest.fn().mockResolvedValue(profile);
+    const controller = await profileFrom(findPublicProfileById);
+
+    const returned = await controller.getUser(profile.id);
+
+    expect(findPublicProfileById).toHaveBeenCalledWith(profile.id);
+    expect(Object.keys(returned as object).sort()).toEqual(
+      Object.keys(PUBLIC_USER_PROFILE_SELECT).sort(),
+    );
+  });
+
+  it("answers 404 for an id nobody has", async () => {
+    const controller = await profileFrom(jest.fn().mockResolvedValue(null));
+
+    await expect(controller.getUser("missing")).rejects.toThrow();
   });
 });
 

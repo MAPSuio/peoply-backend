@@ -130,20 +130,13 @@ export class UsersController {
   @Public()
   @Get(":id")
   async getUser(@Param("id") id: string) {
-    const user = await this.userService.findById(id);
+    const profile = await this.userService.findPublicProfileById(id);
 
-    if (!user) {
+    if (!profile) {
       throw new UserDoesNotExistException(id);
     }
 
-    /* extract non-sensitive data */
-    return (({ id, firstName, lastName, image, description }) => ({
-      id,
-      firstName,
-      lastName,
-      image,
-      description,
-    }))(user);
+    return profile;
   }
 
   @UseGuards(UserIdVerificationGuard)
