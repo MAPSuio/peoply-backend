@@ -78,38 +78,58 @@ function publicRoutesIn(path: string): string[] {
   });
 }
 
-function controllersMarkedPublicWholesale(path: string): string[] {
-  const lines = readFileSync(path, "utf8").split("\n");
+export function opensAWholeController(source: string): boolean {
+  const lines = source.split("\n");
 
-  return lines.flatMap((line, index) => {
-    if (!line.startsWith("@Controller(")) {
-      return [];
+  return lines.some((line, index) => {
+    if (!/^\s*(export\s+)?(abstract\s+)?class\s/.test(line)) {
+      return false;
     }
 
-    const above = lines
-      .slice(0, index)
-      .reverse()
-      .findIndex((previous) => !previous.trim().startsWith("@"));
-    const decorators = lines.slice(
-      index - (above === -1 ? index : above),
-      index,
-    );
+    const decorators: string[] = [];
+    for (let above = index - 1; above >= 0; above -= 1) {
+      const previous = lines[above].trim();
+      if (previous === "" || previous.startsWith("//")) {
+        continue;
+      }
+      if (!previous.startsWith("@") && !previous.startsWith(")")) {
+        break;
+      }
+      decorators.push(previous);
+    }
 
-    return decorators.some((decorator) =>
-      decorator.trim().startsWith("@Public()"),
-    )
-      ? [relative(SOURCE_ROOT, path)]
-      : [];
+    return (
+      decorators.some((decorator) => decorator.startsWith("@Controller(")) &&
+      decorators.some((decorator) => decorator.startsWith("@Public()"))
+    );
   });
 }
 
 describe("routes anyone may call", () => {
   it("are never opened a whole controller at a time", () => {
-    const wholesale = controllerFiles(SOURCE_ROOT).flatMap(
-      controllersMarkedPublicWholesale,
+    const wholesale = controllerFiles(SOURCE_ROOT).filter((path) =>
+      opensAWholeController(readFileSync(path, "utf8")),
     );
 
-    expect(wholesale).toEqual([]);
+    expect(wholesale.map((path) => relative(SOURCE_ROOT, path))).toEqual([]);
+  });
+
+  it.each([
+    ['@Public()\n@Controller("probe")\nexport class ProbeController {}'],
+    ['@Controller("probe")\n@Public()\nexport class ProbeController {}'],
+    [
+      '@ApiTags("x")\n@Controller("probe")\n@Public()\nclass ProbeController {}',
+    ],
+  ])("is spotted whichever order the decorators are written in", (source) => {
+    expect(opensAWholeController(source)).toBe(true);
+  });
+
+  it("does not mistake a route-level marker for a wholesale one", () => {
+    expect(
+      opensAWholeController(
+        '@Controller("probe")\nexport class ProbeController {\n  @Public()\n  @Get()\n  list() {}\n}',
+      ),
+    ).toBe(false);
   });
 
   it("are exactly the ones listed here, so opening one is a deliberate act", () => {
