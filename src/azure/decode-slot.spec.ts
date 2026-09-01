@@ -79,3 +79,43 @@ describe("decode slot", () => {
     await expect(runOnDecodeSlot(async () => 42)).resolves.toBe(42);
   });
 });
+
+describe("decode slot handover", () => {
+  /* The window is between one decode releasing and the queued one resuming.
+     Resolving a promise is a microtask, so the queued caller wakes some hops
+     later, and a fresh request arriving in between must not find an idle
+     decoder. Which hop that is depends on how many awaits the release travels
+     through, so try each of the first few. */
+  it.each([1, 2, 3, 4, 5, 6])(
+    "does not let a fresh caller overtake the queued one %i microtasks after release",
+    async (hops) => {
+      const first = deferred();
+      const rest = deferred();
+      let running = 0;
+      let highWaterMark = 0;
+
+      const track = async () => {
+        running += 1;
+        highWaterMark = Math.max(highWaterMark, running);
+        await (running === 1 && highWaterMark === 1 ? first : rest).promise;
+        running -= 1;
+      };
+
+      const inFlight = [runOnDecodeSlot(track), runOnDecodeSlot(track)];
+
+      await settle();
+      first.release();
+      for (let hop = 0; hop < hops; hop += 1) {
+        await null;
+      }
+      inFlight.push(runOnDecodeSlot(track).catch(() => undefined));
+
+      await settle();
+      rest.release();
+      await settle();
+      await Promise.all(inFlight);
+
+      expect(highWaterMark).toBe(1);
+    },
+  );
+});

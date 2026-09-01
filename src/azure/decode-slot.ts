@@ -52,22 +52,44 @@ const waiting: (() => void)[] = [];
  * in would let a caller construct its own and hand itself a second one.
  */
 export async function runOnDecodeSlot<T>(work: () => Promise<T>): Promise<T> {
-  if (running >= MAX_CONCURRENT_DECODES) {
-    if (waiting.length >= MAX_QUEUED_DECODES) {
-      throw new DecoderBusyError();
-    }
-
-    await new Promise<void>((resolve) => {
-      waiting.push(resolve);
-    });
-  }
-
-  running += 1;
+  await acquire();
 
   try {
     return await work();
   } finally {
-    running -= 1;
-    waiting.shift()?.();
+    release();
   }
+}
+
+async function acquire() {
+  if (running < MAX_CONCURRENT_DECODES) {
+    running += 1;
+    return;
+  }
+
+  if (waiting.length >= MAX_QUEUED_DECODES) {
+    throw new DecoderBusyError();
+  }
+
+  /* Resolving hands over the slot itself rather than announcing that one is
+     free, so `running` is not touched here: it was never given back. Freeing
+     it and letting the woken caller re-take it leaves a window - resolving is
+     a microtask, so the caller resumes later - in which a request arriving
+     fresh sees an idle decoder, takes the slot, and then the woken caller
+     takes it too. That is two decodes at once, which is the one thing this
+     module exists to prevent. */
+  await new Promise<void>((resolve) => {
+    waiting.push(resolve);
+  });
+}
+
+function release() {
+  const next = waiting.shift();
+
+  if (next) {
+    next();
+    return;
+  }
+
+  running -= 1;
 }
