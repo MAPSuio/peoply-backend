@@ -131,6 +131,7 @@ was previously declared and never read; it is now the thing that decides.
 | mcp.tool | 120 | 1min | closed | registerTool, per tool call |
 | search.text | 30 | 1min | open | prisma extension (any `search:` filter in a where) |
 | mail.recipient | 1500 | 24h | open | `AzureCommunicationService.send`, per distinct address |
+| organization.report | 10 | 1h | open | prisma extension |
 
 Attending an event is the core function of the product, so `registration.create` and
 `follow.create` fail open: a Valkey outage must not stop people signing up, and their abuse
@@ -190,6 +191,23 @@ So the cost is bounded by identity instead. The same funnel detects any `search:
 anywhere in a query's `where`, refuses it when the caller is neither an authenticated user
 nor an MCP key, and charges `search.text` (30/min, fail-open) otherwise. No frontend caller
 sends `description`; it only ever sends `title` and `name`, which stay public.
+
+## Reporting an organisation (Discord amplification)
+
+Reporting is once per hour per organisation, which bounds nothing worth
+bounding: one account can report every organisation on the platform and ping
+`@everyone` once per organisation per hour.
+
+Two bounds, at two different chokepoints. `organization.report` is charged in
+the Prisma extension, because a report is a row create like any other, so no
+call site had to change. It fails open: nobody should be stopped from reporting
+abuse because a cache is down.
+
+The mention itself is rationed in `DiscordAlertService.send()`, the only method
+that posts to the webhook, to one ping an hour for the whole deployment. Later
+alerts in the same hour are still delivered in full, with `allowed_mentions`
+emptied, so moderation loses the ping and never the message. That one fails
+closed: a ping cannot be taken back, and the alert still arrives either way.
 
 ## MCP tool output (MCP-PI)
 

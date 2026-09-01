@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { DiscordAlertService } from "./discord-alert.service";
+import { MentionCooldown } from "./mention-cooldown";
 
 /**
  * Posts notices to a Discord webhook. Two callers: a new feedback submission
@@ -19,7 +20,7 @@ import { DiscordAlertService } from "./discord-alert.service";
  */
 @Module({
   imports: [ConfigModule],
-  providers: [DiscordAlertService],
+  providers: [DiscordAlertService, MentionCooldown],
   exports: [DiscordAlertService],
 })
 export class DiscordModule {}

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { postDiscordWebhook } from "./discord-webhook";
+import { MentionCooldown } from "./mention-cooldown";
 
 export interface EmbedField {
   name: string;
@@ -64,7 +65,10 @@ export class DiscordAlertService implements OnModuleInit {
   private readonly logger = new Logger(DiscordAlertService.name);
   private webhookUrl: string | undefined;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly mentionCooldown: MentionCooldown,
+  ) {}
 
   onModuleInit() {
     this.webhookUrl = this.config.get<string>("DISCORD_ALERT_WEBHOOK_URL");
@@ -118,11 +122,13 @@ export class DiscordAlertService implements OnModuleInit {
     if (!this.webhookUrl) return;
 
     const embed = clampEmbed(title, fields);
+    const mentions =
+      content && (await this.mentionCooldown.mayMention())
+        ? { parse: ["everyone"] }
+        : { parse: [] };
 
     const body = JSON.stringify({
-      ...(content
-        ? { content, allowed_mentions: { parse: ["everyone"] } }
-        : {}),
+      ...(content ? { content, allowed_mentions: mentions } : {}),
       embeds: [
         {
           title: embed.title,

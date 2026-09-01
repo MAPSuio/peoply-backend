@@ -41,6 +41,6 @@ export function createBudgetStore(
         ),
     },
   ],
-  exports: [AbuseBudgetService],
+  exports: [AbuseBudgetService, BUDGET_STORE, BUDGET_CLOCK],
 })
 export class AbuseBudgetModule {}
