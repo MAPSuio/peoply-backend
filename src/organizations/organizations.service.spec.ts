@@ -174,6 +174,25 @@ describe("OrganizationsService", () => {
       ).rejects.toThrow(OrganizationDoesNotExistException);
     });
 
+    it("gives an owner the follower list of their pending organization", async () => {
+      const followers = [{ user: { id: "follower-1" } }];
+      prisma.organization.findUnique.mockResolvedValueOnce({
+        ...pending,
+        arrangerId: "arranger-1",
+      });
+      prisma.userOrganizationRole.findFirst.mockResolvedValueOnce({
+        role: "OWNER",
+      });
+      prisma.arrangerFollower.findMany.mockResolvedValueOnce(followers);
+
+      await expect(service.getFollowers(pending.id, "owner-1")).resolves.toBe(
+        followers,
+      );
+      expect(prisma.arrangerFollower.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { arrangerId: "arranger-1" } }),
+      );
+    });
+
     it("refuses a stranger the follower list of a pending organization", async () => {
       prisma.organization.findUnique.mockResolvedValueOnce(pending);
       prisma.userOrganizationRole.findFirst.mockResolvedValueOnce(null);
