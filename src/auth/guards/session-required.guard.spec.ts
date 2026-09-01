@@ -53,4 +53,3 @@ describe("SessionRequiredGuard", () => {
     ).resolves.toBe(true);
   });
 });
-
