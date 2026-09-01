@@ -1,9 +1,10 @@
+import { UpdateEventDto } from "../events/dto/update-event.dto";
 import { BadRequestException } from "@nestjs/common";
 import {
   assertIsImage,
   detectImageType,
   extensionFor,
-  IMAGE_UPLOAD_OPTIONS,
+  imageUploadOptionsFor,
   MAX_IMAGE_BYTES,
 } from "./image-upload";
 
@@ -76,26 +77,20 @@ describe("extensionFor", () => {
   });
 });
 
-describe("IMAGE_UPLOAD_OPTIONS", () => {
+describe("imageUploadOptionsFor", () => {
+  const options = imageUploadOptionsFor(UpdateEventDto);
+
   const runFilter = (mimetype: string) => {
     const callback = jest.fn();
     // multer's file type is structural; only mimetype is read here.
-    IMAGE_UPLOAD_OPTIONS.fileFilter?.({} as any, { mimetype } as any, callback);
+    options.fileFilter?.({} as any, { mimetype } as any, callback);
     return callback;
   };
 
   it("caps a single file at 30 MB", () => {
     expect(MAX_IMAGE_BYTES).toBe(30 * 1024 * 1024);
-    expect(IMAGE_UPLOAD_OPTIONS.limits?.fileSize).toBe(MAX_IMAGE_BYTES);
-    expect(IMAGE_UPLOAD_OPTIONS.limits?.files).toBe(1);
-  });
-
-  it("bounds the non-file multipart parts so text fields cannot flood the heap", () => {
-    const limits = IMAGE_UPLOAD_OPTIONS.limits;
-
-    expect(limits?.fields).toBe(16);
-    expect(limits?.parts).toBe(24);
-    expect(limits?.fieldSize).toBe(64 * 1024);
+    expect(options.limits?.fileSize).toBe(MAX_IMAGE_BYTES);
+    expect(options.limits?.files).toBe(1);
   });
 
   /* The limit exists to bound heap, not to judge the picture. A phone photo

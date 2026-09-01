@@ -19,7 +19,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
+import { imageUploadOptionsFor } from "../azure/image-upload";
 import {
   InvitationStatus,
   OrganizationRole,
@@ -114,7 +114,9 @@ export class OrganizationsController {
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(OrganizationRolesGuard)
-  @UseInterceptors(FileInterceptor("orgImage", IMAGE_UPLOAD_OPTIONS))
+  @UseInterceptors(
+    FileInterceptor("orgImage", imageUploadOptionsFor(UpdateOrganizationDto)),
+  )
   @Patch("/:orgId")
   async update(
     @Req() req: any,

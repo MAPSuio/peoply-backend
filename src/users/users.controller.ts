@@ -33,7 +33,7 @@ import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
+import { imageUploadOptionsFor } from "../azure/image-upload";
 import { Provider, User, UserSeenUpdateType } from "../generated/prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -90,7 +90,9 @@ export class UsersController {
     await this.userService.unlinkProvider(req.user.id, provider);
   }
 
-  @UseInterceptors(FileInterceptor("profileImage", IMAGE_UPLOAD_OPTIONS))
+  @UseInterceptors(
+    FileInterceptor("profileImage", imageUploadOptionsFor(UpdateUserDto)),
+  )
   @Patch("me")
   async updateUser(
     @Req() req: any,
