@@ -2,6 +2,9 @@ import { ConfigService } from "@nestjs/config";
 import { BadRequestException, HttpException } from "@nestjs/common";
 import { AzureStorageService } from "./azure-storage.service";
 import { AzureStorageContainer } from "./azure-storage.constants";
+import { MAX_QUEUED_DECODES } from "./decode-slot";
+import { MAX_IMAGE_INPUT_EDGE_PX, normalizeImage } from "./image-normalize";
+import sharp from "./sharp-runtime";
 
 const config = {
   AZURE_STORAGE_ACCOUNT: "peoplytest",
@@ -162,5 +165,59 @@ describe("AzureStorageService.swapImage", () => {
     ).rejects.toThrow();
 
     expect(deleted).toEqual([]);
+  });
+});
+
+/**
+ * The refusals only exist so the uploader gets an answer it can act on. What
+ * makes them worth anything is the status code they arrive as, and that is
+ * decided here rather than in `image-normalize`, so it is checked here.
+ */
+describe("AzureStorageService.upload refusals", () => {
+  const service = new AzureStorageService(configService);
+
+  const strip = (width: number, height: number) =>
+    sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+  const statusOf = async (upload: Promise<unknown>) => {
+    try {
+      await upload;
+    } catch (error) {
+      return error instanceof HttpException ? error.getStatus() : "not-http";
+    }
+
+    return "resolved";
+  };
+
+  it("answers 400 for an image too long on one side", async () => {
+    const tooWide = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10);
+
+    await expect(
+      statusOf(service.upload("x.png", tooWide, AzureStorageContainer.EVENTS)),
+    ).resolves.toBe(400);
+  });
+
+  it("answers 503 when every decode slot is taken", async () => {
+    const image = await strip(3000, 3000);
+    const saturate = Array.from({ length: MAX_QUEUED_DECODES + 1 }, () =>
+      normalizeImage(image).catch(() => undefined),
+    );
+
+    const status = await statusOf(
+      service.upload("y.png", image, AzureStorageContainer.EVENTS),
+    );
+
+    await Promise.all(saturate);
+
+    expect(status).toBe(503);
   });
 });

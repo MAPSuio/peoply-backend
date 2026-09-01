@@ -1,7 +1,11 @@
 import sharp from "./sharp-runtime";
+import { DecoderBusyError, MAX_QUEUED_DECODES } from "./decode-slot";
 import {
+  ImageRejectedError,
   ImageTooLargeError,
+  ImageTooWideError,
   MAX_IMAGE_EDGE_PX,
+  MAX_IMAGE_INPUT_EDGE_PX,
   needsDownscaling,
   normalizeImage,
 } from "./image-normalize";
@@ -219,5 +223,102 @@ describe("normalizeImage pixel ceiling", () => {
     const result = await normalizeImage(input, 50_000_000);
 
     expect(result.after.width).toBe(MAX_IMAGE_EDGE_PX);
+  });
+});
+
+/**
+ * The pixel ceiling does not bound either edge on its own. A 100000x1000 PNG
+ * is exactly 100 megapixels, weighs 3.2 MB on the wire and passes every limit
+ * above, and libvips holds a scanline at a time: measured peak RSS is 467 MB
+ * in a 512 MB container, against 181 MB for the same pixel count at ordinary
+ * proportions. Peak memory tracks the *width*, so the width needs its own
+ * limit.
+ */
+describe("normalizeImage edge ceiling", () => {
+  const strip = (width: number, height: number) =>
+    sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
+    }).png();
+
+  it("refuses an image wider than the decoder can afford", async () => {
+    const input = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10).toBuffer();
+
+    await expect(normalizeImage(input)).rejects.toThrow(ImageTooWideError);
+  });
+
+  it("refuses it on the tall edge too", async () => {
+    const input = await strip(10, MAX_IMAGE_INPUT_EDGE_PX + 1).toBuffer();
+
+    await expect(normalizeImage(input)).rejects.toThrow(ImageTooWideError);
+  });
+
+  it("says which edge it was and what the limit is", async () => {
+    const input = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10).toBuffer();
+
+    await expect(normalizeImage(input)).rejects.toThrow(
+      /Export it at a smaller resolution.*20001 pixels.*limit is 20000/s,
+    );
+  });
+
+  it("accepts an image sitting exactly on the limit", async () => {
+    const input = await strip(MAX_IMAGE_INPUT_EDGE_PX, 10).toBuffer();
+
+    const result = await normalizeImage(input);
+
+    expect(result.after.width).toBe(MAX_IMAGE_EDGE_PX);
+  });
+
+  /* Both refusals have to reach the 400 the upload path answers with, which
+     means one catch, not one per reason. */
+  it("refuses both sizes under a single catchable type", async () => {
+    const tooWide = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10).toBuffer();
+    const tooManyPixels = await strip(4000, 4000).toBuffer();
+
+    await expect(normalizeImage(tooWide)).rejects.toThrow(ImageRejectedError);
+    await expect(normalizeImage(tooManyPixels, 8_000_000)).rejects.toThrow(
+      ImageRejectedError,
+    );
+  });
+});
+
+/**
+ * Peak RSS is per decode, so the container size is a statement about how many
+ * can be in flight at once, not just how big one may be. Four concurrent
+ * uploads of a legal image are enough to pass 512 MB, and every upload route
+ * is a `PATCH` any logged-in user can issue repeatedly.
+ *
+ * The gate therefore has to sit inside `normalizeImage`, where there is no
+ * other way through: the four upload endpoints share one call site today, and
+ * a fifth added next year gets the bound whether or not anyone remembers it.
+ */
+describe("normalizeImage concurrency", () => {
+  it("refuses the upload that arrives past the queue rather than decoding it", async () => {
+    const input = await sharp({
+      create: {
+        width: 3000,
+        height: 3000,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const attempts = Array.from({ length: MAX_QUEUED_DECODES + 2 }, () =>
+      normalizeImage(input),
+    );
+    const outcomes = await Promise.allSettled(attempts);
+    const refused = outcomes.filter(
+      (outcome) =>
+        outcome.status === "rejected" &&
+        outcome.reason instanceof DecoderBusyError,
+    );
+
+    expect(refused).toHaveLength(1);
   });
 });

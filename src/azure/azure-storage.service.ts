@@ -15,7 +15,8 @@ import {
   containerStoresBrandColors,
 } from "./azure-storage.constants";
 import { assertIsImage, extensionFor } from "./image-upload";
-import { ImageTooLargeError, normalizeImage } from "./image-normalize";
+import { DecoderBusyError } from "./decode-slot";
+import { ImageRejectedError, normalizeImage } from "./image-normalize";
 import { type BrandColors, readBrandColors } from "./image-colors";
 
 export type ImageChange =
@@ -87,8 +88,14 @@ export class AzureStorageService
          273 MB decoded, which this container does not have. Refusing it is the
          right answer; doing so with a 400 the uploader can understand rather
          than a 500 is the point of catching it here. */
-      if (error instanceof ImageTooLargeError) {
+      if (error instanceof ImageRejectedError) {
         throw new HttpException({ message: error.message }, 400);
+      }
+
+      /* Not the uploader's fault and not permanent, so 503 rather than 400:
+         the same file succeeds as soon as a slot frees up. */
+      if (error instanceof DecoderBusyError) {
+        throw new HttpException({ message: error.message }, 503);
       }
 
       throw error;
