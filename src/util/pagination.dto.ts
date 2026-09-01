@@ -28,6 +28,10 @@ export class PaginationDto {
   @Min(0)
   @Max(MAX_PAGE_SIZE)
   @Type(() => Number)
-  @ApiProperty({ required: false, maximum: MAX_PAGE_SIZE })
+  @ApiProperty({
+    required: false,
+    maximum: MAX_PAGE_SIZE,
+    default: MAX_PAGE_SIZE,
+  })
   take?: number;
 }
