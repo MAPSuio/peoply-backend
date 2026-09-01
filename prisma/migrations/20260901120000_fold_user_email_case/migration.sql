@@ -1,3 +1,5 @@
+SET lock_timeout = '5s';
+
 CREATE EXTENSION IF NOT EXISTS citext;
 
 DO $$
