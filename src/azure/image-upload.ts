@@ -1,4 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
+import { getMetadataStorage } from "class-validator";
 import { MulterOptions } from "@nestjs/platform-express/multer/interfaces/multer-options.interface";
 
 /**
@@ -37,26 +38,74 @@ export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
  * uploader writes. It says what the client claims, so it is worth rejecting on
  * early, but it is not evidence of anything.
  */
-export const IMAGE_UPLOAD_OPTIONS: MulterOptions = {
-  fileFilter: (_req, file, callback) => {
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
-      callback(
-        new BadRequestException("Only .jpeg and .png files are allowed!"),
-        false,
-      );
-      return;
-    }
+const MAX_IMAGE_FILES = 1;
 
-    callback(null, true);
-  },
-  limits: {
-    fileSize: MAX_IMAGE_BYTES,
-    files: 1,
-    fields: 16,
-    parts: 24,
-    fieldSize: 64 * 1024,
-  },
+export const MAX_FIELD_BYTES = 64 * 1024;
+
+/**
+ * Room above the DTO for fields a client sends that validation then strips.
+ * The bound that actually stops a flood is `fields * MAX_FIELD_BYTES`, so
+ * headroom is cheap; a limit below the route's own contract is not.
+ */
+export const MULTIPART_FIELD_HEADROOM = 8;
+
+const rejectAnythingButAnImage: MulterOptions["fileFilter"] = (
+  _req,
+  file,
+  callback,
+) => {
+  if (!ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
+    callback(
+      new BadRequestException("Only .jpeg and .png files are allowed!"),
+      false,
+    );
+    return;
+  }
+
+  callback(null, true);
 };
+
+export type UploadDto = new (...args: never[]) => object;
+
+function acceptedFieldCount(dto: UploadDto): number {
+  const names = new Set<string>();
+
+  for (const metadata of getMetadataStorage().getTargetValidationMetadatas(
+    dto,
+    "",
+    true,
+    false,
+  )) {
+    names.add(metadata.propertyName);
+  }
+
+  return names.size;
+}
+
+/**
+ * Multipart limits for a route, derived from the DTO that route accepts.
+ *
+ * Multer counts parts before validation runs, so a field limit chosen by hand
+ * silently overrides the DTO: a limit of 16 against the 29 fields
+ * `UpdateEventDto` accepts made every event save answer 400, because the edit
+ * form submits its whole state on every save. Deriving the limit from the DTO
+ * is what makes that unrepresentable - the bound can no longer fall below the
+ * contract it is bounding.
+ */
+export function imageUploadOptionsFor(dto: UploadDto): MulterOptions {
+  const fields = acceptedFieldCount(dto) + MULTIPART_FIELD_HEADROOM;
+
+  return {
+    fileFilter: rejectAnythingButAnImage,
+    limits: {
+      fileSize: MAX_IMAGE_BYTES,
+      files: MAX_IMAGE_FILES,
+      fields,
+      parts: fields + MAX_IMAGE_FILES,
+      fieldSize: MAX_FIELD_BYTES,
+    },
+  };
+}
 
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,

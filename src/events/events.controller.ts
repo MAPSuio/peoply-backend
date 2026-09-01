@@ -29,7 +29,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { IMAGE_UPLOAD_OPTIONS } from "../azure/image-upload";
+import { imageUploadOptionsFor } from "../azure/image-upload";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
@@ -64,7 +64,9 @@ export class EventsController {
   ) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor("eventImage", IMAGE_UPLOAD_OPTIONS))
+  @UseInterceptors(
+    FileInterceptor("eventImage", imageUploadOptionsFor(CreateEventDto)),
+  )
   async create(
     @Req() req: any,
     @Body() createEventDto: CreateEventDto,
@@ -140,7 +142,9 @@ export class EventsController {
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseGuards(EventRolesGuard)
   @Patch(":id")
-  @UseInterceptors(FileInterceptor("eventImage", IMAGE_UPLOAD_OPTIONS))
+  @UseInterceptors(
+    FileInterceptor("eventImage", imageUploadOptionsFor(UpdateEventDto)),
+  )
   async update(
     @Req() req: any,
     @Param("id") id: string,
