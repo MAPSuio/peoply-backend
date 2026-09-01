@@ -3,7 +3,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { Test } from "@nestjs/testing";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
-import { MAX_PAGE_SIZE, pageBoundsOf } from "./pagination";
+import { pageBoundsOf } from "./pagination";
 import { PaginationDto } from "./pagination.dto";
 
 @Controller("pagination-probe")
@@ -20,8 +20,8 @@ type DocumentedParameter = {
   schema?: { maximum?: number; minimum?: number; default?: number };
 };
 
-const FAR_ABOVE_ANY_PAGE_BOUND = MAX_PAGE_SIZE * 1000;
-const FAR_BELOW_ANY_PAGE_BOUND = -FAR_ABOVE_ANY_PAGE_BOUND;
+const FAR_ABOVE_ANY_PAGE_BOUND = Number.MAX_SAFE_INTEGER;
+const FAR_BELOW_ANY_PAGE_BOUND = Number.MIN_SAFE_INTEGER;
 
 async function documentedQueryParameters(): Promise<DocumentedParameter[]> {
   const moduleRef = await Test.createTestingModule({
