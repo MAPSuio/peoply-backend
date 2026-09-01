@@ -1,4 +1,5 @@
 import sharp from "./sharp-runtime";
+import { DecoderBusyError, MAX_QUEUED_DECODES } from "./decode-slot";
 import {
   ImageRejectedError,
   ImageTooLargeError,
@@ -282,5 +283,42 @@ describe("normalizeImage edge ceiling", () => {
     await expect(normalizeImage(tooManyPixels, 8_000_000)).rejects.toThrow(
       ImageRejectedError,
     );
+  });
+});
+
+/**
+ * Peak RSS is per decode, so the container size is a statement about how many
+ * can be in flight at once, not just how big one may be. Four concurrent
+ * uploads of a legal image are enough to pass 512 MB, and every upload route
+ * is a `PATCH` any logged-in user can issue repeatedly.
+ *
+ * The gate therefore has to sit inside `normalizeImage`, where there is no
+ * other way through: the four upload endpoints share one call site today, and
+ * a fifth added next year gets the bound whether or not anyone remembers it.
+ */
+describe("normalizeImage concurrency", () => {
+  it("refuses the upload that arrives past the queue rather than decoding it", async () => {
+    const input = await sharp({
+      create: {
+        width: 3000,
+        height: 3000,
+        channels: 3,
+        background: { r: 10, g: 10, b: 10 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const attempts = Array.from({ length: MAX_QUEUED_DECODES + 2 }, () =>
+      normalizeImage(input),
+    );
+    const outcomes = await Promise.allSettled(attempts);
+    const refused = outcomes.filter(
+      (outcome) =>
+        outcome.status === "rejected" &&
+        outcome.reason instanceof DecoderBusyError,
+    );
+
+    expect(refused).toHaveLength(1);
   });
 });

@@ -1,3 +1,4 @@
+import { runOnDecodeSlot } from "./decode-slot";
 import sharp, { type Metadata } from "./sharp-runtime";
 
 /**
@@ -276,6 +277,16 @@ export async function normalizeImage(
      predicts. The ceiling is here to stop something absurd, not to ration
      memory image by image. */
   maxInputPixels: number = MAX_INPUT_PIXELS,
+): Promise<NormalizedImage> {
+  return runOnDecodeSlot(() => normalizeOnSlot(input, maxInputPixels));
+}
+
+/* Everything below touches pixels, `metadata()` included: reading the header
+   of a 100 megapixel image measured at 81 MB of RSS. So the slot is taken for
+   the whole of it, not just the resize. */
+async function normalizeOnSlot(
+  input: Buffer,
+  maxInputPixels: number,
 ): Promise<NormalizedImage> {
   await assertDecodable(input, maxInputPixels);
 
