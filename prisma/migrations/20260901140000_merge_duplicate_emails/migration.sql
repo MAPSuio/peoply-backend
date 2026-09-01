@@ -2,7 +2,7 @@ SET lock_timeout = '5s';
 
 CREATE EXTENSION IF NOT EXISTS citext;
 
-LOCK TABLE "users" IN ACCESS EXCLUSIVE MODE;
+LOCK TABLE "users", "arrangers" IN ACCESS EXCLUSIVE MODE;
 
 DO $$
 DECLARE
