@@ -108,7 +108,11 @@ describe("decode slot handover", () => {
       for (let hop = 0; hop < hops; hop += 1) {
         await null;
       }
-      inFlight.push(runOnDecodeSlot(track).catch(() => undefined));
+      /* No catch: with one slot reserved and at most one other waiting, this
+         caller is inside the queue and must be served. Swallowing a refusal
+         here would let the test pass on a handover that leaves a phantom
+         entry in the queue. */
+      inFlight.push(runOnDecodeSlot(track));
 
       await settle();
       rest.release();
