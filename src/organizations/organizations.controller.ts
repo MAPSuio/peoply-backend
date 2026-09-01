@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import {
   BadRequestException,
   Body,
@@ -27,7 +28,6 @@ import {
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangersService } from "../arrangers/services";
 import {
-  AuthenticatedGuard,
   OrganizationRolesGuard,
   UserIdVerificationGuard,
 } from "../auth/guards";
@@ -64,7 +64,6 @@ export class OrganizationsController {
     private readonly organizationAnalyticsService: OrganizationAnalyticsService,
   ) {}
 
-  @UseGuards(AuthenticatedGuard)
   @Post()
   async create(
     @Req() req: any,
@@ -82,19 +81,18 @@ export class OrganizationsController {
   }
 
   /* endpoint to GET all orgs */
+  @Public()
   @Get()
   async findAll(@Query() query: SearchOrganizationDto) {
     return this.organizationsService.findAll(query);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get("/admin/all")
   async findAllAdmin(@Req() req: any, @Query() query: SearchOrganizationDto) {
     await this.administrationService.ensureAccess(req.user.id);
     return this.organizationsService.findAllIncludingUnapproved(query);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Patch("/admin/:orgId/approval")
   async updateApproval(
     @Req() req: any,
@@ -108,13 +106,14 @@ export class OrganizationsController {
     );
   }
 
+  @Public()
   @Get("/:orgId")
   async getOrganization(@Param("orgId") orgId: string) {
     return this.organizationsService.findByRefOrThrow(orgId);
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @UseInterceptors(FileInterceptor("orgImage", IMAGE_UPLOAD_OPTIONS))
   @Patch("/:orgId")
   async update(
@@ -141,7 +140,7 @@ export class OrganizationsController {
   }
 
   @OrganizationRoles(OrganizationRole.OWNER)
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Delete("/:orgId")
   async delete(@Req() req: any, @Param("orgId") orgId: string) {
     /* delete organization
@@ -153,6 +152,7 @@ export class OrganizationsController {
     return this.organizationsService.remove(orgId);
   }
 
+  @Public()
   @Get(":orgId/events")
   async getEvents(@Req() req: any, @Param("orgId") orgId: string) {
     /* get events for organization
@@ -168,7 +168,6 @@ export class OrganizationsController {
     return await this.eventArrangersService.findAllPublicWithEvents(arrangerID);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get(":orgId/report-status")
   async getReportOrganizationStatus(
     @Req() req: any,
@@ -183,7 +182,6 @@ export class OrganizationsController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Post(":orgId/report")
   async reportOrganization(@Req() req: any, @Param("orgId") orgId: string) {
     const organization =
@@ -195,6 +193,7 @@ export class OrganizationsController {
     );
   }
 
+  @Public()
   @Get(":orgId/calendar.ics")
   async getOrganizationCalendar(
     @Param("orgId") orgId: string,
@@ -241,7 +240,7 @@ export class OrganizationsController {
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Post("/:orgId/invitations")
   async sendInvitations(
     @Req() req: any,
@@ -266,7 +265,7 @@ export class OrganizationsController {
   }
 
   @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Patch("/:orgId/roles")
   async changeUserRole(
     @Req() req: any,
@@ -311,7 +310,7 @@ export class OrganizationsController {
   }
 
   @OrganizationRoles(OrganizationRole.OWNER)
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Patch("/:orgId/owner")
   async changeOwner(
     @Req() req: any,
@@ -325,7 +324,7 @@ export class OrganizationsController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Patch("/:orgId/roleDescription/:userId")
   async updateRoleDescription(
     @Req() req: any,
@@ -343,7 +342,6 @@ export class OrganizationsController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Patch("/:id/invitations/:inviteId")
   async updateInvitation(
     @Req() req: any,
@@ -420,7 +418,7 @@ export class OrganizationsController {
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
   )
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Get(":orgId/analytics")
   async getAnalytics(
     @Req() req: any,
@@ -439,7 +437,7 @@ export class OrganizationsController {
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
   )
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Get(":orgId/members")
   async getMembers(@Req() req: any, @Param("orgId") orgId: string) {
     /* get events for organization
@@ -458,7 +456,7 @@ export class OrganizationsController {
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
   )
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Delete(":orgId/members/:userId")
   async deleteMember(
     @Req() req: any,
@@ -511,7 +509,7 @@ export class OrganizationsController {
   }
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
-  @UseGuards(AuthenticatedGuard, OrganizationRolesGuard)
+  @UseGuards(OrganizationRolesGuard)
   @Get(":orgId/followers")
   async getFollowers(@Req() req: any, @Param("orgId") orgId: string) {
     return this.organizationsService.getFollowers(orgId, req.user.id);

@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import {
   Body,
   Controller,
@@ -16,7 +17,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { AuthenticatedGuard, UserIdVerificationGuard } from "../auth/guards";
+import { UserIdVerificationGuard } from "../auth/guards";
 import { SearchFavoritesDto } from "../favorites/dto/search-favorites.dto";
 import { FavoritesService } from "../favorites/favorites.service";
 import {
@@ -56,7 +57,6 @@ export class UsersController {
     private readonly administrationService: AdministrationService,
   ) {}
 
-  @UseGuards(AuthenticatedGuard)
   @Get("me")
   async me(@Req() req: any) {
     const [permissions, providers] = await Promise.all([
@@ -78,7 +78,6 @@ export class UsersController {
    * settings — but the service refuses to remove the last provider: with no
    * password fallback that would be a permanent lockout, not an unlink.
    */
-  @UseGuards(AuthenticatedGuard)
   @Delete("me/providers/:provider")
   async unlinkProvider(
     @Req() req: any,
@@ -91,7 +90,6 @@ export class UsersController {
     await this.userService.unlinkProvider(req.user.id, provider);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @UseInterceptors(FileInterceptor("profileImage", IMAGE_UPLOAD_OPTIONS))
   @Patch("me")
   async updateUser(
@@ -108,7 +106,6 @@ export class UsersController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Delete("me")
   async deleteUser(@Req() req: any, @Res() res: Response) {
     await this.userService.remove(req.user.id);
@@ -123,12 +120,12 @@ export class UsersController {
     return res.sendStatus(200);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get()
   async findAll(@Query() query: SearchUserDto) {
     return this.userService.findAll(query);
   }
 
+  @Public()
   @Get(":id")
   async getUser(@Param("id") id: string) {
     const user = await this.userService.findById(id);
@@ -147,7 +144,7 @@ export class UsersController {
     }))(user);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/registrations")
   async getRegistrations(
     @Req() req: any,
@@ -157,7 +154,7 @@ export class UsersController {
     return this.userRegistrationService.findAll(query, id);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/registrations/:eventId")
   async getSingleRegistrations(
     @Param("userId") userId: string,
@@ -175,7 +172,7 @@ export class UsersController {
     return registration;
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/registrations/:eventId/waitlist-position")
   async getWaitlistPosition(
     @Param("userId") userId: string,
@@ -193,7 +190,7 @@ export class UsersController {
     return this.userRegistrationService.getPositionInWaitlist(eventId, userId);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Patch(":userId/registrations")
   async updateRegistration(
     @Param("userId") id: string,
@@ -203,7 +200,7 @@ export class UsersController {
     return this.userRegistrationService.update(id, dto);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Post(":userId/registrations")
   async createRegistration(
     @Param("userId") id: string,
@@ -213,13 +210,13 @@ export class UsersController {
     return this.userRegistrationService.create(id, dto);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Post(":userId/favorites")
   async makeFavorite(@Param("userId") id: string, @Body() dto: UuidDto) {
     return this.userFavoritesService.create(id, dto.id);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/favorites")
   async getFavorites(
     @Query() query: SearchFavoritesDto,
@@ -228,7 +225,7 @@ export class UsersController {
     return this.userFavoritesService.findAll(query, id);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/favorites/:eventId")
   async getSpecificFavorite(
     @Param("userId") userId: string,
@@ -243,13 +240,13 @@ export class UsersController {
     return favorite;
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Delete(":userId/favorites")
   async deleteFavorite(@Body() dto: UuidDto, @Param("userId") userId: string) {
     return await this.userFavoritesService.remove(userId, dto.id);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/arranging")
   async getArrangedEvents(@Req() req: any, @Query() page: PaginationDto) {
     const user: User = req.user;
@@ -259,7 +256,7 @@ export class UsersController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/organizations")
   async getOrganizations(
     @Param("userId") userId: string,
@@ -279,7 +276,7 @@ export class UsersController {
     );
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/notifications")
   async getNotifications(
     @Param("userId") userId: string,
@@ -288,7 +285,7 @@ export class UsersController {
     return this.notificationsService.findAllPendingByUserId(userId, page);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Get(":userId/following")
   async getFollowing(
     @Param("userId") userId: string,
@@ -297,7 +294,7 @@ export class UsersController {
     return this.followService.findAll(userId, page);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Post(":userId/following/:arrangerId")
   async followArranger(
     @Param("userId") userId: string,
@@ -306,7 +303,7 @@ export class UsersController {
     return this.followService.follow(userId, arrangerId);
   }
 
-  @UseGuards(AuthenticatedGuard, UserIdVerificationGuard)
+  @UseGuards(UserIdVerificationGuard)
   @Delete(":userId/following/:arrangerId")
   async unFollowArranger(
     @Param("userId") userId: string,
@@ -315,7 +312,6 @@ export class UsersController {
     return this.followService.unFollow(userId, arrangerId);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get("me/seenUpdate/:update")
   async seenUpdate(
     @Req() req: any,
@@ -328,13 +324,11 @@ export class UsersController {
     return this.userService.userSeenUpdate(user.id, update);
   }
 
-  @UseGuards(AuthenticatedGuard)
   @Get("me/seenUpdates")
   async seenUpdates(@Req() req: any) {
     const user: User = req.user;
     return this.userService.findUpdatesSeenByUser(user.id);
   }
-  @UseGuards(AuthenticatedGuard)
   @Post("me/seenUpdate/:update")
   async markUserSeenUpdate(
     @Req() req: any,

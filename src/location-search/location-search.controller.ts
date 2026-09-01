@@ -1,5 +1,4 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { AuthenticatedGuard } from "../auth/guards";
 import { LocationSearchQueryDto } from "./dto/location-search-query.dto";
 import { LocationSearchService } from "./location-search.service";
 
@@ -7,7 +6,6 @@ import { LocationSearchService } from "./location-search.service";
 export class LocationSearchController {
   constructor(private readonly locationSearchService: LocationSearchService) {}
 
-  @UseGuards(AuthenticatedGuard)
   @Get("search")
   async search(@Query() query: LocationSearchQueryDto) {
     return this.locationSearchService.search(query.query, {

@@ -3,7 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { ThrottlerModule } from "@nestjs/throttler";
 import request = require("supertest");
-import { AuthenticatedGuard } from "../auth/guards";
+import { IS_PUBLIC_ROUTE } from "../auth/public.decorator";
 import { CfThrottlerGuard } from "../cf-throttler.guard";
 import { McpKeysController } from "./mcp-keys.controller";
 import { McpServerFactory } from "./mcp-server.factory";
@@ -58,15 +58,15 @@ describe("GET /mcp/tools without credentials", () => {
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
-  it("stays deliberately unguarded, unlike the key endpoints", () => {
+  it("stays deliberately open, unlike the key endpoints", () => {
     expect(
-      Reflect.getMetadata("__guards__", McpToolsController),
+      Reflect.getMetadata(IS_PUBLIC_ROUTE, McpToolsController.prototype.list),
+    ).toBe(true);
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_ROUTE, McpKeysController),
     ).toBeUndefined();
     expect(
-      Reflect.getMetadata("__guards__", McpToolsController.prototype.list),
+      Reflect.getMetadata(IS_PUBLIC_ROUTE, McpKeysController.prototype.list),
     ).toBeUndefined();
-    expect(Reflect.getMetadata("__guards__", McpKeysController)).toEqual([
-      AuthenticatedGuard,
-    ]);
   });
 });

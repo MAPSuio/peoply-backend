@@ -1,3 +1,4 @@
+import { Public } from "../auth/public.decorator";
 import { Controller, Get, HttpStatus, Res } from "@nestjs/common";
 import { SkipRateLimit } from "../rate-limit";
 import { Response } from "express";
@@ -26,11 +27,13 @@ import { HealthService } from "./health.service";
 export class HealthController {
   constructor(private readonly health: HealthService) {}
 
+  @Public()
   @Get("_health")
   liveness() {
     return { status: "ok" };
   }
 
+  @Public()
   @Get("readiness")
   async readiness(@Res({ passthrough: true }) res: Response) {
     const { ready, checks } = await this.health.check();

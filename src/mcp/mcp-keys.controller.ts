@@ -12,14 +12,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { AuthenticatedGuard } from "../auth/guards";
 import { User } from "../generated/prisma/client";
 import { CreateMcpApiKeyDto } from "./dto/create-mcp-api-key.dto";
 import { McpApiKeyService } from "./mcp-api-key.service";
 
 @ApiTags("MCP")
 @Controller("mcp/keys")
-@UseGuards(AuthenticatedGuard)
 export class McpKeysController {
   constructor(private readonly apiKeys: McpApiKeyService) {}
 
