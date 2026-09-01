@@ -1,11 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEnum, IsIn, IsOptional, IsString } from "class-validator";
 import { PrismaOrderDirections } from "../prisma/prisma.constants";
-import { PaginationDto } from "./pagination.dto";
+import { SearchPaginationDto } from "./pagination.dto";
 
 /**
  * Base class for search DTOs whose endpoint sorts by a caller-chosen column:
- * `skip`/`take` bounds from {@link PaginationDto} plus `orderBy`/
+ * `skip`/`take` bounds from {@link SearchPaginationDto} plus `orderBy`/
  * `orderDirection` validated against the model's own columns.
  *
  * `orderBy` reaches Prisma as `orderBy: { [orderBy]: orderDirection }`, so any
@@ -26,7 +26,7 @@ import { PaginationDto } from "./pagination.dto";
 export function PagedQueryDto(scalarFieldEnum: Record<string, string>) {
   const scalarFields = Object.keys(scalarFieldEnum);
 
-  class PagedQuery extends PaginationDto {
+  class PagedQuery extends SearchPaginationDto {
     @IsOptional()
     @IsString()
     @IsIn(scalarFields, {

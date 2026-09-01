@@ -17,7 +17,7 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
-import { ALL_ROWS } from "../../util/pagination";
+import { ALL_ROWS, DEFAULT_SEARCH_PAGE_SIZE } from "../../util/pagination";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -107,7 +107,7 @@ export class UserRegistrationService extends CommonRegistrationService {
   async findAll(searchProps: SearchUserRegistrationDto, userId: string) {
     const {
       skip = 0,
-      take = 10,
+      take = DEFAULT_SEARCH_PAGE_SIZE,
       orderBy = "updatedAt",
       orderDirection = "asc",
     } = searchProps;

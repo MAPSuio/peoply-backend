@@ -37,7 +37,7 @@ import { AzureCommunicationService } from "../azure/azure-communication.service"
 import { createUuid, isUUID } from "../util/uuid";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventAccessService } from "../event-access/event-access.service";
-import { ALL_ROWS } from "../util/pagination";
+import { ALL_ROWS, DEFAULT_SEARCH_PAGE_SIZE } from "../util/pagination";
 
 /**
  * How many email-bearing updates one event may send in a rolling 24 hours.
@@ -245,7 +245,7 @@ export class EventsService {
   async findAll(searchProps: SearchEventDto = {}) {
     const {
       skip = 0,
-      take = 10,
+      take = DEFAULT_SEARCH_PAGE_SIZE,
       orderBy = "startDate",
       orderDirection = "asc",
     } = searchProps;

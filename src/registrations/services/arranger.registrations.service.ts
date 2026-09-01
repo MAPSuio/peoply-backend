@@ -16,6 +16,7 @@ import { UserDoesNotExistException } from "../../users/exceptions";
 import { EmailRecipients } from "@azure/communication-email";
 import { EMAIL_DIVIDER, eventEmailFooter } from "../../util/email";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
+import { DEFAULT_SEARCH_PAGE_SIZE } from "../../util/pagination";
 
 /**
  * The attendee row an arranger sees. Food fields ride along only when the
@@ -50,7 +51,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   async findAll(searchProps: SearchEventRegistrationDto, eventId: string) {
     const {
       skip = 0,
-      take = 10,
+      take = DEFAULT_SEARCH_PAGE_SIZE,
       orderBy = "updatedAt",
       orderDirection = "asc",
     } = searchProps;

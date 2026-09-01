@@ -1,9 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsArray, IsOptional, IsString, MaxLength } from "class-validator";
 import { ToArray } from "../../../decorators/transformers/string.to.array";
-import { PaginationDto } from "../../util/pagination.dto";
+import { SearchPaginationDto } from "../../util/pagination.dto";
 
-export class SearchOrganizationDto extends PaginationDto {
+export class SearchOrganizationDto extends SearchPaginationDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)

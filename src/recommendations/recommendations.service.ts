@@ -28,8 +28,6 @@ const HISTORY_POOL_SIZE = 200;
 const CANDIDATE_POOL_SIZE = 200;
 const ORG_EVENT_SAMPLE_SIZE = 30;
 
-const DEFAULT_TAKE = 10;
-
 interface TasteProfile {
   categoryAffinity: Map<number, number>;
   arrangerAffinity: Map<string, number>;
@@ -48,7 +46,7 @@ interface EventSignal {
 export class RecommendationsService {
   constructor(private prisma: PrismaService) {}
 
-  async recommendEvents(userId?: string, take = DEFAULT_TAKE) {
+  async recommendEvents(userId: string | undefined, take: number) {
     const [profile, candidates] = await Promise.all([
       this.buildTasteProfile(userId),
       this.prisma.event.findMany({
@@ -100,7 +98,7 @@ export class RecommendationsService {
       .map(({ event: { _count, ...event } }) => event);
   }
 
-  async recommendOrganizations(userId?: string, take = DEFAULT_TAKE) {
+  async recommendOrganizations(userId: string | undefined, take: number) {
     const [profile, candidates] = await Promise.all([
       this.buildTasteProfile(userId),
       this.prisma.organization.findMany({

@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsInt, IsOptional, Max, Min } from "class-validator";
-import { MAX_PAGE_SIZE } from "./pagination";
+import { DEFAULT_SEARCH_PAGE_SIZE, MAX_PAGE_SIZE } from "./pagination";
 
 /**
  * The `skip`/`take` pair every paginated search endpoint takes.
@@ -20,8 +20,8 @@ export class PaginationDto {
   @IsInt()
   @Min(0)
   @Type(() => Number)
-  @ApiProperty({ required: false, minimum: 0 })
-  skip?: number;
+  @ApiProperty({ required: false, minimum: 0, default: 0 })
+  skip?: number = 0;
 
   @IsOptional()
   @IsInt()
@@ -34,5 +34,20 @@ export class PaginationDto {
     maximum: MAX_PAGE_SIZE,
     default: MAX_PAGE_SIZE,
   })
-  take?: number;
+  take?: number = MAX_PAGE_SIZE;
+}
+
+/**
+ * The same bounds for the search endpoints, which answer with a page rather
+ * than with everything the cap allows. The size is declared here so the value
+ * the API documents and the value a service falls back to are one constant.
+ */
+export class SearchPaginationDto extends PaginationDto {
+  @ApiProperty({
+    required: false,
+    minimum: 0,
+    maximum: MAX_PAGE_SIZE,
+    default: DEFAULT_SEARCH_PAGE_SIZE,
+  })
+  take?: number = DEFAULT_SEARCH_PAGE_SIZE;
 }

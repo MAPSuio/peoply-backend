@@ -1,5 +1,6 @@
 import { EventVisibility, RegStatus } from "../generated/prisma/client";
 import { RecommendationsService } from "./recommendations.service";
+import { DEFAULT_RECOMMENDATION_COUNT } from "./dto";
 
 const candidateEvent = (
   id: string,
@@ -83,7 +84,10 @@ describe("RecommendationsService", () => {
         candidateEvent("promoted", { featured: true }),
       ]);
 
-      const events = await service.recommendEvents(undefined);
+      const events = await service.recommendEvents(
+        undefined,
+        DEFAULT_RECOMMENDATION_COUNT,
+      );
 
       expect(events.map((event: any) => event.id)).toEqual([
         "popular",
@@ -107,7 +111,10 @@ describe("RecommendationsService", () => {
         }),
       ]);
 
-      const events = await service.recommendEvents("user-1");
+      const events = await service.recommendEvents(
+        "user-1",
+        DEFAULT_RECOMMENDATION_COUNT,
+      );
 
       expect(events.map((event: any) => event.id)).toEqual([
         "same-arranger-and-category",
@@ -132,7 +139,10 @@ describe("RecommendationsService", () => {
         candidateEvent("fresh"),
       ]);
 
-      const events = await service.recommendEvents("user-1");
+      const events = await service.recommendEvents(
+        "user-1",
+        DEFAULT_RECOMMENDATION_COUNT,
+      );
 
       expect(events.map((event: any) => event.id)).toEqual(["fresh"]);
     });
@@ -163,7 +173,10 @@ describe("RecommendationsService", () => {
         }),
       ]);
 
-      const orgs = await service.recommendOrganizations("user-1");
+      const orgs = await service.recommendOrganizations(
+        "user-1",
+        DEFAULT_RECOMMENDATION_COUNT,
+      );
 
       expect(orgs.map((org: any) => org.id)).toEqual(["matching", "popular"]);
       expect(orgs[0]).not.toHaveProperty("arranger");
@@ -182,7 +195,10 @@ describe("RecommendationsService", () => {
         candidateOrg("fresh", "arranger-fresh"),
       ]);
 
-      const orgs = await service.recommendOrganizations("user-1");
+      const orgs = await service.recommendOrganizations(
+        "user-1",
+        DEFAULT_RECOMMENDATION_COUNT,
+      );
 
       expect(orgs.map((org: any) => org.id)).toEqual(["fresh"]);
     });
@@ -193,7 +209,10 @@ describe("RecommendationsService", () => {
         candidateOrg("large", "arranger-l", { followers: 25 }),
       ]);
 
-      const orgs = await service.recommendOrganizations(undefined);
+      const orgs = await service.recommendOrganizations(
+        undefined,
+        DEFAULT_RECOMMENDATION_COUNT,
+      );
 
       expect(orgs.map((org: any) => org.id)).toEqual(["large", "small"]);
     });

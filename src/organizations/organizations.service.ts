@@ -27,7 +27,7 @@ import { DiscordAlertService } from "../discord/discord-alert.service";
 import { toDiscordFieldValue } from "../discord/discord-field";
 import { organizationImageColumns } from "./organization-image-columns";
 import { PaginationDto } from "../util/pagination.dto";
-import { pageBoundsOf } from "../util/pagination";
+import { DEFAULT_SEARCH_PAGE_SIZE, pageBoundsOf } from "../util/pagination";
 
 const ORGANIZATION_REPORT_COOLDOWN_MS = 60 * 60 * 1000;
 const ORGANIZATION_SOCIAL_LINK_FIELDS = [
@@ -102,7 +102,7 @@ export class OrganizationsService {
     searchProps: SearchOrganizationDto = {},
     approved?: boolean,
   ) {
-    const { skip = 0, take = 10 } = searchProps;
+    const { skip = 0, take = DEFAULT_SEARCH_PAGE_SIZE } = searchProps;
 
     const descriptionSearch = searchProps.description
       ? buildDescriptionSearchQuery(searchProps.description)
