@@ -2,8 +2,7 @@ import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { OrganizationRole } from "../../generated/prisma/client";
 import { OrganizationsService } from "../../organizations/organizations.service";
-import { UsersService } from "../../users/services";
-import { AuthService } from "../auth.service";
+import { AccessSessionService } from "../access-session.service";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 import { isUUID } from "../../util/uuid";
 
@@ -16,8 +15,7 @@ export class OrganizationRolesGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private readonly organizationsService: OrganizationsService,
-    private readonly authService: AuthService,
-    private readonly usersService: UsersService,
+    private readonly accessSession: AccessSessionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -29,13 +27,8 @@ export class OrganizationRolesGuard implements CanActivate {
       throw new RolesNotFoundException();
     }
     const request = context.switchToHttp().getRequest();
-    const valid = this.authService.validateJWT(request.cookies.access);
-    const user = await this.usersService.findById(valid.sub);
+    const user = await this.accessSession.userFromRequest(request);
     const requestedOrgId = request.params.orgId;
-
-    if (!user) {
-      return false;
-    }
 
     if (!requestedOrgId) {
       return false;

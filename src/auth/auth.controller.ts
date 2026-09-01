@@ -17,6 +17,7 @@ import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import { Provider, User } from "../generated/prisma/client";
 
+import { AccessSessionService } from "./access-session.service";
 import { AuthService } from "./auth.service";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -47,6 +48,7 @@ export class AuthController {
     private authService: AuthService,
     private configService: ConfigService,
     private usersService: UsersService,
+    private accessSession: AccessSessionService,
   ) {}
 
   private isLocalAuthEnabled() {
@@ -214,7 +216,10 @@ export class AuthController {
    * arrives a whole IdP round trip later — this is what proves the browser
    * still holds the same session, rather than someone else's intent.
    */
-  private accessCookieMatches(req: any, userId: string) {
+  private async accessCookieMatches(
+    req: any,
+    userId: string,
+  ): Promise<boolean> {
     const access = req.cookies?.access;
 
     if (!access) {
@@ -222,7 +227,8 @@ export class AuthController {
     }
 
     try {
-      return this.authService.validateJWT(access)?.sub === userId;
+      const user = await this.accessSession.userFromRequest(req);
+      return user.id === userId;
     } catch {
       return false;
     }
@@ -310,7 +316,7 @@ export class AuthController {
     resolution: OidcResolution,
     linkUserId: string,
   ): Promise<Record<string, string>> {
-    if (!this.accessCookieMatches(req, linkUserId)) {
+    if (!(await this.accessCookieMatches(req, linkUserId))) {
       return { link_error: "expired" };
     }
 

@@ -6,8 +6,7 @@ import {
 } from "../../generated/prisma/client";
 import { EVENT_ARRANGER_ROLES_KEY } from "../../../decorators/eventArrangerRoles.decorator";
 import { EventAccessService } from "../../event-access/event-access.service";
-import { UsersService } from "../../users/services";
-import { AuthService } from "../auth.service";
+import { AccessSessionService } from "../access-session.service";
 import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 
 /*
@@ -18,8 +17,7 @@ import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 export class EventRolesGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    private readonly authService: AuthService,
-    private readonly usersService: UsersService,
+    private readonly accessSession: AccessSessionService,
     private readonly eventAccess: EventAccessService,
   ) {}
 
@@ -32,11 +30,7 @@ export class EventRolesGuard implements CanActivate {
       throw new RolesNotFoundException();
     }
     const request = context.switchToHttp().getRequest();
-    const valid = this.authService.validateJWT(request.cookies.access);
-    const user = await this.usersService.findById(valid.sub);
-    if (!user) {
-      return false;
-    }
+    const user = await this.accessSession.userFromRequest(request);
 
     const allowedArrangerRoles = this.reflector.get<EventArrangerRole[]>(
       EVENT_ARRANGER_ROLES_KEY,

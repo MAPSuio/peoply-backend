@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Response } from "express";
 import { Provider } from "../generated/prisma/client";
@@ -59,8 +59,9 @@ describe("AuthController OIDC callback linking", () => {
     getAccessCookieOptions: jest.fn(() => accessCookieOptions),
     getRefreshCookieOptions: jest.fn(() => refreshCookieOptions),
     getSessionMarkerCookieOptions: jest.fn(() => ({ httpOnly: false })),
-    validateJWT: jest.fn(() => ({ sub: "linker-1" })),
   } as unknown as AuthService;
+
+  const accessSession = { userFromRequest: jest.fn() } as any;
 
   const usersService = {
     ensureRefreshTokenId: jest.fn().mockResolvedValue(user),
@@ -87,13 +88,12 @@ describe("AuthController OIDC callback linking", () => {
     authService,
     configService,
     usersService,
+    accessSession,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (authService.validateJWT as jest.Mock).mockImplementation(() => ({
-      sub: "linker-1",
-    }));
+    accessSession.userFromRequest.mockResolvedValue({ id: "linker-1" });
     (usersService.ensureRefreshTokenId as jest.Mock).mockResolvedValue(user);
     (usersService.findByEmail as jest.Mock).mockResolvedValue(null);
     (usersService.findByPhone as jest.Mock).mockResolvedValue(null);
@@ -389,9 +389,9 @@ describe("AuthController OIDC callback linking", () => {
        an attacker rushing a victim's browser through /auth/callback could
        attach their own identity to the victim's intent. */
     it("refuses the link when the access cookie no longer matches the intent", async () => {
-      (authService.validateJWT as jest.Mock).mockImplementation(() => {
-        throw new Error("expired");
-      });
+      accessSession.userFromRequest.mockRejectedValue(
+        new UnauthorizedException(),
+      );
 
       await controller.loginGoogleCallback(linkRequest(newGoogleIdentity), res);
 

@@ -62,12 +62,8 @@ export class AuthService {
         };
   }
 
-  validateJWT(token: string) {
-    return this.jwtService.verify(token);
-  }
-
   getAccessToken(user: User) {
-    const payload = { sub: user.id };
+    const payload = { sub: user.id, sid: user.refreshTokenId };
     return this.jwtService.sign(payload); // configured in AuthModule
   }
 
