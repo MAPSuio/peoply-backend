@@ -64,7 +64,7 @@ model User {
   phone                          String?                      @unique
   firstName                      String                       @map("first_name") @db.VarChar(100)
   lastName                       String                       @map("last_name") @db.VarChar(100)
-  email                          String                       @unique
+  email                          String                       @unique @db.Citext
   image                          String?
   birthDate                      DateTime?                    @map("birth_date") @db.Date
   description                    String?                      @db.VarChar(120)
@@ -410,11 +410,13 @@ model ArrangerFollower {
   @@map("arranger_follower")
 }
 
-/* Append-only log of follow/unfollow actions, kept because unfollowing
-   hard-deletes the ArrangerFollower row: net follower growth over time can
-   only be computed from this log. Deliberately has no userId — analytics
-   needs none, and an FK to users would let account deletion cascade FOLLOW
-   rows away and corrupt the net counts. */
+/**
+ * Append-only log of follow/unfollow actions, kept because unfollowing
+ * hard-deletes the ArrangerFollower row: net follower growth over time can
+ * only be computed from this log. Deliberately has no userId — analytics
+ * needs none, and an FK to users would let account deletion cascade FOLLOW
+ * rows away and corrupt the net counts.
+ */
 model ArrangerFollowerEvent {
   id         String       @id @default(uuid())
   arrangerId String       @map("arranger_id")
