@@ -185,9 +185,9 @@ describe("OrganizationsService", () => {
       });
       prisma.arrangerFollower.findMany.mockResolvedValueOnce(followers);
 
-      await expect(service.getFollowers(pending.id, "owner-1")).resolves.toBe(
-        followers,
-      );
+      await expect(
+        service.getFollowers(pending.id, "owner-1"),
+      ).resolves.toEqual(followers);
       expect(prisma.arrangerFollower.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { arrangerId: "arranger-1" } }),
       );
