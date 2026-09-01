@@ -5,6 +5,7 @@ import { plainToInstance } from "class-transformer";
 import { getMetadataStorage, validateSync } from "class-validator";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { DEFAULT_SEARCH_PAGE_SIZE, MAX_PAGE_SIZE } from "./pagination";
 
 const SOURCE_ROOT = join(__dirname, "..");
 const BOUNDED_FIELDS = ["skip", "take"] as const;
@@ -163,6 +164,28 @@ describe.each(dtosDeclaringPageBounds())(
       );
     });
 
+    it.each(BOUNDED_FIELDS)("bounds %s at all", (field) => {
+      if (!validatedPropertiesOf(dto).has(field)) {
+        return;
+      }
+
+      expect(documented(field)?.schema?.minimum).toBeDefined();
+    });
+
+    it("bounds and defaults take at all", () => {
+      if (!validatedPropertiesOf(dto).has("take")) {
+        return;
+      }
+
+      const schema = documented("take")?.schema;
+
+      expect(schema?.maximum).toBeDefined();
+      expect(schema?.default).toBeDefined();
+      expect(
+        (plainToInstance(dto, {}) as Record<string, unknown>).take,
+      ).toBeDefined();
+    });
+
     it.each(BOUNDED_FIELDS)(
       "documents the %s a caller gets by not asking",
       (field) => {
@@ -179,3 +202,9 @@ describe.each(dtosDeclaringPageBounds())(
     );
   },
 );
+
+describe("the page a search endpoint answers with", () => {
+  it("is smaller than the cap that only stops a query from running unbounded", () => {
+    expect(DEFAULT_SEARCH_PAGE_SIZE).toBeLessThan(MAX_PAGE_SIZE);
+  });
+});
