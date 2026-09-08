@@ -12,7 +12,7 @@ import {
 } from "../generated/prisma/client";
 import { CreateEventDto, SearchEventDto, UpdateEventDto } from "./dto";
 import { ArrangerNotFoundException } from "../arrangers/exceptions";
-import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
+import { EVENT_ARRANGERS_INCLUDE } from "./event.select";
 import {
   EventNotFoundException,
   EventUpdateNotFoundException,
@@ -22,8 +22,7 @@ import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from "../generated/prisma/client";
 import { escapeHtml } from "../util/html";
-import { calculateEditDistance } from "../util/string";
-import { buildDescriptionSearchQuery } from "../util/search";
+import { buildDescriptionSearchQuery, sortByRelevance } from "../util/search";
 import {
   EventRegistrationMode,
   EventUpdateVisibility,
@@ -329,13 +328,7 @@ export class EventsService {
         featured: searchProps.featured,
       },
       include: {
-        eventArrangers: {
-          include: {
-            arranger: {
-              include: PUBLIC_ARRANGER_INCLUDE,
-            },
-          },
-        },
+        eventArrangers: EVENT_ARRANGERS_INCLUDE,
         eventCategories: {
           select: { category: { select: { name: true } } },
         },
@@ -366,19 +359,11 @@ export class EventsService {
     }));
 
     if (searchProps.title) {
-      return withGoingCount
-        .map((event) => {
-          const titleEditDistance = calculateEditDistance(
-            searchProps.title!,
-            event.title,
-          );
-          return {
-            event,
-            titleEditDistance,
-          };
-        })
-        .sort((a, b) => a.titleEditDistance - b.titleEditDistance)
-        .map((event) => event.event);
+      return sortByRelevance(
+        withGoingCount,
+        searchProps.title,
+        (event) => event.title,
+      );
     }
     return withGoingCount;
   }
@@ -394,13 +379,7 @@ export class EventsService {
     const event = await this.prisma.event.findUnique({
       where: { urlId: urlId },
       include: {
-        eventArrangers: {
-          include: {
-            arranger: {
-              include: PUBLIC_ARRANGER_INCLUDE,
-            },
-          },
-        },
+        eventArrangers: EVENT_ARRANGERS_INCLUDE,
         eventCategories: {
           include: {
             category: true,

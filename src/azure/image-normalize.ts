@@ -155,43 +155,6 @@ async function usesTransparency(
   }
 }
 
-/**
- * Downscales an image to something the frontend can actually serve.
- *
- * Uploads used to be stored exactly as they arrived. One profile picture in
- * production was a 9.2 MB, 5184x3456 camera original, displayed as a 200 px
- * avatar. Next's image optimizer has a time budget for fetching and resizing
- * the source, an 18-megapixel JPEG blows through it, and the browser gets a
- * 500 and renders a broken-image icon. The user sees a broken avatar with no
- * way to know why.
- *
- * The byte limit on upload does not prevent this and never could: it bounds
- * the compressed size, and the cost is in the decoded pixels. So bound the
- * pixels, here, once, on the way in.
- *
- * The output format follows the *content*, not the source format: an image
- * that uses transparency stays PNG, everything else becomes JPEG.
- *
- * Preserving the source format was the obvious first answer, and it was wrong.
- * A dry run over the 663 images in production found 480 of them stored as
- * PNG, and most of those are photographs: an event poster shot on a phone and
- * exported as PNG. Re-encoding a downscaled photograph back to PNG produced a
- * file *larger* than the original in 162 of the 426 cases, 23 MB of growth in
- * total. One event image went from 0.97 MB to 1.72 MB while shrinking in
- * pixels, which is a worse artefact on every axis that matters.
- *
- * Opacity rather than the presence of an alpha channel decides it. Plenty of
- * these photographs carry a fully opaque alpha channel their export tool added,
- * and treating that as "needs transparency" is what kept them in PNG. sharp's
- * `stats().isOpaque` answers the question that actually matters, so a logo with
- * real transparency stays PNG and a photograph does not.
- *
- * `rotate()` with no argument applies the EXIF orientation and drops the tag,
- * which also strips the rest of the EXIF block. That is a side effect worth
- * having - camera originals carry GPS coordinates - but it is not a reason to
- * touch anything: an image inside the limit keeps whatever metadata it came
- * with, because re-encoding it to strip a tag would cost more than the tag.
- */
 /** Refuses an image whose decoded size the caller cannot afford. */
 async function assertDecodable(input: Buffer, maxInputPixels: number) {
   const probe = await sharp(input, { limitInputPixels: false }).metadata();
@@ -265,6 +228,43 @@ async function encodeDownscaled(
   };
 }
 
+/**
+ * Downscales an image to something the frontend can actually serve.
+ *
+ * Uploads used to be stored exactly as they arrived. One profile picture in
+ * production was a 9.2 MB, 5184x3456 camera original, displayed as a 200 px
+ * avatar. Next's image optimizer has a time budget for fetching and resizing
+ * the source, an 18-megapixel JPEG blows through it, and the browser gets a
+ * 500 and renders a broken-image icon. The user sees a broken avatar with no
+ * way to know why.
+ *
+ * The byte limit on upload does not prevent this and never could: it bounds
+ * the compressed size, and the cost is in the decoded pixels. So bound the
+ * pixels, here, once, on the way in.
+ *
+ * The output format follows the *content*, not the source format: an image
+ * that uses transparency stays PNG, everything else becomes JPEG.
+ *
+ * Preserving the source format was the obvious first answer, and it was wrong.
+ * A dry run over the 663 images in production found 480 of them stored as
+ * PNG, and most of those are photographs: an event poster shot on a phone and
+ * exported as PNG. Re-encoding a downscaled photograph back to PNG produced a
+ * file *larger* than the original in 162 of the 426 cases, 23 MB of growth in
+ * total. One event image went from 0.97 MB to 1.72 MB while shrinking in
+ * pixels, which is a worse artefact on every axis that matters.
+ *
+ * Opacity rather than the presence of an alpha channel decides it. Plenty of
+ * these photographs carry a fully opaque alpha channel their export tool added,
+ * and treating that as "needs transparency" is what kept them in PNG. sharp's
+ * `stats().isOpaque` answers the question that actually matters, so a logo with
+ * real transparency stays PNG and a photograph does not.
+ *
+ * `rotate()` with no argument applies the EXIF orientation and drops the tag,
+ * which also strips the rest of the EXIF block. That is a side effect worth
+ * having - camera originals carry GPS coordinates - but it is not a reason to
+ * touch anything: an image inside the limit keeps whatever metadata it came
+ * with, because re-encoding it to strip a tag would cost more than the tag.
+ */
 export async function normalizeImage(
   input: Buffer,
   /* A decompression-bomb guard. Two images in production decode to 71.7 and

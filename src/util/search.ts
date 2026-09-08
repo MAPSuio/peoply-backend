@@ -1,3 +1,19 @@
+import { calculateEditDistance } from "./string";
+
+export function sortByRelevance<T>(
+  items: readonly T[],
+  query: string,
+  keyOf: (item: T) => string,
+): T[] {
+  return items
+    .map((item) => ({
+      item,
+      distance: calculateEditDistance(query, keyOf(item)),
+    }))
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ item }) => item);
+}
+
 /**
  * Turns free text from a query string into a Postgres `tsquery` expression.
  *
