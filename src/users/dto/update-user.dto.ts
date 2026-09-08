@@ -39,17 +39,5 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   @ApiProperty({ required: false })
-  allowEmailPromotions?: boolean;
-
-  @ToBoolean()
-  @IsBoolean()
-  @IsOptional()
-  @ApiProperty({ required: false })
   allowEmailFromArranger?: boolean;
-
-  @ToBoolean()
-  @IsBoolean()
-  @IsOptional()
-  @ApiProperty({ required: false })
-  allowEmailOnWaitlist?: boolean;
 }
