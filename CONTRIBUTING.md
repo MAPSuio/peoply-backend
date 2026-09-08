@@ -121,11 +121,29 @@ Work on a branch and open a pull request. Nothing is pushed straight to
 git checkout -b fix/thing-that-is-broken
 ```
 
+### Commit messages
+
+This section is the canonical one for both Peoply repositories. The frontend's
+`CONTRIBUTING.md` links here rather than keeping a second copy that drifts.
+
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/),
-checked by a `commit-msg` hook. The allowed types are `build`, `chore`, `ci`,
-`docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style` and `test`,
-optionally scoped (`fix(auth):`). Write the subject so it says what changed for
-a caller, not which file you touched.
+enforced by a `commit-msg` hook: a message that does not parse is rejected
+before the commit is created. Write the subject so it says what changed for a
+caller or a user, not which file you touched.
+
+```text
+feat(header): link to source code from the front page
+fix(pwa): stop the service worker precaching a 404
+feat(api)!: drop the v1 endpoints
+```
+
+The allowed types are `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`,
+`refactor`, `revert`, `style` and `test`. The scope is optional (`fix(auth):`),
+and `!` before the colon marks a breaking change.
+
+The type must be lowercase. The subject need not be: `fix: API returns 500` is
+fine, because a rule that rejects it would reject naming `API`, `SWR` or `Vipps`
+first in the sentence.
 
 Merge, revert and `fixup!`/`squash!` messages are exempt, so `git merge` and
 `git commit --fixup` are unaffected. `git commit --no-verify` skips the check.
