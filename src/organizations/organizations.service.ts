@@ -16,12 +16,11 @@ import {
 import { OrganizationDoesNotExistException } from "./exceptions";
 import { OrganizationRole } from "../generated/prisma/client";
 import { EventArrangerRole, Organization } from "../generated/prisma/client";
-import { buildDescriptionSearchQuery } from "../util/search";
+import { buildDescriptionSearchQuery, sortByRelevance } from "../util/search";
 import { PUBLIC_USER_PROFILE_SELECT } from "../users/user.select";
 import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
-import { calculateEditDistance } from "../util/string";
 import { createUuid, isUUID } from "../util/uuid";
 import { DiscordAlertService } from "../discord/discord-alert.service";
 import { toDiscordFieldValue } from "../discord/discord-field";
@@ -124,19 +123,7 @@ export class OrganizationsService {
     });
 
     if (searchProps.name) {
-      return orgs
-        .map((org) => {
-          const nameEditDistance = calculateEditDistance(
-            searchProps.name!,
-            org.name,
-          );
-          return {
-            org,
-            nameEditDistance,
-          };
-        })
-        .sort((a, b) => a.nameEditDistance - b.nameEditDistance)
-        .map((org) => org.org);
+      return sortByRelevance(orgs, searchProps.name, (org) => org.name);
     }
 
     return orgs;

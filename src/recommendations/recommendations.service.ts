@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
+import { EVENT_ARRANGERS_INCLUDE } from "../events/event.select";
 import { EventVisibility, RegStatus } from "../generated/prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { ALL_ROWS } from "../util/pagination";
@@ -60,9 +60,7 @@ export class RecommendationsService {
           },
         },
         include: {
-          eventArrangers: {
-            include: { arranger: { include: PUBLIC_ARRANGER_INCLUDE } },
-          },
+          eventArrangers: EVENT_ARRANGERS_INCLUDE,
           eventCategories: {
             select: { categoryId: true, category: { select: { name: true } } },
           },

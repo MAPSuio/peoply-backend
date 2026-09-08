@@ -35,7 +35,7 @@ import { UsersService } from "../users/services";
 import { extractRequestOrigin } from "./auth-origin";
 import { CreateUserDto } from "../users/dto";
 import { takeLinkUserId, takePendingLink } from "./link-session";
-import { isLoopbackAddress } from "./local-auth";
+import { isLocalAuthEnabled, isLoopbackAddress } from "./local-auth";
 import { OidcResolution } from "./strategies/oidc";
 import { withoutRefreshTokenId } from "../users/user.response";
 import {
@@ -51,13 +51,6 @@ export class AuthController {
     private usersService: UsersService,
     private accessSession: AccessSessionService,
   ) {}
-
-  private isLocalAuthEnabled() {
-    return (
-      this.configService.get<boolean>("LOCAL_AUTH_ENABLED") === true &&
-      process.env.NODE_ENV !== "production"
-    );
-  }
 
   private isLocalRequest(req: Request) {
     // The peer address is the one thing here the caller cannot choose: Host,
@@ -90,7 +83,7 @@ export class AuthController {
   }
 
   private assertLocalAuthRequest(req: Request) {
-    if (!this.isLocalAuthEnabled() || !this.isLocalRequest(req)) {
+    if (!isLocalAuthEnabled(this.configService) || !this.isLocalRequest(req)) {
       throw new NotFoundException();
     }
   }

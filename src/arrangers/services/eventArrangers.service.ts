@@ -5,7 +5,7 @@ import {
 } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
-import { PUBLIC_ARRANGER_INCLUDE } from "../arranger.select";
+import { EVENT_ARRANGERS_INCLUDE } from "../../events/event.select";
 import { ALL_ROWS, MAX_PAGE_SIZE, pageBoundsOf } from "../../util/pagination";
 import { PaginationDto } from "../../util/pagination.dto";
 
@@ -70,13 +70,7 @@ export class EventArrangersService {
       include: {
         event: {
           include: {
-            eventArrangers: {
-              include: {
-                arranger: {
-                  include: PUBLIC_ARRANGER_INCLUDE,
-                },
-              },
-            },
+            eventArrangers: EVENT_ARRANGERS_INCLUDE,
           },
         },
       },

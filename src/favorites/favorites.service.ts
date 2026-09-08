@@ -8,7 +8,7 @@ import {
 } from "../event-access/event-access.service";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
 import { eventCardInclude } from "../events/event.select";
-import { DEFAULT_SEARCH_PAGE_SIZE } from "../util/pagination";
+import { searchPageOptionsOf } from "../util/pagination";
 
 @Injectable()
 export class FavoritesService {
@@ -55,12 +55,8 @@ export class FavoritesService {
   }
 
   async findAll(searchProps: SearchFavoritesDto, userId: string) {
-    const {
-      skip = 0,
-      take = DEFAULT_SEARCH_PAGE_SIZE,
-      orderBy = "updatedAt",
-      orderDirection = "asc",
-    } = searchProps;
+    const { skip, take, orderBy, orderDirection } =
+      searchPageOptionsOf(searchProps);
 
     const favorites = await this.prismaService.favorite.findMany({
       skip,
