@@ -32,7 +32,6 @@ describe("EventInvitationsService — invitation revocation", () => {
   let service: EventInvitationsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     trx.event.findUnique.mockResolvedValue(futureEvent);
     trx.user.findUnique.mockResolvedValue({ id: "user-1" });
     registration.updateMany.mockResolvedValue({ count: 1 });

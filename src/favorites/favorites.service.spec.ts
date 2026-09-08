@@ -12,7 +12,6 @@ describe("FavoritesService", () => {
   let service: FavoritesService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prismaService.favorite.create.mockResolvedValue({
       eventId: "event-1",
       userId: "user-1",

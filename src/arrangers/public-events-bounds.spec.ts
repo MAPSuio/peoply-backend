@@ -11,7 +11,6 @@ describe("EventArrangersService.findAllPublicWithEvents bounds", () => {
   let service: EventArrangersService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     findMany.mockResolvedValue([]);
     service = new EventArrangersService(prisma);
   });

@@ -38,7 +38,6 @@ describe("IsArrangerInterceptor", () => {
     );
 
   beforeEach(() => {
-    jest.clearAllMocks();
     req = { cookies: { access: "token" }, params: { id: "event-1" } };
     interceptor = new IsArrangerInterceptor(
       accessSession,

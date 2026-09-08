@@ -76,9 +76,7 @@ describe("McpServerFactory", () => {
     return { client, server };
   }
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  afterEach(() => {});
 
   /* Every tool here used to read its whole list and slice the page out in
      memory, so `skip`/`take` bounded the answer but never the query. The
