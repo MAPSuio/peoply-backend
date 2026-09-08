@@ -12,7 +12,10 @@ import {
   RegStatus,
 } from "../../generated/prisma/client";
 import { EventAccessService } from "../../event-access/event-access.service";
-import { eventCardInclude } from "../../events/event.select";
+import {
+  eventCardInclude,
+  moveGoingCountOntoEvent,
+} from "../../events/event.select";
 import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
@@ -126,6 +129,8 @@ export class UserRegistrationService extends CommonRegistrationService {
         [orderBy]: orderDirection,
       },
     });
+
+    moveGoingCountOntoEvent(registrations);
 
     return this.redactUnviewableEvents(registrations, userId);
   }
