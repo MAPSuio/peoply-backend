@@ -17,9 +17,7 @@ const SENSITIVE_USER_FIELDS = [
   "phone",
   "birthDate",
   "foodPreference",
-  "allowEmailPromotions",
   "allowEmailFromArranger",
-  "allowEmailOnWaitlist",
   "refreshTokenId",
 ];
 

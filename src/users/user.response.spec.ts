@@ -10,7 +10,6 @@ describe("withoutRefreshTokenId", () => {
     phone: "+4712345678",
     birthDate: new Date("1815-12-10"),
     foodPreference: "VEGETARIAN",
-    allowEmailPromotions: true,
     image: null,
     arrangerId: "arr-1",
     refreshTokenId: "session-handle-abc",
