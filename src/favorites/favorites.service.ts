@@ -113,14 +113,6 @@ export class FavoritesService {
     return favorites;
   }
 
-  async findOne(userId: string, eventId: string) {
-    return await this.prismaService.favorite.findUnique({
-      where: {
-        eventId_userId: { eventId, userId },
-      },
-    });
-  }
-
   async remove(userId: string, eventId: string) {
     // The catch this replaces had no condition at all: every failure became
     // "favorite does not exist", so a dropped connection reported 404.

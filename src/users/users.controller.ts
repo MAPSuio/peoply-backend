@@ -221,21 +221,6 @@ export class UsersController {
   }
 
   @UseGuards(UserIdVerificationGuard)
-  @Get(":userId/favorites/:eventId")
-  async getSpecificFavorite(
-    @Param("userId") userId: string,
-    @Param("eventId") eventId: string,
-    @Res({ passthrough: true }) res: Response, //passthrough is enabeled to allow both express and nestjs(next) handlers
-  ) {
-    const favorite = await this.userFavoritesService.findOne(userId, eventId);
-
-    if (!favorite) {
-      res.status(HttpStatus.NO_CONTENT);
-    }
-    return favorite;
-  }
-
-  @UseGuards(UserIdVerificationGuard)
   @Delete(":userId/favorites")
   async deleteFavorite(@Body() dto: UuidDto, @Param("userId") userId: string) {
     return await this.userFavoritesService.remove(userId, dto.id);
