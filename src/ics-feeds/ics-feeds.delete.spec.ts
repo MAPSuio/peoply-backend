@@ -21,7 +21,6 @@ describe("IcsFeedsService.deleteOrganizationFeed", () => {
   let service: IcsFeedsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     event.updateMany.mockResolvedValue({ count: 0 });
     organizationIcsFeed.delete.mockResolvedValue({ id: "feed-1" });
     service = new IcsFeedsService(

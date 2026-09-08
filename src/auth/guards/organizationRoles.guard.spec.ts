@@ -18,7 +18,6 @@ describe("OrganizationRolesGuard", () => {
   let guard: OrganizationRolesGuard;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     guard = new OrganizationRolesGuard(
       reflector,
       organizationsService,

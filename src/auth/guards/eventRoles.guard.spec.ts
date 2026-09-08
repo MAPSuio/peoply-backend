@@ -38,7 +38,6 @@ describe("EventRolesGuard", () => {
     } as unknown as ExecutionContext);
 
   beforeEach(() => {
-    jest.clearAllMocks();
     delete request.eventArrangerRole;
     accessSession.userFromRequest.mockResolvedValue(user);
     eventAccess.arrangerRoleFor.mockResolvedValue(EventArrangerRole.ADMIN);

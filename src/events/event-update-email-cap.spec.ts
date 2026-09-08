@@ -28,7 +28,6 @@ describe("EventsService.sendUpdateToEvent — the daily email cap", () => {
   } as any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     eventUpdate.count.mockResolvedValue(0);
     eventUpdate.create.mockResolvedValue({ id: "update-1" });
     registration.findMany.mockResolvedValue([

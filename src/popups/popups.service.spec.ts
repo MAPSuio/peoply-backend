@@ -22,7 +22,6 @@ describe("PopupsService", () => {
   let service: PopupsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new PopupsService(prisma as any);
   });
 

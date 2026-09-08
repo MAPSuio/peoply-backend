@@ -28,7 +28,6 @@ describe("IcsFeedsService", () => {
   let service: IcsFeedsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new IcsFeedsService(
       prisma,
       organizationsService,

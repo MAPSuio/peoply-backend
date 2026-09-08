@@ -144,16 +144,16 @@ describe.each(dtosDeclaringPageBounds())(
       parameters = await documentedQueryParameters(dto);
     });
 
+    const boundedFieldsOf = BOUNDED_FIELDS.filter((field) =>
+      validatedPropertiesOf(dto).has(field),
+    );
+
     const documented = (field: string) =>
       parameters.find(
         (candidate) => candidate.name === field && candidate.in === "query",
       );
 
-    it.each(BOUNDED_FIELDS)("documents the bounds on %s", (field) => {
-      if (!validatedPropertiesOf(dto).has(field)) {
-        return;
-      }
-
+    it.each(boundedFieldsOf)("documents the bounds on %s", (field) => {
       const parameter = documented(field);
       expect(parameter).toBeDefined();
       expect(parameter?.schema?.maximum).toBe(
@@ -164,19 +164,13 @@ describe.each(dtosDeclaringPageBounds())(
       );
     });
 
-    it.each(BOUNDED_FIELDS)("bounds %s at all", (field) => {
-      if (!validatedPropertiesOf(dto).has(field)) {
-        return;
-      }
-
+    it.each(boundedFieldsOf)("bounds %s at all", (field) => {
       expect(documented(field)?.schema?.minimum).toBeDefined();
     });
 
-    it("bounds and defaults take at all", () => {
-      if (!validatedPropertiesOf(dto).has("take")) {
-        return;
-      }
+    const itTake = boundedFieldsOf.includes("take") ? it : it.skip;
 
+    itTake("bounds and defaults take at all", () => {
       const schema = documented("take")?.schema;
 
       expect(schema?.maximum).toBeDefined();
@@ -186,13 +180,9 @@ describe.each(dtosDeclaringPageBounds())(
       ).toBeDefined();
     });
 
-    it.each(BOUNDED_FIELDS)(
+    it.each(boundedFieldsOf)(
       "documents the %s a caller gets by not asking",
       (field) => {
-        if (!validatedPropertiesOf(dto).has(field)) {
-          return;
-        }
-
         const resolved = (plainToInstance(dto, {}) as Record<string, unknown>)[
           field
         ];

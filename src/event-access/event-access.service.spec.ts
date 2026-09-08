@@ -40,7 +40,6 @@ describe("EventAccessService", () => {
     );
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new EventAccessService(prisma);
     prisma.userOrganizationRole.findMany.mockResolvedValue([]);
     prisma.eventArranger.findFirst.mockResolvedValue(null);

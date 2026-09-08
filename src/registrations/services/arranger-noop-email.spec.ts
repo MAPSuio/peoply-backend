@@ -15,7 +15,6 @@ describe("ArrangerRegistrationService.update — mail on no-op", () => {
   let updateRegistration: jest.SpyInstance;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prisma.user.findUnique.mockResolvedValue({
       email: "offer@example.no",
       allowEmailFromArranger: true,

@@ -64,7 +64,6 @@ describe("EventsService", () => {
   let coOrganizerInvitationsService: EventCoOrganizerInvitationsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof prisma) => unknown) => callback(prisma),
     );

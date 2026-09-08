@@ -1,19 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MODELS_WHOSE_ROWS_GRANT_ACCESS } from "./pagination";
+import { shippedSourceFilesUnder } from "../test-support/source-files";
 
 const SOURCE_ROOT = path.resolve(__dirname, "..");
-
-function sourceFilesUnder(directory: string): string[] {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      return entry.name === "generated" ? [] : sourceFilesUnder(entryPath);
-    }
-    const isTest = entry.name.endsWith(".spec.ts");
-    return entry.name.endsWith(".ts") && !isTest ? [entryPath] : [];
-  });
-}
 
 function argumentsOfCallAt(source: string, openingParenthesis: number): string {
   let depth = 0;
@@ -54,7 +44,7 @@ function accessQueriesWithoutARowBound(): string[] {
   const guarded = new Set<string>(MODELS_WHOSE_ROWS_GRANT_ACCESS);
   const callPattern = /\.(\w+)\.findMany\(/g;
 
-  return sourceFilesUnder(SOURCE_ROOT).flatMap((file) => {
+  return shippedSourceFilesUnder(SOURCE_ROOT).flatMap((file) => {
     const source = fs.readFileSync(file, "utf8");
 
     return [...source.matchAll(callPattern)]

@@ -31,7 +31,6 @@ describe("McpApiKeyService", () => {
   const service = new McpApiKeyService(prisma, config);
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prisma.$transaction.mockImplementation((callback: any) => callback(prisma));
   });
 

@@ -48,7 +48,6 @@ describe("IcsParserService", () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new IcsParserService();
   });
 

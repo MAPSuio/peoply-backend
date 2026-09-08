@@ -28,7 +28,6 @@ describe("FollowService", () => {
   let service: FollowService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prisma.$transaction.mockImplementation((ops: unknown[]) =>
       Promise.all(ops),
     );

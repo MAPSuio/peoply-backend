@@ -68,7 +68,6 @@ describe("RecommendationsService", () => {
   let service: RecommendationsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prisma.registration.findMany.mockResolvedValue([]);
     prisma.favorite.findMany.mockResolvedValue([]);
     prisma.arrangerFollower.findMany.mockResolvedValue([]);

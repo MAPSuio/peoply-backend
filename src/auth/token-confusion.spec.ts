@@ -41,7 +41,6 @@ describe("access/refresh token confusion", () => {
     let accessSession: AccessSessionService;
 
     beforeEach(() => {
-      jest.clearAllMocks();
       usersService.findById.mockResolvedValue(user);
       accessSession = new AccessSessionService(jwtService, usersService);
     });

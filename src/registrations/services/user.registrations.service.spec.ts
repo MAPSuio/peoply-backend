@@ -134,7 +134,6 @@ describe("UserRegistrationService.create", () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
     prismaService.$transaction.mockImplementation(
       (callback: (client: typeof prismaService) => unknown) =>
         callback(prismaService),

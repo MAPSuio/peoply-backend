@@ -92,7 +92,6 @@ describe("AuthController OIDC callback linking", () => {
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
     accessSession.userFromRequest.mockResolvedValue({ id: "linker-1" });
     (usersService.ensureRefreshTokenId as jest.Mock).mockResolvedValue(user);
     (usersService.findByEmail as jest.Mock).mockResolvedValue(null);

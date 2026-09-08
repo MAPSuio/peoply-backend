@@ -14,7 +14,6 @@ describe("LocationSearchService", () => {
   let service: LocationSearchService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new LocationSearchService(
       config as any,
       enturProvider as any,

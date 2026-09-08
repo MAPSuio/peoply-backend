@@ -18,7 +18,6 @@ describe("ModeratorGuard", () => {
     }) as unknown as ExecutionContext;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     guard = new ModeratorGuard(accessSession);
     delete process.env.MODERATOR_EMAILS;
   });
