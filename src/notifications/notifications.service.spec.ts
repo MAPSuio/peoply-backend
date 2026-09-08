@@ -26,7 +26,6 @@ describe("NotificationsService.findAllPendingByUserId", () => {
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
     eventInvitations.findAllPendingInvitationsToUser.mockResolvedValue([]);
     organizationInvitations.findAllPendingInvitationsToUser.mockResolvedValue(
       [],

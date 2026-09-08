@@ -61,7 +61,6 @@ describe("AuthController session cookies", () => {
   );
 
   beforeEach(() => {
-    jest.clearAllMocks();
     /* clearAllMocks clears calls but keeps implementations, so the two tests
        that install their own would otherwise leak into the ones after them. */
     (authService.assertTrustedOrigin as jest.Mock).mockImplementation(

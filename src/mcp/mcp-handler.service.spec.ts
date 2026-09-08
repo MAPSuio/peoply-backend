@@ -22,10 +22,6 @@ describe("McpHandlerService", () => {
     await service.onModuleDestroy();
   });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it("rejects an untrusted Host header before authenticating", async () => {
     const response = responseMock();
 

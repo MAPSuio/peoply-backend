@@ -20,7 +20,6 @@ describe("FeedbackService", () => {
   let service: FeedbackService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new FeedbackService(prisma as any, discordAlert as any);
   });
 

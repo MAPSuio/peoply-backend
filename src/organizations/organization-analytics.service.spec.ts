@@ -60,7 +60,6 @@ describe("OrganizationAnalyticsService", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
     jest.useFakeTimers({ now: NOW });
     emptyMocks();
     service = new OrganizationAnalyticsService(

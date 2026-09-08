@@ -43,7 +43,6 @@ describe("OrganizationsService", () => {
   let service: OrganizationsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     discordAlert.isConfigured = true;
     service = new OrganizationsService(
       prisma as any,
