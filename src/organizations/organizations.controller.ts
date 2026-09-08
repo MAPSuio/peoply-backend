@@ -25,12 +25,9 @@ import {
   OrganizationRole,
   User,
 } from "../generated/prisma/client";
-import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
+import { RequireOrgRole } from "../auth/require-org-role";
 import { EventArrangersService } from "../arrangers/services";
-import {
-  OrganizationRolesGuard,
-  UserIdVerificationGuard,
-} from "../auth/guards";
+import { UserIdVerificationGuard } from "../auth/guards";
 import { CreateOrganizationInvitationDto } from "../invitations/dto/create-organizationInvitation.dto";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { OrganizationInvitationDoesNotExistException } from "../invitations/exceptions/organizationInvitationDoesNotExistException.exception";
@@ -112,8 +109,7 @@ export class OrganizationsController {
     return this.organizationsService.findByRefOrThrow(orgId);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @UseInterceptors(
     FileInterceptor("orgImage", imageUploadOptionsFor(UpdateOrganizationDto)),
   )
@@ -141,8 +137,7 @@ export class OrganizationsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.OWNER)
   @Delete("/:orgId")
   async delete(@Req() req: any, @Param("orgId") orgId: string) {
     /* delete organization
@@ -241,8 +236,7 @@ export class OrganizationsController {
     return res.status(200).send(calendar);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Post("/:orgId/invitations")
   async sendInvitations(
     @Req() req: any,
@@ -266,8 +260,7 @@ export class OrganizationsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Patch("/:orgId/roles")
   async changeUserRole(
     @Req() req: any,
@@ -311,8 +304,7 @@ export class OrganizationsController {
     return await this.organizationsService.changeUserRole(orgId, changeRoleDto);
   }
 
-  @OrganizationRoles(OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.OWNER)
   @Patch("/:orgId/owner")
   async changeOwner(
     @Req() req: any,
@@ -415,12 +407,11 @@ export class OrganizationsController {
   /* Aggregates only — the response never carries user ids, which is what
      makes it safe to serve to plain members while the follower list stays
      admin/owner-only. */
-  @OrganizationRoles(
+  @RequireOrgRole(
     OrganizationRole.OWNER,
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
   )
-  @UseGuards(OrganizationRolesGuard)
   @Get(":orgId/analytics")
   async getAnalytics(
     @Req() req: any,
@@ -434,12 +425,11 @@ export class OrganizationsController {
     );
   }
 
-  @OrganizationRoles(
+  @RequireOrgRole(
     OrganizationRole.OWNER,
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
   )
-  @UseGuards(OrganizationRolesGuard)
   @Get(":orgId/members")
   async getMembers(@Req() req: any, @Param("orgId") orgId: string) {
     /* get events for organization
@@ -453,12 +443,11 @@ export class OrganizationsController {
     return organization?.organizationRoles;
   }
 
-  @OrganizationRoles(
+  @RequireOrgRole(
     OrganizationRole.OWNER,
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
   )
-  @UseGuards(OrganizationRolesGuard)
   @Delete(":orgId/members/:userId")
   async deleteMember(
     @Req() req: any,
@@ -510,8 +499,7 @@ export class OrganizationsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.OWNER, OrganizationRole.ADMIN)
   @Get(":orgId/followers")
   async getFollowers(@Req() req: any, @Param("orgId") orgId: string) {
     return this.organizationsService.getFollowers(orgId, req.user.id);

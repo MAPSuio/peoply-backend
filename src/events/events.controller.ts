@@ -25,14 +25,13 @@ import {
   Req,
   UnauthorizedException,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { imageUploadOptionsFor } from "../azure/image-upload";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
+import { RequireEventRole } from "../auth/require-event-role";
 import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
-import { EventRolesGuard } from "../auth/guards/eventRoles.guard";
 import { IsArrangerInterceptor } from "../auth/interceptors/isArranger.interceptor";
 import { UpdateInvitationDto } from "../invitations/dto/update-invitation.dto";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
@@ -139,8 +138,7 @@ export class EventsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Patch(":id")
   @UseInterceptors(
     FileInterceptor("eventImage", imageUploadOptionsFor(UpdateEventDto)),
@@ -173,18 +171,16 @@ export class EventsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   /* Deleting cascades to every registration on the event. A co-organizer was
      invited to help run it, not to be able to destroy someone else's. */
   @EventArrangerRoles(EventArrangerRole.ADMIN)
-  @UseGuards(EventRolesGuard)
   @Delete(":id")
   async remove(@Param("id", ParseUUIDPipe) id: string) {
     return this.eventsService.remove(id);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Get(":id/registrations")
   async getRegistrations(
     @Query() query: SearchEventRegistrationDto,
@@ -209,8 +205,7 @@ export class EventsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Post(":id/invitations")
   async sendInvitations(
     @Req() req: any,
@@ -242,8 +237,7 @@ export class EventsController {
     return this.eventInvitationsService.createInvitations(id, user.id, userIds);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Get(":id/invitations")
   async getInvitations(@Param("id") id: string) {
     return this.eventInvitationsService.findAllInvitationsForEventIncludingUsers(
@@ -299,8 +293,7 @@ export class EventsController {
     }
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Patch(":id/registrations/:userId")
   async updateUserRegistration(
     @Req() req: any,
@@ -311,8 +304,7 @@ export class EventsController {
     return this.arrangerRegistrationService.update(userId, eventId, updateDTO);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Delete(":id/registrations/:userId")
   async deleteUserRegistration(
     @Req() req: any,
@@ -322,8 +314,7 @@ export class EventsController {
     return this.arrangerRegistrationService.remove(eventId, userId);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Post(":id/update")
   async sendUpdate(
     @Req() req: any,
@@ -350,8 +341,7 @@ export class EventsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Delete(":id/update/:updateId")
   async deleteUpdate(
     @Req() req: any,
@@ -362,9 +352,8 @@ export class EventsController {
   }
 
   /** Every co-organizer invitation on this event, for the event's own admins. */
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
+  @RequireEventRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @EventArrangerRoles(EventArrangerRole.ADMIN)
-  @UseGuards(EventRolesGuard)
   @Get(":id/coorganizer-invitations")
   async getCoOrganizerInvitations(@Param("id") id: string) {
     return this.coOrganizerInvitationsService.findAllForEvent(id);
