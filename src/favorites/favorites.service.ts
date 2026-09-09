@@ -7,7 +7,10 @@ import {
   VIEW_GRANTING_REG_STATUSES,
 } from "../event-access/event-access.service";
 import { SearchFavoritesDto } from "./dto/search-favorites.dto";
-import { eventCardInclude } from "../events/event.select";
+import {
+  eventCardInclude,
+  moveGoingCountOntoEvent,
+} from "../events/event.select";
 import { DEFAULT_SEARCH_PAGE_SIZE } from "../util/pagination";
 
 @Injectable()
@@ -76,6 +79,8 @@ export class FavoritesService {
       },
     });
 
+    moveGoingCountOntoEvent(favorites);
+
     /* A favourite carries no status of its own, so it never expires the way a
        registration does - which made it the longer-lived of the two handles
        into an event the user can no longer see. Favouriting while INVITED and
@@ -106,14 +111,6 @@ export class FavoritesService {
     }
 
     return favorites;
-  }
-
-  async findOne(userId: string, eventId: string) {
-    return await this.prismaService.favorite.findUnique({
-      where: {
-        eventId_userId: { eventId, userId },
-      },
-    });
   }
 
   async remove(userId: string, eventId: string) {
