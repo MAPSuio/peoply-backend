@@ -17,7 +17,7 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
-import { ALL_ROWS, DEFAULT_SEARCH_PAGE_SIZE } from "../../util/pagination";
+import { ALL_ROWS, searchPageOptionsOf } from "../../util/pagination";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
@@ -105,12 +105,8 @@ export class UserRegistrationService extends CommonRegistrationService {
   }
 
   async findAll(searchProps: SearchUserRegistrationDto, userId: string) {
-    const {
-      skip = 0,
-      take = DEFAULT_SEARCH_PAGE_SIZE,
-      orderBy = "updatedAt",
-      orderDirection = "asc",
-    } = searchProps;
+    const { skip, take, orderBy, orderDirection } =
+      searchPageOptionsOf(searchProps);
 
     const registrations = await this.prismaService.registration.findMany({
       skip,

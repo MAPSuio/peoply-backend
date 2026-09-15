@@ -31,6 +31,27 @@ export const DEFAULT_SEARCH_PAGE_SIZE = 10;
  */
 export const ALL_ROWS = undefined;
 
+export type SearchPageOptions = {
+  skip: number;
+  take: number;
+  orderBy: string;
+  orderDirection: "asc" | "desc";
+};
+
+export function searchPageOptionsOf(searchProps: {
+  skip?: number;
+  take?: number;
+  orderBy?: string;
+  orderDirection?: "asc" | "desc";
+}): SearchPageOptions {
+  return {
+    skip: searchProps.skip ?? 0,
+    take: searchProps.take ?? DEFAULT_SEARCH_PAGE_SIZE,
+    orderBy: searchProps.orderBy ?? "updatedAt",
+    orderDirection: searchProps.orderDirection ?? "asc",
+  };
+}
+
 /**
  * Models whose rows are what grant a user access to something. A truncated
  * read of one of these does not answer slowly, it answers wrongly: the member

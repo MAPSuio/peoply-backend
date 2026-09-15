@@ -13,7 +13,16 @@
  * The peer address of the TCP connection is not a header and cannot be set by
  * the client, so that is what is checked here instead.
  */
+import { ConfigService } from "@nestjs/config";
+
 const LOOPBACK_IPV4_PREFIX = "127.";
+
+export function isLocalAuthEnabled(configService: ConfigService): boolean {
+  return (
+    configService.get<boolean>("LOCAL_AUTH_ENABLED") === true &&
+    process.env.NODE_ENV !== "production"
+  );
+}
 
 export function isLoopbackAddress(address: string | undefined | null) {
   if (!address) return false;

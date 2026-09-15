@@ -1,6 +1,10 @@
 import { Prisma } from "../generated/prisma/client";
 import { PUBLIC_ARRANGER_INCLUDE } from "../arrangers/arranger.select";
 
+export const EVENT_ARRANGERS_INCLUDE = {
+  include: { arranger: { include: PUBLIC_ARRANGER_INCLUDE } },
+} satisfies Prisma.Event$eventArrangersArgs;
+
 /**
  * The shape an event takes when it rides along on a row in someone's own list
  * — `GET /users/:userId/favorites` and `GET /users/:userId/registrations` —
@@ -23,7 +27,7 @@ export function eventCardInclude(flags: {
   return {
     include: {
       eventArrangers: flags.includeArrangers
-        ? { include: { arranger: { include: PUBLIC_ARRANGER_INCLUDE } } }
+        ? EVENT_ARRANGERS_INCLUDE
         : (false as const),
     } satisfies Prisma.EventInclude,
   };

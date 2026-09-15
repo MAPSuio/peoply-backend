@@ -5,6 +5,7 @@ import { User } from "../generated/prisma/client";
 import { CookieOptions } from "express";
 import { extractRequestOrigin, parseTrustedOrigins } from "./auth-origin";
 import { getTokenExpirySeconds } from "./token-expiry";
+import { isLocalAuthEnabled } from "./local-auth";
 
 @Injectable()
 export class AuthService {
@@ -12,13 +13,6 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
-
-  private isLocalAuthEnabled() {
-    return (
-      this.configService.get<boolean>("LOCAL_AUTH_ENABLED") === true &&
-      process.env.NODE_ENV !== "production"
-    );
-  }
 
   /**
    * Whether the deployment is *positively known* to be plaintext, read from
@@ -49,7 +43,8 @@ export class AuthService {
        stop the cookie being stored at all. LOCAL_AUTH_ENABLED alone did not
        establish that - it is a feature flag, and an https staging box with it
        on was handed cookies with no `Secure` at all. */
-    return this.isLocalAuthEnabled() && this.isPlaintextDeployment()
+    return isLocalAuthEnabled(this.configService) &&
+      this.isPlaintextDeployment()
       ? {
           sameSite: "lax",
           httpOnly: true,
