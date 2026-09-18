@@ -7,8 +7,8 @@ import { RolesNotFoundException } from "../exceptions/rolesNotFound.exception";
 import { isUUID } from "../../util/uuid";
 
 /*
-  To use this guard, one must also specify which org roles that can access, e.g. ADMIN. This is done by adding the decorator @OrganizationRoles(OrganizationRole.ADMIN) to the controller method, before the @UseGuards(OrganizationRolesGuard). This example uses the ADMIN role, but other or more roles can be added.
-  Requires orgId to be in the request params.
+  Reached through RequireOrgRole, which names the roles and applies this guard
+  as one decorator. Requires orgId to be in the request params.
 */
 @Injectable()
 export class OrganizationRolesGuard implements CanActivate {
