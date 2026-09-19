@@ -85,6 +85,23 @@ describe("UserRegistrationService.updateAllRegistrationsOfUserToNotGoing", () =>
     ]);
   });
 
+  it("logs a rejection that is not an Error without losing it", async () => {
+    prisma.registration.findMany.mockResolvedValueOnce([
+      { eventId: "event-1" },
+    ]);
+    updateRegistration.mockRejectedValueOnce("the event vanished mid-release");
+
+    const warn = jest.spyOn(Logger.prototype, "warn");
+
+    await expect(
+      service.updateAllRegistrationsOfUserToNotGoing("user-1"),
+    ).resolves.toBeUndefined();
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("the event vanished mid-release"),
+    );
+  });
+
   it("logs and continues when one registration cannot be released", async () => {
     prisma.registration.findMany.mockResolvedValueOnce([
       { eventId: "event-1" },
