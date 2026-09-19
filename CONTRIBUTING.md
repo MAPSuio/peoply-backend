@@ -155,11 +155,22 @@ Run these before pushing. A red check blocks both merge and deploy.
 ```bash
 npx prisma migrate deploy   # schema must be current
 npm test                    # Jest
+npm run test:cov            # Jest with the coverage thresholds CI enforces
 npm run lint                # Biome
 npm run build               # tsc -p tsconfig.build.json
 npm run test:smoke          # boots the built app and checks it responds
 npm run test:database-tls   # connects over TLS; needs Docker
 ```
+
+### The coverage gate on registrations
+
+`coverageThreshold` in `package.json` demands 100 % statements, branches,
+functions and lines under `src/registrations`. Registration and waitlist logic
+decides who holds a seat and who waits for one, and a lost promotion is
+invisible until an attendee complains, so a new branch there has to arrive with
+a test rather than with a follow-up issue. `unit-tests.yml` runs `npm run
+test:cov`, so the threshold is what fails the check — the rest of the codebase
+has no threshold and is unaffected.
 
 `npm run lint:fix` applies Biome's fixes. `npm run build` compiles and nothing
 else — it used to migrate and seed whatever `DATABASE_URL` pointed at, which is
