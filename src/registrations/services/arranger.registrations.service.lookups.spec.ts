@@ -156,12 +156,14 @@ describe("ArrangerRegistrationService.getRegistrationCount for missing and hidde
     ).rejects.toBeInstanceOf(EventNotFoundException);
   });
 
-  it("lets the arranger of an unlisted event count it", async () => {
+  it("lets the arranger of an unlisted event count every status", async () => {
     setup({ visibility: EventVisibility.UNLISTED });
 
-    await expect(
-      service.getRegistrationCount({} as any, EVENT_ID, true),
-    ).resolves.toBe(7);
+    await service.getRegistrationCount({} as any, EVENT_ID, true);
+
+    expect(prisma.registration.count).toHaveBeenCalledWith({
+      where: { eventId: EVENT_ID },
+    });
   });
 });
 

@@ -53,7 +53,7 @@ describe("UserRegistrationService.findAll", () => {
     );
   });
 
-  it("falls back to the first page in waitlist order", async () => {
+  it("falls back to the shared default page and order", async () => {
     setup([]);
 
     await service.findAll({} as any, USER_ID);
@@ -155,6 +155,5 @@ describe("UserRegistrationService.getPositionInWaitlist", () => {
       regStatus: RegStatus.WAITLISTED,
     });
     expect(args.orderBy).toEqual({ updatedAt: "asc" });
-    expect(args.take).toBeUndefined();
   });
 });

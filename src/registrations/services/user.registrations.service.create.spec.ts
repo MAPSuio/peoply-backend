@@ -31,9 +31,12 @@ const aGoingRegistration = (userId: string) => ({
   regStatus: RegStatus.GOING,
 });
 
+const afterTheEventLoopTurns = () =>
+  new Promise((resolve) => setImmediate(resolve));
+
 describe("UserRegistrationService.create", () => {
   let service: UserRegistrationService;
-  let prisma: any;
+  let trx: any;
   let calls: string[];
 
   const setup = (
@@ -41,29 +44,37 @@ describe("UserRegistrationService.create", () => {
     user: unknown = { id: USER_ID, foodPreference: null },
   ) => {
     calls = [];
-    prisma = {
-      $queryRaw: jest.fn(() => {
+    trx = {
+      $queryRaw: jest.fn(async () => {
+        await afterTheEventLoopTurns();
         calls.push("lock");
-        return Promise.resolve([]);
+        return [];
       }),
       event: {
-        findUnique: jest.fn(() => {
+        findUnique: jest.fn(async () => {
           calls.push("read-event");
-          return Promise.resolve(event);
+          return event;
         }),
       },
       user: { findUnique: jest.fn().mockResolvedValue(user) },
       registration: {
-        create: jest.fn(({ data }) => {
+        create: jest.fn(async ({ data }) => {
           calls.push(`create:${data.regStatus}`);
-          return Promise.resolve({ id: "registration-1", ...data });
+          return { id: "registration-1", ...data };
         }),
       },
-      $transaction: jest.fn((callback: any) => callback(prisma)),
     };
 
-    service = new UserRegistrationService(prisma, {} as any, {} as any);
-    return prisma;
+    const prismaService = {
+      $transaction: jest.fn((callback: any) => callback(trx)),
+    };
+
+    service = new UserRegistrationService(
+      prismaService as any,
+      {} as any,
+      {} as any,
+    );
+    return trx;
   };
 
   const register = (dto: Record<string, unknown>) =>
@@ -87,7 +98,7 @@ describe("UserRegistrationService.create", () => {
 
     await register({ regStatus: RegStatus.GOING });
 
-    expect(prisma.registration.create).toHaveBeenCalledWith({
+    expect(trx.registration.create).toHaveBeenCalledWith({
       data: {
         eventId: EVENT_ID,
         regStatus: RegStatus.GOING,
@@ -114,7 +125,7 @@ describe("UserRegistrationService.create", () => {
 
     await register({ regStatus: RegStatus.GOING, formAnswer: "ingen" });
 
-    expect(prisma.registration.create).toHaveBeenCalledWith({
+    expect(trx.registration.create).toHaveBeenCalledWith({
       data: {
         eventId: EVENT_ID,
         userId: USER_ID,
@@ -134,7 +145,7 @@ describe("UserRegistrationService.create", () => {
 
     await register({ regStatus: RegStatus.GOING });
 
-    const { include } = prisma.event.findUnique.mock.calls[0][0];
+    const { include } = trx.event.findUnique.mock.calls[0][0];
     expect(include.registrations.where).toEqual({
       regStatus: RegStatus.GOING,
     });
@@ -146,7 +157,7 @@ describe("UserRegistrationService.create", () => {
     await expect(register({ regStatus: RegStatus.GOING })).rejects.toThrow(
       "Form answer is required",
     );
-    expect(prisma.registration.create).not.toHaveBeenCalled();
+    expect(trx.registration.create).not.toHaveBeenCalled();
   });
 
   it("accepts the registration once the question is answered", async () => {
@@ -154,7 +165,7 @@ describe("UserRegistrationService.create", () => {
 
     await register({ regStatus: RegStatus.GOING, formAnswer: "ingen" });
 
-    expect(prisma.registration.create).toHaveBeenCalledWith({
+    expect(trx.registration.create).toHaveBeenCalledWith({
       data: {
         eventId: EVENT_ID,
         regStatus: RegStatus.GOING,
@@ -173,7 +184,7 @@ describe("UserRegistrationService.create", () => {
     await expect(register({ regStatus: RegStatus.GOING })).rejects.toThrow(
       "Food preference is required",
     );
-    expect(prisma.registration.create).not.toHaveBeenCalled();
+    expect(trx.registration.create).not.toHaveBeenCalled();
   });
 
   it("refuses a registration for a meal when the user row is missing", async () => {
@@ -201,7 +212,7 @@ describe("UserRegistrationService.create", () => {
     await expect(register({ regStatus: RegStatus.GOING })).rejects.toThrow(
       "Registration for this event does not happen in Peoply",
     );
-    expect(prisma.registration.create).not.toHaveBeenCalled();
+    expect(trx.registration.create).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -214,7 +225,7 @@ describe("UserRegistrationService.create", () => {
     await expect(register({ regStatus: RegStatus.GOING })).rejects.toThrow(
       message,
     );
-    expect(prisma.registration.create).not.toHaveBeenCalled();
+    expect(trx.registration.create).not.toHaveBeenCalled();
   });
 
   it("creates the INVITED row an invitation asks for", async () => {
@@ -222,7 +233,7 @@ describe("UserRegistrationService.create", () => {
 
     await register({ regStatus: RegStatus.INVITED });
 
-    expect(prisma.registration.create).toHaveBeenCalledWith({
+    expect(trx.registration.create).toHaveBeenCalledWith({
       data: {
         eventId: EVENT_ID,
         regStatus: RegStatus.INVITED,
@@ -239,7 +250,7 @@ describe("UserRegistrationService.create", () => {
       await expect(register({ regStatus })).rejects.toThrow(
         "Invalid registration status",
       );
-      expect(prisma.registration.create).not.toHaveBeenCalled();
+      expect(trx.registration.create).not.toHaveBeenCalled();
     },
   );
 
@@ -249,7 +260,7 @@ describe("UserRegistrationService.create", () => {
     await expect(
       register({ regStatus: RegStatus.GOING }),
     ).rejects.toBeInstanceOf(EventNotFoundException);
-    expect(prisma.registration.create).not.toHaveBeenCalled();
+    expect(trx.registration.create).not.toHaveBeenCalled();
   });
 });
 
