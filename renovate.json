@@ -157,6 +157,30 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "description": [
+        "Auto-merge routine updates once the required checks pass"
+      ],
+      "matchManagers": [
+        "npm",
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "matchCurrentVersion": "!/^0\\./",
+      "matchPackageNames": [
+        "!@azure/communication-email",
+        "!node-ical"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": true
     }
   ]
 }
