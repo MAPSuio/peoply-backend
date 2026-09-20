@@ -6,11 +6,9 @@ import {
   Param,
   Post,
   Put,
-  UseGuards,
 } from "@nestjs/common";
 import { OrganizationRole } from "../generated/prisma/client";
-import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
-import { OrganizationRolesGuard } from "../auth/guards";
+import { RequireOrgRole } from "../auth/require-org-role";
 import { IcsFeedsService } from "./ics-feeds.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
 
@@ -18,15 +16,13 @@ import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed
 export class IcsFeedsController {
   constructor(private readonly icsFeedsService: IcsFeedsService) {}
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Get()
   async getOrganizationFeed(@Param("orgId") orgId: string) {
     return this.icsFeedsService.getOrganizationFeed(orgId);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Put()
   async upsertOrganizationFeed(
     @Param("orgId") orgId: string,
@@ -35,15 +31,13 @@ export class IcsFeedsController {
     return this.icsFeedsService.upsertOrganizationFeed(orgId, dto);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Delete()
   async deleteOrganizationFeed(@Param("orgId") orgId: string) {
     return this.icsFeedsService.deleteOrganizationFeed(orgId);
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(OrganizationRolesGuard)
+  @RequireOrgRole(OrganizationRole.ADMIN, OrganizationRole.OWNER)
   @Post("sync")
   async syncOrganizationFeed(@Param("orgId") orgId: string) {
     return this.icsFeedsService.syncOrganizationFeed(orgId);
