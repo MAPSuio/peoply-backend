@@ -104,7 +104,7 @@
     "jest": "^30.5.2",
     "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   },
   "jest": {
     "moduleFileExtensions": [
