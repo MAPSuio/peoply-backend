@@ -12,6 +12,35 @@ import { PrismaPg } from "@prisma/adapter-pg";
  * otherwise fail deep inside the driver with a less obvious message.
  */
 export function createPrismaAdapter(): PrismaPg {
+  if (!process.env.DATABASE_URL) {
+    try {
+      const fs = require("node:fs");
+      const path = require("node:path");
+      const envPath = path.resolve(process.cwd(), ".env");
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf8");
+        for (const line of content.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) continue;
+          const eqIdx = trimmed.indexOf("=");
+          if (eqIdx > 0) {
+            const key = trimmed.slice(0, eqIdx).trim();
+            let val = trimmed.slice(eqIdx + 1).trim();
+            if (
+              (val.startsWith('"') && val.endsWith('"')) ||
+              (val.startsWith("'") && val.endsWith("'"))
+            ) {
+              val = val.slice(1, -1);
+            }
+            if (!process.env[key]) {
+              process.env[key] = val;
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {

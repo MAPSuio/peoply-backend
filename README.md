@@ -14,22 +14,42 @@ Node >= 24 < 25, npm >= 11 < 12. `.nvmrc` pins 24.18.0. Docker needed for the lo
 ```bash
 nvm use
 npm ci
-cp .env.example .env    # DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"
+cp .env.example .env    # Ensure AZURE_STORAGE_SKIP_INIT=true for local dev
 docker compose -f dev-db/docker-compose.yml up -d
-npx prisma migrate dev
-npm run seed:dev-db     # local users, organizations, events
+npx prisma migrate deploy   # applies existing database migrations non-interactively
+npm run seed:dev-db     # seeds local users, organizations, events
 npm run dev             # http://localhost:3000
 ```
 
 `npm run init:dev-db` replaces the docker/migrate/seed steps, but it recreates the database and shells out to `sudo`.
 
-API reference: <http://localhost:3000/api>, rendered by [Scalar](https://scalar.com/). The raw OpenAPI document is at `/api/openapi.json`. A Prisma `P1001` means the database isn't up.
+API reference: <http://localhost:3000/api>, rendered by [Scalar](https://scalar.com/). The raw OpenAPI document is at `/api/openapi.json`.
 
 | Script | |
 | --- | --- |
 | `npm run dev` | watch mode |
 | `npm run build` | compile only — touches no database |
 | `npm run lint` / `lint:fix` | Biome |
+
+## Troubleshooting & Potential Errors
+
+- **Prisma `P1001: Can't reach database server`**:
+  Postgres container is down. Ensure Docker Desktop is running and execute:
+  ```bash
+  docker compose -f dev-db/docker-compose.yml up -d
+  ```
+
+- **Azure `AuthenticationFailed` (403) on startup**:
+  Occurs if the application attempts to initialize Azure Storage containers without valid credentials. Ensure `AZURE_STORAGE_SKIP_INIT=true` is present in `.env`.
+
+- **`DATABASE_URL is not set` when running seeds**:
+  Ensure `.env` exists in `peoply-backend/` by running `cp .env.example .env`. `npm run seed:dev-db` automatically loads environment variables from `.env`.
+
+- **Node version mismatch error**:
+  Backend requires Node 24 (`.nvmrc` pins `24.18.0`). Switch to it using:
+  ```bash
+  nvm use
+  ```
 
 ## Run the frontend against it
 
