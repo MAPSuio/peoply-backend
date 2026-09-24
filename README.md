@@ -16,7 +16,7 @@ nvm use
 npm ci
 cp .env.example .env    # Ensure AZURE_STORAGE_SKIP_INIT=true for local dev
 docker compose -f dev-db/docker-compose.yml up -d
-npx prisma migrate dev
+npx prisma migrate deploy   # applies existing database migrations non-interactively
 npm run seed:dev-db     # seeds local users, organizations, events
 npm run dev             # http://localhost:3000
 ```
