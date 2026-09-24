@@ -29,7 +29,7 @@
     "stop:dev-db": "cd dev-db && sudo make stop",
     "restart:dev-db": "cd dev-db && sudo make restart",
     "migrate:dev-db": "npx prisma migrate dev",
-    "seed:dev-db": "ts-node ./prisma/dev-seed.ts",
+    "seed:dev-db": "node --env-file=.env ./node_modules/.bin/ts-node ./prisma/dev-seed.ts",
     "seed:prod-db": "npx prisma db seed",
     "init:dev-db": "npm run restart:dev-db && sleep 3 && npm run migrate:dev-db && sleep 3 && npm run seed:dev-db",
     "lint": "biome check",
