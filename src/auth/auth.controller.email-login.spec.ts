@@ -27,7 +27,7 @@ describe("AuthController email login", () => {
 
   const emailLogin = {
     isEnabled: jest.fn(),
-    requestLink: jest.fn().mockResolvedValue(undefined),
+    requestLinkInBackground: jest.fn(),
     consume: jest.fn(),
   };
 
@@ -61,7 +61,7 @@ describe("AuthController email login", () => {
       await expect(
         controller.requestEmailLogin(req, { email: "a@example.com" }),
       ).rejects.toThrow(NotFoundException);
-      expect(emailLogin.requestLink).not.toHaveBeenCalled();
+      expect(emailLogin.requestLinkInBackground).not.toHaveBeenCalled();
     });
 
     it("checks the origin and answers the same whether or not the email exists", async () => {
@@ -69,7 +69,9 @@ describe("AuthController email login", () => {
         controller.requestEmailLogin(req, { email: "a@example.com" }),
       ).resolves.toEqual({});
       expect(authService.assertTrustedOrigin).toHaveBeenCalledWith(req.headers);
-      expect(emailLogin.requestLink).toHaveBeenCalledWith("a@example.com");
+      expect(emailLogin.requestLinkInBackground).toHaveBeenCalledWith(
+        "a@example.com",
+      );
     });
   });
 

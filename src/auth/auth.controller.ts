@@ -591,7 +591,7 @@ export class AuthController {
     if (!this.emailLogin.isEnabled()) throw new NotFoundException();
 
     this.authService.assertTrustedOrigin(req.headers);
-    await this.emailLogin.requestLink(body.email);
+    this.emailLogin.requestLinkInBackground(body.email);
 
     return {};
   }

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "../generated/prisma/client";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
@@ -31,6 +32,7 @@ describe("EmailLoginService", () => {
       delete: jest.Mock;
     };
     $transaction: jest.Mock;
+    $queryRaw: jest.Mock;
   };
   let mailer: { send: jest.Mock };
   let config: Record<string, unknown>;
@@ -49,11 +51,12 @@ describe("EmailLoginService", () => {
       user: { findUnique: jest.fn().mockResolvedValue(user) },
       loginLink: {
         findFirst: jest.fn().mockResolvedValue(null),
-        deleteMany: jest.fn().mockReturnValue("deleteMany"),
-        create: jest.fn().mockReturnValue("create"),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        create: jest.fn().mockResolvedValue({}),
         delete: jest.fn(),
       },
-      $transaction: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn((work) => work(prisma)),
+      $queryRaw: jest.fn().mockResolvedValue([]),
     };
     mailer = { send: jest.fn().mockResolvedValue({ id: "op-1" }) };
     config = {
@@ -115,10 +118,19 @@ describe("EmailLoginService", () => {
       expect(prisma.loginLink.deleteMany).toHaveBeenCalledWith({
         where: { OR: [{ userId: user.id }, { expiresAt: { lte: now } }] },
       });
-      expect(prisma.$transaction).toHaveBeenCalledWith([
-        "deleteMany",
-        "create",
-      ]);
+    });
+
+    it("locks the user's row before checking the cooldown, so parallel requests send one link", async () => {
+      await service.requestLink(user.email, now);
+
+      const [strings, userId] = prisma.$queryRaw.mock.calls[0];
+      expect(strings.join("?")).toBe(
+        "SELECT id FROM users WHERE id = ? FOR UPDATE",
+      );
+      expect(userId).toBe(user.id);
+      expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.loginLink.findFirst.mock.invocationCallOrder[0],
+      );
     });
 
     it("mails the frontend login page, to the address on the account", async () => {
@@ -144,7 +156,7 @@ describe("EmailLoginService", () => {
           createdAt: { gt: new Date(now.getTime() - EMAIL_LOGIN_COOLDOWN_MS) },
         },
       });
-      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.loginLink.create).not.toHaveBeenCalled();
       expect(mailer.send).not.toHaveBeenCalled();
     });
 
@@ -155,6 +167,27 @@ describe("EmailLoginService", () => {
         service.requestLink(user.email, now),
       ).resolves.toBeUndefined();
       await flushMail();
+    });
+  });
+
+  describe("requestLinkInBackground", () => {
+    it("returns before the lookup finishes and logs a failure instead of throwing", async () => {
+      let fail: (error: Error) => void = () => {};
+      prisma.user.findUnique.mockReturnValue(
+        new Promise((_, reject) => {
+          fail = reject;
+        }),
+      );
+      const logged = jest
+        .spyOn(Logger.prototype, "error")
+        .mockImplementation(() => undefined);
+
+      expect(service.requestLinkInBackground(user.email)).toBeUndefined();
+      fail(new Error("db down"));
+      await flushMail();
+
+      expect(logged).toHaveBeenCalledWith("Login link request failed: db down");
+      logged.mockRestore();
     });
   });
 

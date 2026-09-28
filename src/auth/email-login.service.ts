@@ -37,35 +37,48 @@ export class EmailLoginService {
     return flag === true || flag === "true";
   }
 
+  requestLinkInBackground(email: string): void {
+    this.requestLink(email).catch((error) => {
+      this.logger.error(
+        `Login link request failed: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    });
+  }
+
   async requestLink(email: string, now = new Date()): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) return;
 
-    const recent = await this.prisma.loginLink.findFirst({
-      where: {
-        userId: user.id,
-        createdAt: { gt: new Date(now.getTime() - EMAIL_LOGIN_COOLDOWN_MS) },
-      },
-    });
-    if (recent) return;
-
     const token = randomBytes(32).toString("base64url");
 
-    await this.prisma.$transaction([
-      this.prisma.loginLink.deleteMany({
+    const created = await this.prisma.$transaction(async (trx) => {
+      await trx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
+
+      const recent = await trx.loginLink.findFirst({
+        where: {
+          userId: user.id,
+          createdAt: { gt: new Date(now.getTime() - EMAIL_LOGIN_COOLDOWN_MS) },
+        },
+      });
+      if (recent) return false;
+
+      await trx.loginLink.deleteMany({
         where: { OR: [{ userId: user.id }, { expiresAt: { lte: now } }] },
-      }),
-      this.prisma.loginLink.create({
+      });
+      await trx.loginLink.create({
         data: {
           tokenHash: hashToken(token),
           userId: user.id,
           createdAt: now,
           expiresAt: new Date(now.getTime() + EMAIL_LOGIN_LINK_TTL_MS),
         },
-      }),
-    ]);
+      });
+      return true;
+    });
 
-    void this.sendLink(user.id, user.email, token);
+    if (created) void this.sendLink(user.id, user.email, token);
   }
 
   async consume(token: string, now = new Date()): Promise<string | null> {
