@@ -10,6 +10,9 @@ import { PassportModule } from "@nestjs/passport";
 import { AccessSessionService } from "./access-session.service";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
+import { EmailLoginService } from "./email-login.service";
+import { AzureModule } from "../azure/azure.module";
+import { PrismaModule } from "../prisma/prisma.module";
 import { LegacyRefreshCookieMiddleware } from "./legacy-refresh-cookie.middleware";
 import { SessionMarkerBackfillMiddleware } from "./session-marker-backfill.middleware";
 import { JwtModule } from "@nestjs/jwt";
@@ -58,6 +61,8 @@ const GoogleStrategyFactory = {
     PassportModule.register({ defaultStrategy: "oidc" }),
     forwardRef(() => UsersModule),
     ConfigModule,
+    PrismaModule,
+    AzureModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -78,6 +83,7 @@ const GoogleStrategyFactory = {
     GoogleStrategyFactory,
     AuthService,
     AccessSessionService,
+    EmailLoginService,
     AccessStrategy,
     RefreshStrategy,
     LegacyRefreshCookieMiddleware,

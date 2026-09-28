@@ -16,6 +16,8 @@ const ROUTES_ANYONE_MAY_CALL = [
   "auth/auth.controller.ts: GET /login/google",
   "auth/auth.controller.ts: POST /dev-login",
   "auth/auth.controller.ts: POST /dev-logout",
+  "auth/auth.controller.ts: POST /email/request",
+  "auth/auth.controller.ts: POST /email/verify",
   "auth/auth.controller.ts: POST /refresh",
   "categories/categories.controller.ts: GET ",
   "events/events.controller.ts: GET ",

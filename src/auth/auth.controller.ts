@@ -6,11 +6,13 @@ import {
   ConflictException,
   Controller,
   Get,
+  HttpCode,
   NotFoundException,
   Post,
   Query,
   Req,
   Res,
+  UnauthorizedException,
   UseFilters,
   UseGuards,
 } from "@nestjs/common";
@@ -20,6 +22,11 @@ import { Provider, User } from "../generated/prisma/client";
 
 import { AccessSessionService } from "./access-session.service";
 import { AuthService } from "./auth.service";
+import { EmailLoginService } from "./email-login.service";
+import {
+  RequestEmailLoginDto,
+  VerifyEmailLoginDto,
+} from "./dto/email-login.dto";
 import { ConfigService } from "@nestjs/config";
 import {
   AuthenticatedGuard,
@@ -50,6 +57,7 @@ export class AuthController {
     private configService: ConfigService,
     private usersService: UsersService,
     private accessSession: AccessSessionService,
+    private emailLogin: EmailLoginService,
   ) {}
 
   private isLocalRequest(req: Request) {
@@ -570,6 +578,43 @@ export class AuthController {
       Provider.GOOGLE,
       "GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI",
     );
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Public()
+  @Post("/email/request")
+  @HttpCode(202)
+  async requestEmailLogin(
+    @Req() req: Request,
+    @Body() body: RequestEmailLoginDto,
+  ) {
+    if (!this.emailLogin.isEnabled()) throw new NotFoundException();
+
+    this.authService.assertTrustedOrigin(req.headers);
+    await this.emailLogin.requestLink(body.email);
+
+    return {};
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Public()
+  @Post("/email/verify")
+  async verifyEmailLogin(
+    @Req() req: Request,
+    @Body() body: VerifyEmailLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!this.emailLogin.isEnabled()) throw new NotFoundException();
+
+    this.authService.assertTrustedOrigin(req.headers);
+
+    const userId = await this.emailLogin.consume(body.token);
+    if (!userId) throw new UnauthorizedException();
+
+    const user = await this.usersService.ensureRefreshTokenId(userId);
+    this.issueSessionCookies(res, user);
+
+    return { user: withoutRefreshTokenId(user) };
   }
 
   @Post("/logout")
