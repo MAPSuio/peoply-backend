@@ -66,9 +66,7 @@ export class EmailLoginService {
       });
       if (recent) return false;
 
-      await trx.loginLink.deleteMany({
-        where: { OR: [{ userId: user.id }, { expiresAt: { lte: now } }] },
-      });
+      await trx.loginLink.deleteMany({ where: { userId: user.id } });
       await trx.loginLink.create({
         data: {
           tokenHash: hashToken(token),

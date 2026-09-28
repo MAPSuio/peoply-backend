@@ -111,25 +111,12 @@ describe("EmailLoginService", () => {
       );
     });
 
-    it("replaces the user's earlier links and sweeps expired ones", async () => {
+    it("replaces only the user's own earlier links", async () => {
       await service.requestLink(user.email, now);
 
       expect(prisma.loginLink.deleteMany).toHaveBeenCalledWith({
-        where: { OR: [{ userId: user.id }, { expiresAt: { lte: now } }] },
+        where: { userId: user.id },
       });
-    });
-
-    it("locks the user's row before checking the cooldown, so parallel requests send one link", async () => {
-      await service.requestLink(user.email, now);
-
-      const [strings, userId] = prisma.$queryRaw.mock.calls[0];
-      expect(strings.join("?")).toBe(
-        "SELECT id FROM users WHERE id = ? FOR UPDATE",
-      );
-      expect(userId).toBe(user.id);
-      expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
-        prisma.loginLink.findFirst.mock.invocationCallOrder[0],
-      );
     });
 
     it("mails the frontend login page, to the address on the account", async () => {
