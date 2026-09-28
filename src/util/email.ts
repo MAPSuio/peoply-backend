@@ -1,6 +1,8 @@
 import { Event } from "../generated/prisma/client";
 import { escapeHtml } from "./html";
 
+export const NO_REPLY_ADDRESS = "no-reply@peoply.app";
+
 export const EMAIL_DIVIDER = `<div style="border-bottom: 1px dashed #000; margin: 1rem 0; width: 100%;"></div>\n`;
 
 /**

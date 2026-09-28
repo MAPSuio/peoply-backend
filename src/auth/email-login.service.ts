@@ -5,8 +5,11 @@ import { Prisma } from "../generated/prisma/client";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { PrismaService } from "../prisma/prisma.service";
+import { NO_REPLY_ADDRESS } from "../util/email";
+import { DEFAULT_FRONTEND_URL } from "../util/url";
 
-export const EMAIL_LOGIN_LINK_TTL_MS = 15 * 60 * 1000;
+export const EMAIL_LOGIN_LINK_TTL_MINUTES = 15;
+export const EMAIL_LOGIN_LINK_TTL_MS = EMAIL_LOGIN_LINK_TTL_MINUTES * 60 * 1000;
 export const EMAIL_LOGIN_COOLDOWN_MS = 60 * 1000;
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -19,7 +22,7 @@ function buildLoginLinkHtmlEmail(link: string) {
   return `<p>Hei!</p>
 <p>Trykk på lenken for å logge inn på Peoply:</p>
 <p><a href="${link}">Logg inn på Peoply</a></p>
-<p>Lenken virker i 15 minutter og kan bare brukes én gang. Har du ikke bedt om å logge inn, kan du se bort fra denne e-posten.</p>`;
+<p>Lenken virker i ${EMAIL_LOGIN_LINK_TTL_MINUTES} minutter og kan bare brukes én gang. Har du ikke bedt om å logge inn, kan du se bort fra denne e-posten.</p>`;
 }
 
 @Injectable()
@@ -33,8 +36,7 @@ export class EmailLoginService {
   ) {}
 
   isEnabled() {
-    const flag = this.config.get<boolean | string>("EMAIL_LOGIN_ENABLED");
-    return flag === true || flag === "true";
+    return this.config.get<boolean>("EMAIL_LOGIN_ENABLED") === true;
   }
 
   requestLinkInBackground(email: string): void {
@@ -103,12 +105,12 @@ export class EmailLoginService {
 
   private async sendLink(userId: string, address: string, token: string) {
     const frontendUrl =
-      this.config.get<string>("FRONTEND_URL") ?? "https://peoply.app";
+      this.config.get<string>("FRONTEND_URL") ?? DEFAULT_FRONTEND_URL;
     const link = `${frontendUrl}/login/email?token=${token}`;
 
     try {
       await this.mailer.send({
-        senderAddress: "no-reply@peoply.app",
+        senderAddress: NO_REPLY_ADDRESS,
         recipients: { to: [{ address }] },
         content: {
           subject: "Logg inn på Peoply",

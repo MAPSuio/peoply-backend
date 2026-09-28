@@ -76,8 +76,7 @@ describe("EmailLoginService", () => {
       expect(service.isEnabled()).toBe(false);
     });
 
-    it("accepts the string form env vars arrive in", () => {
-      config.EMAIL_LOGIN_ENABLED = "true";
+    it("is on when the validated config says so", () => {
       expect(service.isEnabled()).toBe(true);
     });
   });

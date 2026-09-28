@@ -17,3 +17,5 @@ export function isHttpUrl(value: unknown): value is string {
     return false;
   }
 }
+
+export const DEFAULT_FRONTEND_URL = "https://peoply.app";

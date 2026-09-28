@@ -30,7 +30,11 @@ import {
   RegStatus,
 } from "../generated/prisma/client";
 import { EmailRecipients } from "@azure/communication-email";
-import { EMAIL_DIVIDER, eventEmailFooter } from "../util/email";
+import {
+  EMAIL_DIVIDER,
+  NO_REPLY_ADDRESS,
+  eventEmailFooter,
+} from "../util/email";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { AzureCommunicationService } from "../azure/azure-communication.service";
 import { createUuid, isUUID } from "../util/uuid";
@@ -740,7 +744,7 @@ export class EventsService {
       ).filter(({ user }) => user.allowEmailFromArranger);
 
       const toEmails: EmailRecipients = {
-        to: [{ address: "no-reply@peoply.app" }],
+        to: [{ address: NO_REPLY_ADDRESS }],
         bcc: registrations.map(({ user }) => ({
           address: user.email,
         })),
@@ -752,7 +756,7 @@ export class EventsService {
          nothing to send, yet a slot was spent and an empty mail went out. */
       if (toEmails.bcc && toEmails.bcc.length > 0) {
         const sendResult = await this.azureCommunicationService.send({
-          senderAddress: "no-reply@peoply.app",
+          senderAddress: NO_REPLY_ADDRESS,
           recipients: toEmails,
           content: {
             subject: `Peoply: Oppdatering for "${event.title}"`,

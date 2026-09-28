@@ -22,6 +22,7 @@ import { AzureStorageService } from "../azure/azure-storage.service";
 import { AzureStorageContainer } from "../azure/azure-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { createUuid, isUUID } from "../util/uuid";
+import { DEFAULT_FRONTEND_URL } from "../util/url";
 import { DiscordAlertService } from "../discord/discord-alert.service";
 import { toDiscordFieldValue } from "../discord/discord-field";
 import { organizationImageColumns } from "./organization-image-columns";
@@ -576,7 +577,7 @@ export class OrganizationsService {
     const reporterName = reporter
       ? `${reporter.firstName} ${reporter.lastName}`.trim()
       : "Ukjent bruker";
-    const frontendUrl = process.env.FRONTEND_URL ?? "https://peoply.app";
+    const frontendUrl = process.env.FRONTEND_URL ?? DEFAULT_FRONTEND_URL;
     const organizationPath = `/orgs/${organization.urlId ?? organization.id}`;
 
     await this.discordAlert.send({

@@ -22,6 +22,7 @@ import { IcsFetchService } from "./ics-fetch.service";
 import { IcsParserService, ParsedIcsEvent } from "./ics-parser.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
 import { escapeHtml } from "../util/html";
+import { NO_REPLY_ADDRESS } from "../util/email";
 import { createUuid } from "../util/uuid";
 import { ALL_ROWS } from "../util/pagination";
 
@@ -430,9 +431,9 @@ export class IcsFeedsService {
     }
 
     await this.azureCommunicationService.send({
-      senderAddress: "no-reply@peoply.app",
+      senderAddress: NO_REPLY_ADDRESS,
       recipients: {
-        to: [{ address: "no-reply@peoply.app" }],
+        to: [{ address: NO_REPLY_ADDRESS }],
         bcc: emails.map((email: string) => ({ address: email })),
       },
       content: {
