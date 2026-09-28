@@ -70,6 +70,7 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
         GOOGLE_OIDC_LOGIN_SCOPE: Joi.string().required(),
         GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI: Joi.string().required(),
         LOCAL_AUTH_ENABLED: Joi.boolean().default(false),
+        EMAIL_LOGIN_ENABLED: Joi.boolean().default(false),
         CORS_ORIGIN: Joi.string().required(),
         // Domain the session marker cookie is written for, so the frontend on
         // peoply.app can read a cookie the api on api.peoply.app set. Unset

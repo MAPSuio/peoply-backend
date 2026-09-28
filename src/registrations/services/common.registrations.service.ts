@@ -9,7 +9,10 @@ import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
 import { AzureCommunicationService } from "../../azure/azure-communication.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { buildWaitlistedToGoingHtmlEmail } from "../../util/email";
+import {
+  NO_REPLY_ADDRESS,
+  buildWaitlistedToGoingHtmlEmail,
+} from "../../util/email";
 import { ForeignKeyNotFoundException } from "../exceptions";
 
 /**
@@ -194,7 +197,7 @@ export class CommonRegistrationService {
     try {
       if (nextGoingUser?.allowEmailFromArranger) {
         await this.azureCommunicationService.send({
-          senderAddress: "no-reply@peoply.app",
+          senderAddress: NO_REPLY_ADDRESS,
           recipients: {
             to: [{ address: nextGoingUser.email }],
           },
