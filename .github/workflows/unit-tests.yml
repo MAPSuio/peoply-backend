@@ -45,5 +45,5 @@ jobs:
       - name: Test the local startup wrapper
         run: npm run test:dev-script
 
-      - name: Run unit tests
-        run: npm test -- --runInBand
+      - name: Run unit tests and enforce the coverage thresholds
+        run: npm run test:cov -- --runInBand
