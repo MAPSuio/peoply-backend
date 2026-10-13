@@ -29,7 +29,6 @@ import {
   Prisma,
   RegStatus,
 } from "../generated/prisma/client";
-import type { EmailRecipients } from "../mail/mail.service";
 import {
   EMAIL_DIVIDER,
   NO_REPLY_ADDRESS,
@@ -743,7 +742,7 @@ export class EventsService {
         })
       ).filter(({ user }) => user.allowEmailFromArranger);
 
-      const toEmails: EmailRecipients = {
+      const toEmails = {
         to: [{ address: NO_REPLY_ADDRESS }],
         bcc: registrations.map(({ user }) => ({
           address: user.email,

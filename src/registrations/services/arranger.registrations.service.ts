@@ -13,7 +13,6 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { UserDoesNotExistException } from "../../users/exceptions";
-import type { EmailRecipients } from "../../mail/mail.service";
 import {
   EMAIL_DIVIDER,
   NO_REPLY_ADDRESS,
@@ -165,7 +164,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       throw new UserDoesNotExistException(userId);
     }
 
-    const toEmails: EmailRecipients = { to: [{ address: user.email }] };
+    const toEmails = { to: [{ address: user.email }] };
 
     const updated = await super.updateRegistration(
       userId,

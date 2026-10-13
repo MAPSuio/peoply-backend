@@ -2,13 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import { currentIdentities } from "../abuse-budget/principal-context";
 
-export type EmailRecipients = Partial<
-  Record<"to" | "cc" | "bcc", { address: string; displayName?: string }[]>
->;
-
 export type MailMessage = {
   senderAddress: string;
-  recipients: EmailRecipients;
+  recipients: Partial<Record<"to" | "cc" | "bcc", { address: string }[]>>;
   content: { subject: string; html?: string; plainText?: string };
   replyTo?: { address: string }[];
 };
