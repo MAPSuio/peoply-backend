@@ -32,7 +32,7 @@ describe("OrganizationsService", () => {
   prisma.$transaction.mockImplementation((cb: any) => cb(prisma));
   // undefined is "the request said nothing about the image", which is what
   // these tests send.
-  const azureStorageService = {
+  const imageStorageService = {
     swapImage: jest.fn().mockResolvedValue(undefined),
   };
   const discordAlert = {
@@ -46,7 +46,7 @@ describe("OrganizationsService", () => {
     discordAlert.isConfigured = true;
     service = new OrganizationsService(
       prisma as any,
-      azureStorageService as any,
+      imageStorageService as any,
       discordAlert as any,
     );
   });
@@ -381,7 +381,7 @@ describe("OrganizationsService", () => {
     const updatedWith = () => prisma.organization.update.mock.calls[0][0].data;
 
     it("stores the colors of the logo it just uploaded", async () => {
-      azureStorageService.swapImage.mockResolvedValueOnce({
+      imageStorageService.swapImage.mockResolvedValueOnce({
         image: "https://blob/organization-images/maps.png",
         colors: { primary: "#e62239", accent: "#0ca3b1" },
       });
@@ -397,7 +397,7 @@ describe("OrganizationsService", () => {
     });
 
     it("clears the colors along with the logo they came from", async () => {
-      azureStorageService.swapImage.mockResolvedValueOnce({
+      imageStorageService.swapImage.mockResolvedValueOnce({
         image: null,
         colors: null,
       });
@@ -424,7 +424,7 @@ describe("OrganizationsService", () => {
     });
 
     it("keeps a logo that yielded no color from carrying the previous one's", async () => {
-      azureStorageService.swapImage.mockResolvedValueOnce({
+      imageStorageService.swapImage.mockResolvedValueOnce({
         image: "https://blob/organization-images/greyscale.png",
         colors: null,
       });

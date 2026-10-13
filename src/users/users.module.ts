@@ -4,7 +4,7 @@ import { UsersController } from "./users.controller";
 import { RegistrationsModule } from "../registrations/registrations.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { FavoritesModule } from "../favorites/favorites.module";
-import { AzureModule } from "../azure/azure.module";
+import { StorageModule } from "../storage/storage.module";
 import { ArrangersModule } from "../arrangers/arrangers.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -16,7 +16,7 @@ import { AdministrationModule } from "../administration/administration.module";
     RegistrationsModule,
     PrismaModule,
     FavoritesModule,
-    AzureModule,
+    StorageModule,
     ArrangersModule,
     OrganizationsModule,
     NotificationsModule,

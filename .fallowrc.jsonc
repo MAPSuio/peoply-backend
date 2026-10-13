@@ -3,7 +3,7 @@
 
   // Filer som kjøres direkte og ikke importeres av noe: Nest-bootstrap,
   // Prisma-seeds, dev-scriptene og engangsjobbene under scripts/ — som
-  // downscale-stored-images.ts, kjørt via npm run images:downscale. Uten
+  // migrate-images-to-spaces.ts, kjørt via npm run images:migrate-to-spaces. Uten
   // dette rapporteres de som ubrukte filer, og pakkene de bruker som
   // devDependencies i produksjonskode.
   // De to siste er entry points jest kjenner, men som fallow ikke kan se:

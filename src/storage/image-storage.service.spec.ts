@@ -1,15 +1,21 @@
 import { ConfigService } from "@nestjs/config";
 import { BadRequestException, HttpException } from "@nestjs/common";
-import { AzureStorageService } from "./azure-storage.service";
-import { AzureStorageContainer } from "./azure-storage.constants";
-import { MAX_QUEUED_DECODES } from "./decode-slot";
-import { MAX_IMAGE_INPUT_EDGE_PX, normalizeImage } from "./image-normalize";
-import sharp from "./sharp-runtime";
+import { ImageStorageService } from "./image-storage.service";
+import { ImageContainer } from "./image-storage.constants";
+import { MAX_QUEUED_DECODES } from "../azure/decode-slot";
+import {
+  MAX_IMAGE_INPUT_EDGE_PX,
+  normalizeImage,
+} from "../azure/image-normalize";
+import sharp from "../azure/sharp-runtime";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const config = {
-  AZURE_STORAGE_ACCOUNT: "peoplytest",
-  AZURE_STORAGE_KEY: Buffer.from("not-a-real-key").toString("base64"),
-  AZURE_STORAGE_SKIP_INIT: "true",
+  SPACES_ENDPOINT: "https://ams3.digitaloceanspaces.com",
+  SPACES_BUCKET: "peoply-test",
+  SPACES_KEY: "not-a-real-key",
+  SPACES_SECRET: "not-a-real-secret",
+  SPACES_PUBLIC_BASE_URL: "https://cdn.example.com",
 } as const;
 
 const configService = {
@@ -22,11 +28,11 @@ const fileWith = (buffer: Buffer) => ({ buffer }) as any;
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
 
-describe("AzureStorageService.generateFileNameById", () => {
-  let service: AzureStorageService;
+describe("ImageStorageService.generateFileNameById", () => {
+  let service: ImageStorageService;
 
   beforeEach(() => {
-    service = new AzureStorageService(configService);
+    service = new ImageStorageService(configService);
   });
 
   it("derives the extension from the content, not the claimed type", () => {
@@ -70,22 +76,22 @@ describe("AzureStorageService.generateFileNameById", () => {
   });
 });
 
-describe("AzureStorageService.swapImage", () => {
-  let service: AzureStorageService;
+describe("ImageStorageService.swapImage", () => {
+  let service: ImageStorageService;
   let deleted: string[];
 
   const swap = (options: Record<string, unknown>) =>
     service.swapImage({
       ownerId: "owner-1",
       currentImageUrl: null,
-      container: AzureStorageContainer.PROFILE_IMAGES,
+      container: ImageContainer.PROFILE_IMAGES,
       conflictMessage: "either removed or added",
       ...options,
     } as any);
 
   beforeEach(() => {
     deleted = [];
-    service = new AzureStorageService(configService);
+    service = new ImageStorageService(configService);
     // The blob calls are the only thing that reaches Azure.
     jest
       .spyOn(service, "delete")
@@ -173,8 +179,8 @@ describe("AzureStorageService.swapImage", () => {
  * makes them worth anything is the status code they arrive as, and that is
  * decided here rather than in `image-normalize`, so it is checked here.
  */
-describe("AzureStorageService.upload refusals", () => {
-  const service = new AzureStorageService(configService);
+describe("ImageStorageService.upload refusals", () => {
+  const service = new ImageStorageService(configService);
 
   const strip = (width: number, height: number) =>
     sharp({
@@ -202,7 +208,7 @@ describe("AzureStorageService.upload refusals", () => {
     const tooWide = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10);
 
     await expect(
-      statusOf(service.upload("x.png", tooWide, AzureStorageContainer.EVENTS)),
+      statusOf(service.upload("x.png", tooWide, ImageContainer.EVENTS)),
     ).resolves.toBe(400);
   });
 
@@ -213,11 +219,71 @@ describe("AzureStorageService.upload refusals", () => {
     );
 
     const status = await statusOf(
-      service.upload("y.png", image, AzureStorageContainer.EVENTS),
+      service.upload("y.png", image, ImageContainer.EVENTS),
     );
 
     await Promise.all(saturate);
 
     expect(status).toBe(503);
+  });
+});
+
+describe("ImageStorageService against Spaces", () => {
+  let service: ImageStorageService;
+  let sent: unknown[];
+
+  beforeEach(() => {
+    sent = [];
+    service = new ImageStorageService(configService);
+    jest
+      .spyOn(service["s3"], "send")
+      .mockImplementation(async (command: unknown) => {
+        sent.push(command);
+        return {};
+      });
+  });
+
+  const image = () =>
+    sharp({
+      create: { width: 4, height: 4, channels: 3, background: "#fd7b03" },
+    })
+      .png()
+      .toBuffer();
+
+  it("stores the image under its container as a public object with its real type", async () => {
+    await service.upload(
+      "owner-1-a.png",
+      await image(),
+      ImageContainer.PROFILE_IMAGES,
+    );
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toBeInstanceOf(PutObjectCommand);
+    expect((sent[0] as PutObjectCommand).input).toMatchObject({
+      Bucket: "peoply-test",
+      Key: "profile-images/owner-1-a.png",
+      ACL: "public-read",
+      ContentType: "image/png",
+    });
+  });
+
+  it("answers with the public URL rather than the API endpoint", async () => {
+    const { url } = await service.upload(
+      "owner-1-a.png",
+      await image(),
+      ImageContainer.EVENT_IMAGES,
+    );
+
+    expect(url).toBe("https://cdn.example.com/event-images/owner-1-a.png");
+  });
+
+  it("deletes the object under its container", async () => {
+    await service.delete("owner-1-a.png", ImageContainer.ORGANIZATION_IMAGES);
+
+    expect(sent[0]).toBeInstanceOf(DeleteObjectCommand);
+    expect((sent[0] as DeleteObjectCommand).input).toEqual({
+      Bucket: "peoply-test",
+      Key: "organization-images/owner-1-a.png",
+    });
   });
 });

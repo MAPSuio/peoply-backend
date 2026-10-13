@@ -19,8 +19,8 @@ import {
   UserAlreadyExistsException,
   UserDoesNotExistException,
 } from "../exceptions";
-import { AzureStorageService } from "../../azure/azure-storage.service";
-import { AzureStorageContainer } from "../../azure/azure-storage.constants";
+import { ImageStorageService } from "../../storage/image-storage.service";
+import { ImageContainer } from "../../storage/image-storage.constants";
 import { SearchUserDto } from "../dto/search-user.dto";
 import { calculateEditDistance } from "../../util/string";
 import {
@@ -160,7 +160,7 @@ export class UsersService {
 
   constructor(
     private prisma: PrismaService,
-    private readonly azureStorageService: AzureStorageService,
+    private readonly imageStorageService: ImageStorageService,
     private readonly userRegistrationService: UserRegistrationService,
   ) {}
 
@@ -553,12 +553,12 @@ export class UsersService {
   ) {
     /* the new image and its colors if one is provided, nulls if removeImage,
        and undefined if the column should be left alone */
-    const imageChange = await this.azureStorageService.swapImage({
+    const imageChange = await this.imageStorageService.swapImage({
       ownerId: user.id,
       currentImageUrl: user.image,
       newImage: profileImage,
       removeImage: updateUserDto.removeImage,
-      container: AzureStorageContainer.PROFILE_IMAGES,
+      container: ImageContainer.PROFILE_IMAGES,
       conflictMessage: "The profile image must either be removed or added",
     });
 
@@ -596,9 +596,9 @@ export class UsersService {
       // Kept for the cleanup only: the image is uploaded before the update,
       // so a failure would leave it orphaned.
       if (imageChange?.image) {
-        await this.azureStorageService.deleteUploadedImageQuietly(
+        await this.imageStorageService.deleteUploadedImageQuietly(
           imageChange.image,
-          AzureStorageContainer.PROFILE_IMAGES,
+          ImageContainer.PROFILE_IMAGES,
           "User update",
         );
       }

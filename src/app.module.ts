@@ -76,9 +76,11 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
         // peoply.app can read a cookie the api on api.peoply.app set. Unset
         // means host-only, which is what local development needs.
         SESSION_COOKIE_DOMAIN: Joi.string().allow("").optional(),
-        AZURE_STORAGE_ACCOUNT: Joi.string().required(),
-        AZURE_STORAGE_KEY: Joi.string().required(),
-        AZURE_STORAGE_SKIP_INIT: Joi.boolean().optional(),
+        SPACES_ENDPOINT: Joi.string().uri().required(),
+        SPACES_BUCKET: Joi.string().required(),
+        SPACES_KEY: Joi.string().required(),
+        SPACES_SECRET: Joi.string().required(),
+        SPACES_PUBLIC_BASE_URL: Joi.string().uri().required(),
         AZURE_COMMUNICATION_CONNECTION_STRING: Joi.string().optional(),
         LOCATION_SEARCH_PROVIDER: Joi.string()
           .valid("entur", "geonorge")

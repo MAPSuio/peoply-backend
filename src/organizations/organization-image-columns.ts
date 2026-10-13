@@ -1,4 +1,4 @@
-import type { ImageChange } from "../azure/azure-storage.service";
+import type { ImageChange } from "../storage/image-storage.service";
 
 export function organizationImageColumns(change: ImageChange) {
   if (change === undefined) return {};
