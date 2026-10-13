@@ -208,7 +208,7 @@ describe("ImageStorageService.upload refusals", () => {
     const tooWide = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10);
 
     await expect(
-      statusOf(service.upload("x.png", tooWide, ImageContainer.EVENTS)),
+      statusOf(service.upload("x.png", tooWide, ImageContainer.EVENT_IMAGES)),
     ).resolves.toBe(400);
   });
 
@@ -219,7 +219,7 @@ describe("ImageStorageService.upload refusals", () => {
     );
 
     const status = await statusOf(
-      service.upload("y.png", image, ImageContainer.EVENTS),
+      service.upload("y.png", image, ImageContainer.EVENT_IMAGES),
     );
 
     await Promise.all(saturate);

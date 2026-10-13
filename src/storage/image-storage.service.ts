@@ -37,6 +37,7 @@ export class ImageStorageService {
     this.s3 = new S3Client({
       region: "us-east-1",
       endpoint: configService.get<string>("SPACES_ENDPOINT"),
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
       credentials: {
         accessKeyId: `${configService.get<string>("SPACES_KEY")}`,
         secretAccessKey: `${configService.get<string>("SPACES_SECRET")}`,

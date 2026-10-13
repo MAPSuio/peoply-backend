@@ -31,7 +31,7 @@ async function azureImageUrls(prisma: PrismaClient) {
   return rows.map((row) => row.image);
 }
 
-async function copyAll(urls: string[]) {
+function spaces() {
   const bucket = requireEnv("SPACES_BUCKET");
   const s3 = new S3Client({
     region: "us-east-1",
@@ -41,13 +41,17 @@ async function copyAll(urls: string[]) {
       secretAccessKey: requireEnv("SPACES_SECRET"),
     },
   });
-  const tally = { copied: 0, skipped: 0, failed: [] as string[] };
-
   const existsInSpaces = (Key: string) =>
     s3.send(new HeadObjectCommand({ Bucket: bucket, Key })).then(
       () => true,
       () => false,
     );
+  return { s3, bucket, existsInSpaces };
+}
+
+async function copyAll(urls: string[]) {
+  const { s3, bucket, existsInSpaces } = spaces();
+  const tally = { copied: 0, skipped: 0, failed: [] as string[] };
 
   const copyOne = async (url: string) => {
     const key = keyFromAzureUrl(url);
@@ -93,8 +97,19 @@ async function copyAll(urls: string[]) {
   if (tally.failed.length > 0) process.exitCode = 1;
 }
 
-async function rewriteUrls(prisma: PrismaClient) {
-  const spacesBaseUrl = `${requireEnv("SPACES_PUBLIC_BASE_URL")}/`;
+async function rewriteUrls(prisma: PrismaClient, urls: string[]) {
+  const { existsInSpaces } = spaces();
+  const missing: string[] = [];
+  for (const url of urls) {
+    if (!(await existsInSpaces(keyFromAzureUrl(url)))) missing.push(url);
+  }
+  if (missing.length > 0) {
+    for (const url of missing) console.error(`MISSING ${url}`);
+    throw new Error(
+      `${missing.length} images are not in Spaces, run copy first`,
+    );
+  }
+  const spacesBaseUrl = `${requireEnv("SPACES_PUBLIC_BASE_URL").replace(/\/+$/, "")}/`;
   const pattern = `${AZURE_BASE_URL}%`;
   const [organizations, users, events] = await prisma.$transaction([
     prisma.$executeRaw`UPDATE organizations SET image = replace(image, ${AZURE_BASE_URL}, ${spacesBaseUrl}) WHERE image LIKE ${pattern}`,
@@ -112,7 +127,7 @@ async function main() {
     const urls = await azureImageUrls(prisma);
     console.log(`${urls.length} image URLs still point at Azure`);
     if (mode === "copy") await copyAll(urls);
-    if (mode === "rewrite") await rewriteUrls(prisma);
+    if (mode === "rewrite") await rewriteUrls(prisma, urls);
   } finally {
     await prisma.$disconnect();
   }
