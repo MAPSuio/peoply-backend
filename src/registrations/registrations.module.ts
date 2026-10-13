@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { AzureModule } from "../azure/azure.module";
+import { MailModule } from "../mail/mail.module";
 import { EventAccessModule } from "../event-access/event-access.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import {
@@ -9,7 +9,7 @@ import {
 } from "./services";
 
 @Module({
-  imports: [PrismaModule, AzureModule, EventAccessModule],
+  imports: [PrismaModule, MailModule, EventAccessModule],
   providers: [
     UserRegistrationService,
     ArrangerRegistrationService,

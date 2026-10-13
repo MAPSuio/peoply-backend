@@ -4,7 +4,7 @@ import { EventsController } from "./events.controller";
 import { ArrangersModule } from "../arrangers/arrangers.module";
 import { RegistrationsModule } from "../registrations/registrations.module";
 import { PrismaModule } from "../prisma/prisma.module";
-import { AzureModule } from "../azure/azure.module";
+import { MailModule } from "../mail/mail.module";
 import { StorageModule } from "../storage/storage.module";
 import { InvitationsModule } from "../invitations/invitations.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
@@ -17,7 +17,7 @@ import { EventAccessModule } from "../event-access/event-access.module";
     RegistrationsModule,
     ArrangersModule,
     PrismaModule,
-    AzureModule,
+    MailModule,
     StorageModule,
     InvitationsModule,
     OrganizationsModule,

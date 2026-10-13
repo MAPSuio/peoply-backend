@@ -16,17 +16,17 @@ import { eventCardInclude } from "../../events/event.select";
 import { EventNotFoundException } from "../../events/exceptions";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
-import { AzureCommunicationService } from "../../azure/azure-communication.service";
+import { MailService } from "../../mail/mail.service";
 import { ALL_ROWS, searchPageOptionsOf } from "../../util/pagination";
 
 @Injectable()
 export class UserRegistrationService extends CommonRegistrationService {
   constructor(
     prismaService: PrismaService,
-    azureCommunicationService: AzureCommunicationService,
+    mailService: MailService,
     private readonly eventAccess: EventAccessService,
   ) {
-    super(prismaService, azureCommunicationService);
+    super(prismaService, mailService);
   }
 
   async create(userId: string, createRegistrationDto: CreateRegistrationDto) {

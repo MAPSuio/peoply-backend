@@ -1,6 +1,6 @@
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
-import { type UploadDto, imageUploadOptionsFor } from "../azure/image-upload";
+import { type UploadDto, imageUploadOptionsFor } from "../images/image-upload";
 import { CreateEventDto } from "../events/dto/create-event.dto";
 import { UpdateEventDto } from "../events/dto/update-event.dto";
 import { CreateOrganizationDto } from "../organizations/dto/create-organization.dto";

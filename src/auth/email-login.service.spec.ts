@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "../generated/prisma/client";
-import { AzureCommunicationService } from "../azure/azure-communication.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   EMAIL_LOGIN_COOLDOWN_MS,
@@ -65,7 +65,7 @@ describe("EmailLoginService", () => {
     };
     service = new EmailLoginService(
       prisma as unknown as PrismaService,
-      mailer as unknown as AzureCommunicationService,
+      mailer as unknown as MailService,
       { get: (key: string) => config[key] } as unknown as ConfigService,
     );
   });
@@ -147,7 +147,7 @@ describe("EmailLoginService", () => {
     });
 
     it("does not surface a failed send to the caller", async () => {
-      mailer.send.mockRejectedValue(new Error("azure down"));
+      mailer.send.mockRejectedValue(new Error("mail down"));
 
       await expect(
         service.requestLink(user.email, now),

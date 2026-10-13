@@ -56,7 +56,7 @@ describe("EventsService", () => {
 
   const arrangersService = {} as any;
   const imageStorageService = {} as any;
-  const azureCommunicationService = {} as any;
+  const mailService = {} as any;
   let service: EventsService;
   // A real instance rather than a mock: the point of these tests is that the
   // co-organizer path invites instead of attaching, which is that service's
@@ -75,7 +75,7 @@ describe("EventsService", () => {
       prisma,
       arrangersService,
       imageStorageService,
-      azureCommunicationService,
+      mailService,
       coOrganizerInvitationsService,
       // Real instance on the same prisma mock: these tests assert the read
       // gate through EventsService, and that gate now lives in EventAccess.

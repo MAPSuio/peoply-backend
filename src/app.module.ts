@@ -15,7 +15,7 @@ import { jwtSecretSchema } from "./auth/jwt-secret.schema";
 import { mcpKeyPepperSchema } from "./mcp/mcp-key-pepper.schema";
 import { CategoriesModule } from "./categories/categories.module";
 import * as Joi from "joi";
-import { AzureModule } from "./azure/azure.module";
+import { MailModule } from "./mail/mail.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { FavoritesModule } from "./favorites/favorites.module";
 import { NotificationsModule } from "./notifications/notifications.module";
@@ -81,7 +81,6 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
         SPACES_KEY: Joi.string().required(),
         SPACES_SECRET: Joi.string().required(),
         SPACES_PUBLIC_BASE_URL: Joi.string().uri().required(),
-        AZURE_COMMUNICATION_CONNECTION_STRING: Joi.string().optional(),
         LOCATION_SEARCH_PROVIDER: Joi.string()
           .valid("entur", "geonorge")
           .default("entur"),
@@ -106,7 +105,7 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
     AuthModule,
     HealthModule,
     DiscordModule,
-    AzureModule,
+    MailModule,
     CategoriesModule,
     PrismaModule,
     LocationSearchModule,

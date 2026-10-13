@@ -33,7 +33,6 @@
         "digest"
       ],
       "matchPackageNames": [
-        "!@azure/communication-email",
         "!node-ical"
       ],
       "groupName": "all non-major dependencies"
@@ -85,7 +84,6 @@
         "digest"
       ],
       "matchPackageNames": [
-        "@azure/communication-email",
         "node-ical"
       ],
       "dependencyDashboardApproval": true
@@ -174,7 +172,6 @@
       ],
       "matchCurrentVersion": "!/^0\\./",
       "matchPackageNames": [
-        "!@azure/communication-email",
         "!node-ical"
       ],
       "automerge": true,

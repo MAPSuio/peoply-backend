@@ -7,7 +7,7 @@ import {
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
-import { AzureCommunicationService } from "../../azure/azure-communication.service";
+import { MailService } from "../../mail/mail.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   NO_REPLY_ADDRESS,
@@ -52,7 +52,7 @@ export class CommonRegistrationService {
 
   constructor(
     protected readonly prismaService: PrismaService,
-    protected readonly azureCommunicationService: AzureCommunicationService,
+    protected readonly mailService: MailService,
   ) {}
 
   async findOne(eventId: string, userId: string) {
@@ -196,7 +196,7 @@ export class CommonRegistrationService {
 
     try {
       if (nextGoingUser?.allowEmailFromArranger) {
-        await this.azureCommunicationService.send({
+        await this.mailService.send({
           senderAddress: NO_REPLY_ADDRESS,
           recipients: {
             to: [{ address: nextGoingUser.email }],

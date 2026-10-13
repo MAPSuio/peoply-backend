@@ -13,7 +13,7 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { UserDoesNotExistException } from "../../users/exceptions";
-import { EmailRecipients } from "@azure/communication-email";
+import type { EmailRecipients } from "../../mail/mail.service";
 import {
   EMAIL_DIVIDER,
   NO_REPLY_ADDRESS,
@@ -183,7 +183,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
     if (updated && user.allowEmailFromArranger) {
       switch (regStatus.regStatus) {
         case RegStatus.NOT_GOING:
-          await this.azureCommunicationService.send({
+          await this.mailService.send({
             senderAddress: NO_REPLY_ADDRESS,
             recipients: toEmails,
             content: {
@@ -194,7 +194,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
           break;
 
         case RegStatus.BANNED:
-          await this.azureCommunicationService.send({
+          await this.mailService.send({
             senderAddress: NO_REPLY_ADDRESS,
             recipients: toEmails,
             content: {

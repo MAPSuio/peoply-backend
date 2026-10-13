@@ -66,7 +66,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/azure/sharp-runtime.ts"],
+      "includes": ["src/images/sharp-runtime.ts"],
       "linter": {
         "rules": {
           "style": {

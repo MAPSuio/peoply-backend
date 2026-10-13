@@ -17,7 +17,7 @@ import {
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { OrganizationsService } from "../organizations/organizations.service";
-import { AzureCommunicationService } from "../azure/azure-communication.service";
+import { MailService } from "../mail/mail.service";
 import { IcsFetchService } from "./ics-fetch.service";
 import { IcsParserService, ParsedIcsEvent } from "./ics-parser.service";
 import { UpsertOrganizationIcsFeedDto } from "./dto/upsert-organization-ics-feed.dto";
@@ -62,7 +62,7 @@ export class IcsFeedsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly organizationsService: OrganizationsService,
-    private readonly azureCommunicationService: AzureCommunicationService,
+    private readonly mailService: MailService,
     private readonly icsFetchService: IcsFetchService,
     private readonly icsParserService: IcsParserService,
   ) {}
@@ -430,7 +430,7 @@ export class IcsFeedsService {
       return;
     }
 
-    await this.azureCommunicationService.send({
+    await this.mailService.send({
       senderAddress: NO_REPLY_ADDRESS,
       recipients: {
         to: [{ address: NO_REPLY_ADDRESS }],

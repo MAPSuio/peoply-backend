@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "../generated/prisma/client";
-import { AzureCommunicationService } from "../azure/azure-communication.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { PrismaService } from "../prisma/prisma.service";
 import { NO_REPLY_ADDRESS } from "../util/email";
@@ -31,7 +31,7 @@ export class EmailLoginService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailer: AzureCommunicationService,
+    private readonly mailer: MailService,
     private readonly config: ConfigService,
   ) {}
 

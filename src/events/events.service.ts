@@ -29,14 +29,14 @@ import {
   Prisma,
   RegStatus,
 } from "../generated/prisma/client";
-import { EmailRecipients } from "@azure/communication-email";
+import type { EmailRecipients } from "../mail/mail.service";
 import {
   EMAIL_DIVIDER,
   NO_REPLY_ADDRESS,
   eventEmailFooter,
 } from "../util/email";
 import { SendUpdateDto } from "./dto/send-update.dto";
-import { AzureCommunicationService } from "../azure/azure-communication.service";
+import { MailService } from "../mail/mail.service";
 import { createUuid, isUUID } from "../util/uuid";
 import { EventCoOrganizerInvitationsService } from "../invitations/services/eventCoOrganizerInvitations.service";
 import { EventAccessService } from "../event-access/event-access.service";
@@ -54,7 +54,7 @@ export class EventsService {
     private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
     private readonly imageStorageService: ImageStorageService,
-    private readonly azureCommunicationService: AzureCommunicationService,
+    private readonly mailService: MailService,
     private readonly coOrganizerInvitationsService: EventCoOrganizerInvitationsService,
     private readonly eventAccess: EventAccessService,
   ) {}
@@ -755,7 +755,7 @@ export class EventsService {
          is empty when nobody attending has opted in - in which case there was
          nothing to send, yet a slot was spent and an empty mail went out. */
       if (toEmails.bcc && toEmails.bcc.length > 0) {
-        const sendResult = await this.azureCommunicationService.send({
+        const sendResult = await this.mailService.send({
           senderAddress: NO_REPLY_ADDRESS,
           recipients: toEmails,
           content: {

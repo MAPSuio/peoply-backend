@@ -3,7 +3,7 @@ import { AuthModule } from "../auth/auth.module";
 import { OrganizationsModule } from "../organizations/organizations.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { UsersModule } from "../users/users.module";
-import { AzureModule } from "../azure/azure.module";
+import { MailModule } from "../mail/mail.module";
 import { IcsFeedsController } from "./ics-feeds.controller";
 import { IcsFeedsService } from "./ics-feeds.service";
 import { IcsFetchService } from "./ics-fetch.service";
@@ -15,7 +15,7 @@ import { IcsParserService } from "./ics-parser.service";
     OrganizationsModule,
     AuthModule,
     UsersModule,
-    AzureModule,
+    MailModule,
   ],
   controllers: [IcsFeedsController],
   providers: [IcsFeedsService, IcsFetchService, IcsParserService],
