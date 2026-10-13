@@ -6,7 +6,6 @@ const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
   png: "image/png",
-  svg: "image/svg+xml",
   webp: "image/webp",
 };
 

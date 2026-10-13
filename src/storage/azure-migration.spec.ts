@@ -22,6 +22,9 @@ describe("azure migration helpers", () => {
     expect(contentTypeFor("profile-images/x.JPG")).toBe("image/jpeg");
     expect(contentTypeFor("event-images/x.webp")).toBe("image/webp");
     expect(contentTypeFor("event-images/x")).toBe("application/octet-stream");
+    expect(contentTypeFor("event-images/x.svg")).toBe(
+      "application/octet-stream",
+    );
   });
 
   it("accepts only the known modes and defaults to dry", () => {
