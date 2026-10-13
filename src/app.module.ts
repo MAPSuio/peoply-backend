@@ -81,6 +81,7 @@ import { AbuseBudgetModule } from "./abuse-budget/abuse-budget.module";
         SPACES_KEY: Joi.string().required(),
         SPACES_SECRET: Joi.string().required(),
         SPACES_PUBLIC_BASE_URL: Joi.string().uri().required(),
+        RESEND_API_KEY: Joi.string().allow("").optional(),
         LOCATION_SEARCH_PROVIDER: Joi.string()
           .valid("entur", "geonorge")
           .default("entur"),

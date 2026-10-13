@@ -74,7 +74,7 @@ describe("ArrangerRegistrationService.update — mail on no-op", () => {
     } as any);
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0][0].content.subject).toContain("utestengt");
+    expect(send.mock.calls[0][0].subject).toContain("utestengt");
   });
 
   it("still respects the recipient's opt-out", async () => {

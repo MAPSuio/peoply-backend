@@ -5,7 +5,6 @@ import { Prisma } from "../generated/prisma/client";
 import { MailService } from "../mail/mail.service";
 import { PrismaError } from "../prisma/prisma.constants";
 import { PrismaService } from "../prisma/prisma.service";
-import { NO_REPLY_ADDRESS } from "../util/email";
 import { DEFAULT_FRONTEND_URL } from "../util/url";
 
 export const EMAIL_LOGIN_LINK_TTL_MINUTES = 15;
@@ -108,12 +107,9 @@ export class EmailLoginService {
 
     try {
       await this.mailer.send({
-        senderAddress: NO_REPLY_ADDRESS,
-        recipients: { to: [{ address }] },
-        content: {
-          subject: "Logg inn på Peoply",
-          html: buildLoginLinkHtmlEmail(link),
-        },
+        to: [address],
+        subject: "Logg inn på Peoply",
+        html: buildLoginLinkHtmlEmail(link),
       });
     } catch (error) {
       this.logger.warn(

@@ -9,10 +9,7 @@ import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
 import { MailService } from "../../mail/mail.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import {
-  NO_REPLY_ADDRESS,
-  buildWaitlistedToGoingHtmlEmail,
-} from "../../util/email";
+import { buildWaitlistedToGoingHtmlEmail } from "../../mail/templates";
 import { ForeignKeyNotFoundException } from "../exceptions";
 
 /**
@@ -197,14 +194,9 @@ export class CommonRegistrationService {
     try {
       if (nextGoingUser?.allowEmailFromArranger) {
         await this.mailService.send({
-          senderAddress: NO_REPLY_ADDRESS,
-          recipients: {
-            to: [{ address: nextGoingUser.email }],
-          },
-          content: {
-            subject: `Peoply: Du har fått plass på "${event.title}"`,
-            html: buildWaitlistedToGoingHtmlEmail(event),
-          },
+          to: [nextGoingUser.email],
+          subject: `Peoply: Du har fått plass på "${event.title}"`,
+          html: buildWaitlistedToGoingHtmlEmail(event),
         });
       }
     } catch (error) {

@@ -99,9 +99,7 @@ describe("EventsService.sendUpdateToEvent — the daily email cap", () => {
 
     await service.sendUpdateToEventParticipants("user-1", "event-1", dto);
 
-    /* The old check read `toEmails.to.length`, a hardcoded 1-element array,
-       so an empty BCC still produced a send. */
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: [] }));
   });
 
   it("attaches the provider message id to the reserved row", async () => {

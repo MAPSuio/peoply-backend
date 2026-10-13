@@ -13,11 +13,7 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { UserDoesNotExistException } from "../../users/exceptions";
-import {
-  EMAIL_DIVIDER,
-  NO_REPLY_ADDRESS,
-  eventEmailFooter,
-} from "../../util/email";
+import { EMAIL_DIVIDER, eventEmailFooter } from "../../mail/templates";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { searchPageOptionsOf } from "../../util/pagination";
 
@@ -164,8 +160,6 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       throw new UserDoesNotExistException(userId);
     }
 
-    const toEmails = { to: [{ address: user.email }] };
-
     const updated = await super.updateRegistration(
       userId,
       eventId,
@@ -183,23 +177,17 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
       switch (regStatus.regStatus) {
         case RegStatus.NOT_GOING:
           await this.mailService.send({
-            senderAddress: NO_REPLY_ADDRESS,
-            recipients: toEmails,
-            content: {
-              subject: `Peoply: Du har blitt avmeldt "${event.title}"`,
-              html: this.buildEventUnregisterHtmlEmail(event),
-            },
+            to: [user.email],
+            subject: `Peoply: Du har blitt avmeldt "${event.title}"`,
+            html: this.buildEventUnregisterHtmlEmail(event),
           });
           break;
 
         case RegStatus.BANNED:
           await this.mailService.send({
-            senderAddress: NO_REPLY_ADDRESS,
-            recipients: toEmails,
-            content: {
-              subject: `Peoply: Du har blitt utestengt fra "${event.title}"`,
-              html: this.buildEventBannedHtmlEmail(event),
-            },
+            to: [user.email],
+            subject: `Peoply: Du har blitt utestengt fra "${event.title}"`,
+            html: this.buildEventBannedHtmlEmail(event),
           });
           break;
 

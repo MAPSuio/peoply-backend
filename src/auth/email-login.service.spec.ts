@@ -41,7 +41,7 @@ describe("EmailLoginService", () => {
   const flushMail = () => new Promise((resolve) => setImmediate(resolve));
 
   const sentToken = () => {
-    const html: string = mailer.send.mock.calls[0][0].content.html;
+    const html: string = mailer.send.mock.calls[0][0].html;
     const match = /token=([A-Za-z0-9_-]+)/.exec(html);
     return match?.[1] ?? "";
   };
@@ -124,8 +124,8 @@ describe("EmailLoginService", () => {
       await flushMail();
 
       const message = mailer.send.mock.calls[0][0];
-      expect(message.recipients.to).toEqual([{ address: user.email }]);
-      expect(message.content.html).toContain(
+      expect(message.to).toEqual([user.email]);
+      expect(message.html).toContain(
         `https://peoply.app/login/email?token=${sentToken()}`,
       );
     });

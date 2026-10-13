@@ -1,156 +1,182 @@
+import { ConfigService } from "@nestjs/config";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import { BUDGET_ACTIONS } from "../abuse-budget/budget-action";
 import { BudgetExceeded } from "../abuse-budget/budget-errors";
 import { InMemoryBudgetStore } from "../abuse-budget/in-memory-budget-store";
 import { runWithRequest } from "../abuse-budget/principal-context";
-import { MailMessage, MailService } from "./mail.service";
+import { MailService } from "./mail.service";
+
+const batchSend = jest.fn();
+
+jest.mock("resend", () => ({
+  Resend: jest.fn().mockImplementation(() => ({ batch: { send: batchSend } })),
+}));
 
 const MAIL_LIMIT = BUDGET_ACTIONS["mail.recipient"].limit;
 const ARRANGER = { headers: {}, ip: "203.0.113.8", user: { id: "arranger-1" } };
 
-function messageTo(...addresses: string[]): MailMessage {
-  return {
-    senderAddress: "no-reply@peoply.app",
-    recipients: { to: addresses.map((address) => ({ address })) },
-    content: { subject: "subject", html: "<p>body</p>" },
-  };
-}
-
-function buildService() {
-  return new MailService(
-    new AbuseBudgetService(new InMemoryBudgetStore(), { now: () => 0 }),
+function addresses(count: number, prefix = "member") {
+  return Array.from(
+    { length: count },
+    (_, index) => `${prefix}-${index}@example.com`,
   );
 }
 
+function mailTo(to: string[]) {
+  return { to, subject: "subject", html: "<p>body</p>" };
+}
+
+function buildService(apiKey: string | undefined = "re_test") {
+  const budget = new AbuseBudgetService(new InMemoryBudgetStore(), {
+    now: () => 0,
+  });
+  const config = { get: () => apiKey } as unknown as ConfigService;
+
+  return { service: new MailService(config, budget), budget };
+}
+
+beforeEach(() => {
+  batchSend.mockReset();
+  batchSend.mockImplementation(async (emails: unknown[]) => ({
+    data: { data: emails.map((_, index) => ({ id: `msg-${index}` })) },
+    error: null,
+  }));
+});
+
 describe("MailService", () => {
-  it("sends nothing and returns no message id", async () => {
-    const service = buildService();
+  it("sends one email per recipient from the no-reply address", async () => {
+    const { service } = buildService();
 
-    await runWithRequest(ARRANGER, async () => {
-      await expect(
-        service.send(messageTo("member@example.com")),
-      ).resolves.toBeNull();
+    await service.send({
+      to: ["a@example.com", "b@example.com"],
+      subject: "Hei",
+      html: "<p>body</p>",
+      replyTo: "arranger@example.com",
+    });
+
+    expect(batchSend).toHaveBeenCalledWith([
+      {
+        from: "Peoply <no-reply@peoply.app>",
+        to: "a@example.com",
+        subject: "Hei",
+        html: "<p>body</p>",
+        replyTo: "arranger@example.com",
+      },
+      {
+        from: "Peoply <no-reply@peoply.app>",
+        to: "b@example.com",
+        subject: "Hei",
+        html: "<p>body</p>",
+        replyTo: "arranger@example.com",
+      },
+    ]);
+  });
+
+  it("returns the id of the first email", async () => {
+    const { service } = buildService();
+
+    await expect(service.send(mailTo(["a@example.com"]))).resolves.toEqual({
+      id: "msg-0",
     });
   });
 
-  it("charges the caller once per recipient of one message", async () => {
-    const service = buildService();
+  it("splits a large audience into batches of 100", async () => {
+    const { service } = buildService();
 
-    await runWithRequest(ARRANGER, async () => {
-      for (let sent = 0; sent < MAIL_LIMIT; sent += 1) {
-        await service.send(messageTo("member@example.com"));
-      }
+    await service.send(mailTo(addresses(250)));
 
-      await expect(
-        service.send(messageTo("member@example.com")),
-      ).rejects.toBeInstanceOf(BudgetExceeded);
-    });
+    expect(
+      batchSend.mock.calls.map(([emails]) => (emails as unknown[]).length),
+    ).toEqual([100, 100, 50]);
   });
 
-  it("counts everyone a broadcast reaches, not the one call it took", async () => {
-    const service = buildService();
-    const audience = Array.from(
-      { length: MAIL_LIMIT },
-      (_, index) => `member-${index}@example.com`,
+  it("mails an address once, however often it is listed", async () => {
+    const { service } = buildService();
+
+    await service.send(mailTo(["a@example.com", "a@example.com"]));
+
+    expect(batchSend.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it("sends nothing for an empty audience", async () => {
+    const { service } = buildService();
+
+    await expect(service.send(mailTo([]))).resolves.toBeNull();
+    expect(batchSend).not.toHaveBeenCalled();
+  });
+
+  it("throws when Resend rejects the batch", async () => {
+    const { service } = buildService();
+    batchSend.mockResolvedValueOnce({
+      data: null,
+      error: { name: "validation_error", message: "bad sender" },
+    });
+
+    await expect(service.send(mailTo(["a@example.com"]))).rejects.toThrow(
+      "bad sender",
     );
-
-    await runWithRequest(ARRANGER, async () => {
-      await service.send(messageTo(...audience));
-
-      await expect(
-        service.send(messageTo("one-more@example.com")),
-      ).rejects.toBeInstanceOf(BudgetExceeded);
-    });
   });
 
-  it("counts blind copies, which is how the update mail reaches an event", async () => {
-    const service = buildService();
+  it("sends and spends nothing without an API key", async () => {
+    const { service, budget } = buildService("");
+    const consume = jest.spyOn(budget, "consume");
 
     await runWithRequest(ARRANGER, async () => {
-      await service.send({
-        senderAddress: "no-reply@peoply.app",
-        recipients: {
-          to: [{ address: "no-reply@peoply.app" }],
-          bcc: Array.from({ length: MAIL_LIMIT - 1 }, (_, index) => ({
-            address: `member-${index}@example.com`,
-          })),
-        },
-        content: { subject: "subject", html: "<p>body</p>" },
-      });
-
-      await expect(
-        service.send(messageTo("one-more@example.com")),
-      ).rejects.toBeInstanceOf(BudgetExceeded);
+      await expect(service.send(mailTo(["a@example.com"]))).resolves.toBeNull();
     });
+
+    expect(batchSend).not.toHaveBeenCalled();
+    expect(consume).not.toHaveBeenCalled();
   });
 
-  it("charges one address once, however many recipient lists name it", async () => {
-    const service = buildService();
-    const repeated = "member@example.com";
-    const rest = Array.from(
-      { length: MAIL_LIMIT - 1 },
-      (_, index) => `member-${index}@example.com`,
-    );
+  it("charges the caller once per recipient", async () => {
+    const { service } = buildService();
 
     await runWithRequest(ARRANGER, async () => {
-      await service.send({
-        senderAddress: "no-reply@peoply.app",
-        recipients: {
-          to: [{ address: repeated }],
-          cc: [{ address: repeated }],
-          bcc: [{ address: repeated }],
-        },
-        content: { subject: "subject", html: "<p>body</p>" },
-      });
-
-      await service.send(messageTo(...rest));
+      await service.send(mailTo(addresses(MAIL_LIMIT)));
 
       await expect(
-        service.send(messageTo("one-more@example.com")),
+        service.send(mailTo(["one-more@example.com"])),
       ).rejects.toBeInstanceOf(BudgetExceeded);
     });
+
+    expect(batchSend).toHaveBeenCalledTimes(Math.ceil(MAIL_LIMIT / 100));
   });
 
   it("refuses the message that would cross the limit rather than truncating it", async () => {
-    const service = buildService();
-    const audience = Array.from(
-      { length: MAIL_LIMIT + 1 },
-      (_, index) => `member-${index}@example.com`,
-    );
+    const { service } = buildService();
 
     await runWithRequest(ARRANGER, async () => {
-      await expect(service.send(messageTo(...audience))).rejects.toBeInstanceOf(
-        BudgetExceeded,
-      );
+      await expect(
+        service.send(mailTo(addresses(MAIL_LIMIT + 1))),
+      ).rejects.toBeInstanceOf(BudgetExceeded);
     });
+
+    expect(batchSend).not.toHaveBeenCalled();
   });
 
   it("keeps two arrangers on separate allowances", async () => {
-    const service = buildService();
-    const audience = Array.from(
-      { length: MAIL_LIMIT },
-      (_, index) => `member-${index}@example.com`,
-    );
+    const { service } = buildService();
 
-    await runWithRequest(ARRANGER, () => service.send(messageTo(...audience)));
+    await runWithRequest(ARRANGER, () =>
+      service.send(mailTo(addresses(MAIL_LIMIT))),
+    );
 
     await runWithRequest(
       { headers: {}, ip: "203.0.113.9", user: { id: "arranger-2" } },
       async () => {
         await expect(
-          service.send(messageTo("member@example.com")),
-        ).resolves.toBeNull();
+          service.send(mailTo(["member@example.com"])),
+        ).resolves.toEqual({ id: "msg-0" });
       },
     );
   });
 
   it("lets the scheduled feed mailer through, since no caller asked for it", async () => {
-    const service = buildService();
-    const audience = Array.from(
-      { length: MAIL_LIMIT + 10 },
-      (_, index) => `admin-${index}@example.com`,
-    );
+    const { service } = buildService();
 
-    await expect(service.send(messageTo(...audience))).resolves.toBeNull();
+    await expect(
+      service.send(mailTo(addresses(MAIL_LIMIT + 10, "admin"))),
+    ).resolves.toEqual({ id: "msg-0" });
   });
 });

@@ -400,7 +400,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
 
     expect(mailer.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipients: { to: [{ address: "next@example.com" }] },
+        to: ["next@example.com"],
       }),
     );
   });

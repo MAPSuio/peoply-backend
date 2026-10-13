@@ -29,11 +29,7 @@ import {
   Prisma,
   RegStatus,
 } from "../generated/prisma/client";
-import {
-  EMAIL_DIVIDER,
-  NO_REPLY_ADDRESS,
-  eventEmailFooter,
-} from "../util/email";
+import { EMAIL_DIVIDER, eventEmailFooter } from "../mail/templates";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { MailService } from "../mail/mail.service";
 import { createUuid, isUUID } from "../util/uuid";
@@ -742,31 +738,13 @@ export class EventsService {
         })
       ).filter(({ user }) => user.allowEmailFromArranger);
 
-      const toEmails = {
-        to: [{ address: NO_REPLY_ADDRESS }],
-        bcc: registrations.map(({ user }) => ({
-          address: user.email,
-        })),
-      };
-
-      /* `to` is the hardcoded single-element array two lines up, so this read
-         `1 > 0` and was always true. The recipients are the BCC list, and it
-         is empty when nobody attending has opted in - in which case there was
-         nothing to send, yet a slot was spent and an empty mail went out. */
-      if (toEmails.bcc && toEmails.bcc.length > 0) {
-        const sendResult = await this.mailService.send({
-          senderAddress: NO_REPLY_ADDRESS,
-          recipients: toEmails,
-          content: {
-            subject: `Peoply: Oppdatering for "${event.title}"`,
-            html: this.buildEventUpdateHtmlEmail(updateDto, event),
-          },
-          replyTo: updateDto.replyTo
-            ? [{ address: updateDto.replyTo }]
-            : undefined,
-        });
-        azureMessageId = sendResult?.id ?? null;
-      }
+      const sendResult = await this.mailService.send({
+        to: registrations.map(({ user }) => user.email),
+        subject: `Peoply: Oppdatering for "${event.title}"`,
+        html: this.buildEventUpdateHtmlEmail(updateDto, event),
+        replyTo: updateDto.replyTo,
+      });
+      azureMessageId = sendResult?.id ?? null;
 
       if (azureMessageId) {
         await this.prisma.eventUpdate.update({

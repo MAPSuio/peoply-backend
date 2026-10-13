@@ -1,5 +1,5 @@
 import { escapeHtml } from "./html";
-import { buildWaitlistedToGoingHtmlEmail } from "./email";
+import { buildWaitlistedToGoingHtmlEmail } from "../mail/templates";
 import { Event } from "../generated/prisma/client";
 
 describe("escapeHtml", () => {
