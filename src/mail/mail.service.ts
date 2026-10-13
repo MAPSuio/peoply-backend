@@ -2,19 +2,15 @@ import { Injectable } from "@nestjs/common";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import { currentIdentities } from "../abuse-budget/principal-context";
 
-type MailAddress = { address: string; displayName?: string };
-
-export type EmailRecipients = {
-  to?: MailAddress[];
-  cc?: MailAddress[];
-  bcc?: MailAddress[];
-};
+export type EmailRecipients = Partial<
+  Record<"to" | "cc" | "bcc", { address: string; displayName?: string }[]>
+>;
 
 export type MailMessage = {
   senderAddress: string;
   recipients: EmailRecipients;
   content: { subject: string; html?: string; plainText?: string };
-  replyTo?: MailAddress[];
+  replyTo?: { address: string }[];
 };
 
 @Injectable()
