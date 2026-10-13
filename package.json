@@ -17,7 +17,7 @@
     "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
     "build:prod": "npm run build && npm prune --omit=dev",
-    "images:downscale": "node dist/scripts/downscale-stored-images.js",
+    "images:migrate-to-spaces": "node dist/scripts/migrate-images-to-spaces.js",
     "organizations:backfill-colors": "node dist/scripts/backfill-organization-colors.js",
     "predeploy:prod": "npm run prisma:deploy && node dist/prisma/seed.js",
     "format": "biome format --write",
@@ -42,8 +42,8 @@
     "test:smoke": "node scripts/smoke-test.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1149.0",
     "@azure/communication-email": "^1.1.0",
-    "@azure/storage-blob": "^12.33.0",
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "@nestjs/common": "^12.0.3",

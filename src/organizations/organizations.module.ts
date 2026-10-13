@@ -8,7 +8,7 @@ import { InvitationsModule } from "../invitations/invitations.module";
 import { ArrangersModule } from "../arrangers/arrangers.module";
 import { AuthModule } from "../auth/auth.module";
 import { UsersModule } from "../users/users.module";
-import { AzureModule } from "../azure/azure.module";
+import { StorageModule } from "../storage/storage.module";
 import { AdministrationModule } from "../administration/administration.module";
 import { DiscordModule } from "../discord/discord.module";
 
@@ -21,7 +21,7 @@ import { DiscordModule } from "../discord/discord.module";
     InvitationsModule,
     AuthModule,
     forwardRef(() => UsersModule),
-    AzureModule,
+    StorageModule,
     AdministrationModule,
   ],
   controllers: [OrganizationsController],

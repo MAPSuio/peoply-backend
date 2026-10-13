@@ -55,7 +55,7 @@ describe("EventsService", () => {
   } as any;
 
   const arrangersService = {} as any;
-  const azureStorageService = {} as any;
+  const imageStorageService = {} as any;
   const azureCommunicationService = {} as any;
   let service: EventsService;
   // A real instance rather than a mock: the point of these tests is that the
@@ -74,7 +74,7 @@ describe("EventsService", () => {
     service = new EventsService(
       prisma,
       arrangersService,
-      azureStorageService,
+      imageStorageService,
       azureCommunicationService,
       coOrganizerInvitationsService,
       // Real instance on the same prisma mock: these tests assert the read

@@ -17,8 +17,8 @@ import {
   EventNotFoundException,
   EventUpdateNotFoundException,
 } from "./exceptions";
-import { AzureStorageService } from "../azure/azure-storage.service";
-import { AzureStorageContainer } from "../azure/azure-storage.constants";
+import { ImageStorageService } from "../storage/image-storage.service";
+import { ImageContainer } from "../storage/image-storage.constants";
 import { ArrangersService } from "../arrangers/services";
 import { Event } from "../generated/prisma/client";
 import { escapeHtml } from "../util/html";
@@ -53,7 +53,7 @@ export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly arrangersService: ArrangersService,
-    private readonly azureStorageService: AzureStorageService,
+    private readonly imageStorageService: ImageStorageService,
     private readonly azureCommunicationService: AzureCommunicationService,
     private readonly coOrganizerInvitationsService: EventCoOrganizerInvitationsService,
     private readonly eventAccess: EventAccessService,
@@ -142,10 +142,10 @@ export class EventsService {
     try {
       const imageUrl = eventImage
         ? (
-            await this.azureStorageService.upload(
+            await this.imageStorageService.upload(
               eventImageFileName,
               eventImage.buffer,
-              AzureStorageContainer.EVENT_IMAGES,
+              ImageContainer.EVENT_IMAGES,
             )
           ).url
         : null;
@@ -235,9 +235,9 @@ export class EventsService {
       // The Prisma code mapping that used to live here is gone —
       // PrismaExceptionFilter turns P2003 into 400 and P2002 into 409.
       if (eventImage) {
-        await this.azureStorageService.deleteUploadedImageQuietly(
+        await this.imageStorageService.deleteUploadedImageQuietly(
           eventImageFileName,
-          AzureStorageContainer.EVENT_IMAGES,
+          ImageContainer.EVENT_IMAGES,
           "Event creation",
         );
       }
@@ -572,13 +572,13 @@ export class EventsService {
       if (newImage) {
         //upload new image
         newImageUrl = (
-          await this.azureStorageService.upload(
-            this.azureStorageService.generateFileNameById(
+          await this.imageStorageService.upload(
+            this.imageStorageService.generateFileNameById(
               oldEvent.id,
               newImage,
             ),
             newImage.buffer,
-            AzureStorageContainer.EVENT_IMAGES,
+            ImageContainer.EVENT_IMAGES,
           )
         ).url;
 
@@ -628,9 +628,9 @@ export class EventsService {
           const imageName = oldEvent.image.slice(
             oldEvent.image.lastIndexOf("/") + 1,
           );
-          await this.azureStorageService.delete(
+          await this.imageStorageService.delete(
             imageName,
-            AzureStorageContainer.EVENT_IMAGES,
+            ImageContainer.EVENT_IMAGES,
           );
 
           if (deleteImage && !newImage) {
@@ -646,9 +646,9 @@ export class EventsService {
       // Kept for the cleanup only: the replacement image is uploaded before
       // the transaction, so a failure would leave it orphaned.
       if (newImageUrl) {
-        await this.azureStorageService.deleteUploadedImageQuietly(
+        await this.imageStorageService.deleteUploadedImageQuietly(
           newImageUrl,
-          AzureStorageContainer.EVENT_IMAGES,
+          ImageContainer.EVENT_IMAGES,
           `Event ${id} update`,
         );
       }

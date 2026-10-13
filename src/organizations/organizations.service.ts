@@ -18,8 +18,8 @@ import { OrganizationRole } from "../generated/prisma/client";
 import { EventArrangerRole, Organization } from "../generated/prisma/client";
 import { buildDescriptionSearchQuery, sortByRelevance } from "../util/search";
 import { PUBLIC_USER_PROFILE_SELECT } from "../users/user.select";
-import { AzureStorageService } from "../azure/azure-storage.service";
-import { AzureStorageContainer } from "../azure/azure-storage.constants";
+import { ImageStorageService } from "../storage/image-storage.service";
+import { ImageContainer } from "../storage/image-storage.constants";
 import { SearchOrganizationDto } from "./dto/search-organization.dto";
 import { createUuid, isUUID } from "../util/uuid";
 import { DEFAULT_FRONTEND_URL } from "../util/url";
@@ -45,7 +45,7 @@ export class OrganizationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly azureStorageService: AzureStorageService,
+    private readonly imageStorageService: ImageStorageService,
     private readonly discordAlert: DiscordAlertService,
   ) {}
   async create(
@@ -268,12 +268,12 @@ export class OrganizationsService {
 
     /* the new image and its colors if one is provided, nulls if removeImage,
        and undefined if the columns should be left alone */
-    const imageChange = await this.azureStorageService.swapImage({
+    const imageChange = await this.imageStorageService.swapImage({
       ownerId: org.id,
       currentImageUrl: org.image,
       newImage: orgImage,
       removeImage: updateOrganizationDto.removeImage,
-      container: AzureStorageContainer.ORGANIZATION_IMAGES,
+      container: ImageContainer.ORGANIZATION_IMAGES,
       conflictMessage: "The organization image must either be removed or added",
     });
 
@@ -297,9 +297,9 @@ export class OrganizationsService {
       // Kept for the cleanup only: the image is uploaded before the update,
       // so a failure would leave it orphaned.
       if (imageChange?.image) {
-        await this.azureStorageService.deleteUploadedImageQuietly(
+        await this.imageStorageService.deleteUploadedImageQuietly(
           imageChange.image,
-          AzureStorageContainer.ORGANIZATION_IMAGES,
+          ImageContainer.ORGANIZATION_IMAGES,
           `Organization ${org.id} update`,
         );
       }

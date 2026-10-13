@@ -1,71 +1,50 @@
+import { HttpException, Injectable, Logger } from "@nestjs/common";
 import {
-  HttpException,
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from "@nestjs/common";
-import {
-  BlobServiceClient,
-  StorageSharedKeyCredential,
-} from "@azure/storage-blob";
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { ConfigService } from "@nestjs/config";
 import { randomUUID } from "node:crypto";
 import {
-  AzureStorageContainer,
+  ImageContainer,
   containerStoresBrandColors,
-} from "./azure-storage.constants";
-import { assertIsImage, extensionFor } from "./image-upload";
-import { DecoderBusyError } from "./decode-slot";
-import { ImageRejectedError, normalizeImage } from "./image-normalize";
-import { type BrandColors, readBrandColors } from "./image-colors";
+} from "./image-storage.constants";
+import { assertIsImage, extensionFor } from "../azure/image-upload";
+import { DecoderBusyError } from "../azure/decode-slot";
+import { ImageRejectedError, normalizeImage } from "../azure/image-normalize";
+import { type BrandColors, readBrandColors } from "../azure/image-colors";
 
 export type ImageChange =
   | { image: string; colors: BrandColors | null }
   | { image: null; colors: null }
   | undefined;
 
+/**
+ * Images live in one DigitalOcean Space, one key prefix per container, so a
+ * URL that pointed at the old Azure container maps to the same path here.
+ * The stored URL is built from the public (CDN) base rather than taken from
+ * the S3 client, which only knows the API endpoint.
+ */
 @Injectable()
-export class AzureStorageService
-  extends BlobServiceClient
-  implements OnModuleInit
-{
-  private readonly logger = new Logger(AzureStorageService.name);
-  private readonly skipInit: boolean;
+export class ImageStorageService {
+  private readonly logger = new Logger(ImageStorageService.name);
+  private readonly s3: S3Client;
+  private readonly bucket: string;
+  private readonly publicBaseUrl: string;
 
   constructor(configService: ConfigService) {
-    super(
-      `https://${configService.get<string>(
-        "AZURE_STORAGE_ACCOUNT",
-      )}.blob.core.windows.net`,
-      new StorageSharedKeyCredential(
-        `${configService.get<string>("AZURE_STORAGE_ACCOUNT")}`,
-        `${configService.get<string>("AZURE_STORAGE_KEY")}`,
-      ),
-    );
-
-    const skipInit = configService.get<boolean | string>(
-      "AZURE_STORAGE_SKIP_INIT",
-    );
-    this.skipInit = skipInit === true || skipInit === "true";
-  }
-
-  async onModuleInit() {
-    if (this.skipInit) {
-      return;
-    }
-
-    await this.createContainersIfNotExists();
-  }
-
-  private async createContainersIfNotExists() {
-    // ORGANIZATION_IMAGES was missing, so on a fresh storage account an
-    // organization image upload threw against a container that did not exist.
-    for (const containerName of Object.values(AzureStorageContainer)) {
-      const container = this.getContainerClient(containerName);
-      if (!(await container.exists())) {
-        await container.create();
-      }
-    }
+    this.s3 = new S3Client({
+      region: "us-east-1",
+      endpoint: configService.get<string>("SPACES_ENDPOINT"),
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
+      credentials: {
+        accessKeyId: `${configService.get<string>("SPACES_KEY")}`,
+        secretAccessKey: `${configService.get<string>("SPACES_SECRET")}`,
+      },
+    });
+    this.bucket = `${configService.get<string>("SPACES_BUCKET")}`;
+    this.publicBaseUrl = `${configService.get<string>("SPACES_PUBLIC_BASE_URL")}`;
   }
 
   /**
@@ -74,11 +53,7 @@ export class AzureStorageService
    * directly - so it is the one place a size bound can be applied without
    * being forgotten at a fourth call site later.
    */
-  async upload(
-    fileName: string,
-    file: Buffer,
-    containerName: AzureStorageContainer,
-  ) {
+  async upload(fileName: string, file: Buffer, containerName: ImageContainer) {
     let image: Awaited<ReturnType<typeof normalizeImage>>;
 
     try {
@@ -110,12 +85,20 @@ export class AzureStorageService
       );
     }
 
-    const container = this.getContainerClient(containerName);
-    const blockBlobClient = container.getBlockBlobClient(fileName);
-    await blockBlobClient.upload(image.buffer, image.buffer.length);
+    const key = `${containerName}/${fileName}`;
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: image.buffer,
+        ACL: "public-read",
+        ContentType: assertIsImage(image.buffer),
+        CacheControl: "public, max-age=31536000, immutable",
+      }),
+    );
 
     return {
-      url: blockBlobClient.url,
+      url: `${this.publicBaseUrl}/${key}`,
       colors: containerStoresBrandColors(containerName)
         ? await this.readColorsQuietly(image.buffer, containerName)
         : null,
@@ -124,7 +107,7 @@ export class AzureStorageService
 
   private async readColorsQuietly(
     image: Buffer,
-    containerName: AzureStorageContainer,
+    containerName: ImageContainer,
   ) {
     try {
       return await readBrandColors(image);
@@ -138,10 +121,13 @@ export class AzureStorageService
     }
   }
 
-  async delete(fileName: string, containerName: AzureStorageContainer) {
-    const container = this.getContainerClient(containerName);
-    const blockBlobClient = container.getBlockBlobClient(fileName);
-    await blockBlobClient.delete();
+  async delete(fileName: string, containerName: ImageContainer) {
+    await this.s3.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: `${containerName}/${fileName}`,
+      }),
+    );
   }
 
   /**
@@ -152,7 +138,7 @@ export class AzureStorageService
    */
   async deleteUploadedImageQuietly(
     nameOrUrl: string,
-    containerName: AzureStorageContainer,
+    containerName: ImageContainer,
     context: string,
   ) {
     const fileName = nameOrUrl.slice(nameOrUrl.lastIndexOf("/") + 1);
@@ -165,18 +151,6 @@ export class AzureStorageService
         }`,
       );
     }
-  }
-
-  async replace(
-    fileName: string,
-    file: Buffer,
-    containerName: AzureStorageContainer,
-  ) {
-    const container = this.getContainerClient(containerName);
-    const blockBlobClient = container.getBlockBlobClient(fileName);
-    await blockBlobClient.delete();
-    await blockBlobClient.upload(file, file.length);
-    return blockBlobClient.url;
   }
 
   /**
@@ -207,7 +181,7 @@ export class AzureStorageService
     currentImageUrl: string | null;
     newImage?: Express.Multer.File;
     removeImage?: boolean;
-    container: AzureStorageContainer;
+    container: ImageContainer;
     conflictMessage: string;
   }): Promise<ImageChange> {
     if (removeImage && newImage) {
