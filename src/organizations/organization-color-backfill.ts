@@ -1,4 +1,4 @@
-import type { BrandColors } from "../azure/image-colors";
+import type { BrandColors } from "../images/image-colors";
 import type { PrismaClient } from "../generated/prisma/client";
 
 export type OrganizationStore = PrismaClient["organization"];

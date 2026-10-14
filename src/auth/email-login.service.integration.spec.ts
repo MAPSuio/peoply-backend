@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
-import { AzureCommunicationService } from "../azure/azure-communication.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailLoginService } from "./email-login.service";
 
@@ -9,7 +9,7 @@ describe("email login links against Postgres", () => {
   const mailer = { send: jest.fn().mockResolvedValue(undefined) };
   const service = new EmailLoginService(
     prisma,
-    mailer as unknown as AzureCommunicationService,
+    mailer as unknown as MailService,
     new ConfigService({ FRONTEND_URL: "https://peoply.test" }),
   );
   const createdArrangerIds: string[] = [];

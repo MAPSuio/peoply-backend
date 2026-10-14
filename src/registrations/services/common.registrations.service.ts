@@ -7,12 +7,9 @@ import {
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { lockEventForSeatChange } from "../event-seat-lock";
 import { assertRegistrationWindowOpen } from "../registration-window";
-import { AzureCommunicationService } from "../../azure/azure-communication.service";
+import { MailService } from "../../mail/mail.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import {
-  NO_REPLY_ADDRESS,
-  buildWaitlistedToGoingHtmlEmail,
-} from "../../util/email";
+import { buildWaitlistedToGoingHtmlEmail } from "../../mail/templates";
 import { ForeignKeyNotFoundException } from "../exceptions";
 
 /**
@@ -52,7 +49,7 @@ export class CommonRegistrationService {
 
   constructor(
     protected readonly prismaService: PrismaService,
-    protected readonly azureCommunicationService: AzureCommunicationService,
+    protected readonly mailService: MailService,
   ) {}
 
   async findOne(eventId: string, userId: string) {
@@ -196,15 +193,10 @@ export class CommonRegistrationService {
 
     try {
       if (nextGoingUser?.allowEmailFromArranger) {
-        await this.azureCommunicationService.send({
-          senderAddress: NO_REPLY_ADDRESS,
-          recipients: {
-            to: [{ address: nextGoingUser.email }],
-          },
-          content: {
-            subject: `Peoply: Du har fått plass på "${event.title}"`,
-            html: buildWaitlistedToGoingHtmlEmail(event),
-          },
+        await this.mailService.send({
+          to: [nextGoingUser.email],
+          subject: `Peoply: Du har fått plass på "${event.title}"`,
+          html: buildWaitlistedToGoingHtmlEmail(event),
         });
       }
     } catch (error) {

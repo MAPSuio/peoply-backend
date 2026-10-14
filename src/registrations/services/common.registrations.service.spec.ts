@@ -15,7 +15,7 @@ const notFound = () =>
 
 describe("CommonRegistrationService.updateRegistration", () => {
   let prisma: any;
-  let azure: any;
+  let mailer: any;
   let service: CommonRegistrationService;
   let calls: string[];
 
@@ -86,8 +86,8 @@ describe("CommonRegistrationService.updateRegistration", () => {
     };
 
     prisma = { $transaction: jest.fn((cb: any) => cb(trx)) };
-    azure = { send: jest.fn().mockResolvedValue(undefined) };
-    service = new CommonRegistrationService(prisma, azure);
+    mailer = { send: jest.fn().mockResolvedValue(undefined) };
+    service = new CommonRegistrationService(prisma, mailer);
     return trx;
   };
 
@@ -136,7 +136,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
 
   it("still promotes when the notification email fails", async () => {
     setup(buildEvent());
-    azure.send.mockRejectedValue(new Error("smtp down"));
+    mailer.send.mockRejectedValue(new Error("smtp down"));
     const warn = jest.spyOn(Logger.prototype, "warn");
 
     await expect(
@@ -390,7 +390,7 @@ describe("CommonRegistrationService.updateRegistration", () => {
     await service.updateRegistration("user-1", "event-1", RegStatus.NOT_GOING);
 
     expect(calls).toContain(`update:user-2:${RegStatus.GOING}`);
-    expect(azure.send).not.toHaveBeenCalled();
+    expect(mailer.send).not.toHaveBeenCalled();
   });
 
   it("emails the promoted user when they allow it", async () => {
@@ -398,9 +398,9 @@ describe("CommonRegistrationService.updateRegistration", () => {
 
     await service.updateRegistration("user-1", "event-1", RegStatus.NOT_GOING);
 
-    expect(azure.send).toHaveBeenCalledWith(
+    expect(mailer.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipients: { to: [{ address: "next@example.com" }] },
+        to: ["next@example.com"],
       }),
     );
   });

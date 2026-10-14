@@ -19,7 +19,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { imageUploadOptionsFor } from "../azure/image-upload";
+import { imageUploadOptionsFor } from "../images/image-upload";
 import {
   InvitationStatus,
   OrganizationRole,

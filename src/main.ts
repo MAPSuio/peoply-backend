@@ -1,6 +1,6 @@
 import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { UploadSizeFilter } from "./azure/upload-size.filter";
+import { UploadSizeFilter } from "./images/upload-size.filter";
 import { PrismaExceptionFilter } from "./prisma/prisma-exception.filter";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NextFunction, Request, Response } from "express";

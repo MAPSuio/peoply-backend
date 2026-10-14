@@ -11,7 +11,7 @@ import { AccessSessionService } from "./access-session.service";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { EmailLoginService } from "./email-login.service";
-import { AzureModule } from "../azure/azure.module";
+import { MailModule } from "../mail/mail.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { LegacyRefreshCookieMiddleware } from "./legacy-refresh-cookie.middleware";
 import { SessionMarkerBackfillMiddleware } from "./session-marker-backfill.middleware";
@@ -62,7 +62,7 @@ const GoogleStrategyFactory = {
     forwardRef(() => UsersModule),
     ConfigModule,
     PrismaModule,
-    AzureModule,
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

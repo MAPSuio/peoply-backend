@@ -17,7 +17,7 @@ describe("IcsFeedsService", () => {
   const organizationsService = {
     findOne: jest.fn(),
   } as any;
-  const azureCommunicationService = {} as any;
+  const mailService = {} as any;
   const icsFetchService = {
     fetchCalendar: jest.fn(),
   } as any;
@@ -31,7 +31,7 @@ describe("IcsFeedsService", () => {
     service = new IcsFeedsService(
       prisma,
       organizationsService,
-      azureCommunicationService,
+      mailService,
       icsFetchService,
       icsParserService,
     );

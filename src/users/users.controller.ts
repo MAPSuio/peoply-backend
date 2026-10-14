@@ -33,7 +33,7 @@ import { UsersService, FollowService } from "./services";
 import { UserDoesNotExistException } from "./exceptions";
 import { withoutRefreshTokenId } from "./user.response";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { imageUploadOptionsFor } from "../azure/image-upload";
+import { imageUploadOptionsFor } from "../images/image-upload";
 import { Provider, User, UserSeenUpdateType } from "../generated/prisma/client";
 import { EventArrangersService } from "../arrangers/services";
 import { OrganizationsService } from "../organizations/organizations.service";

@@ -29,7 +29,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { imageUploadOptionsFor } from "../azure/image-upload";
+import { imageUploadOptionsFor } from "../images/image-upload";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
 import { EventRolesGuard } from "../auth/guards/eventRoles.guard";

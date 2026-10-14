@@ -10,10 +10,10 @@ import {
   ImageContainer,
   containerStoresBrandColors,
 } from "./image-storage.constants";
-import { assertIsImage, extensionFor } from "../azure/image-upload";
-import { DecoderBusyError } from "../azure/decode-slot";
-import { ImageRejectedError, normalizeImage } from "../azure/image-normalize";
-import { type BrandColors, readBrandColors } from "../azure/image-colors";
+import { assertIsImage, extensionFor } from "../images/image-upload";
+import { DecoderBusyError } from "../images/decode-slot";
+import { ImageRejectedError, normalizeImage } from "../images/image-normalize";
+import { type BrandColors, readBrandColors } from "../images/image-colors";
 
 export type ImageChange =
   | { image: string; colors: BrandColors | null }
@@ -21,8 +21,7 @@ export type ImageChange =
   | undefined;
 
 /**
- * Images live in one DigitalOcean Space, one key prefix per container, so a
- * URL that pointed at the old Azure container maps to the same path here.
+ * Images live in one DigitalOcean Space, one key prefix per container.
  * The stored URL is built from the public (CDN) base rather than taken from
  * the S3 client, which only knows the API endpoint.
  */

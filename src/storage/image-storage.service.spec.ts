@@ -2,12 +2,12 @@ import { ConfigService } from "@nestjs/config";
 import { BadRequestException, HttpException } from "@nestjs/common";
 import { ImageStorageService } from "./image-storage.service";
 import { ImageContainer } from "./image-storage.constants";
-import { MAX_QUEUED_DECODES } from "../azure/decode-slot";
+import { MAX_QUEUED_DECODES } from "../images/decode-slot";
 import {
   MAX_IMAGE_INPUT_EDGE_PX,
   normalizeImage,
-} from "../azure/image-normalize";
-import sharp from "../azure/sharp-runtime";
+} from "../images/image-normalize";
+import sharp from "../images/sharp-runtime";
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const config = {
@@ -92,7 +92,6 @@ describe("ImageStorageService.swapImage", () => {
   beforeEach(() => {
     deleted = [];
     service = new ImageStorageService(configService);
-    // The blob calls are the only thing that reaches Azure.
     jest
       .spyOn(service, "delete")
       .mockImplementation(async (fileName: string) => {

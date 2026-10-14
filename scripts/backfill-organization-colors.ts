@@ -1,4 +1,4 @@
-import { readBrandColors } from "../src/azure/image-colors";
+import { readBrandColors } from "../src/images/image-colors";
 import { PrismaClient } from "../src/generated/prisma/client";
 import {
   type BackfillTally,

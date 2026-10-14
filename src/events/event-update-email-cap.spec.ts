@@ -92,16 +92,14 @@ describe("EventsService.sendUpdateToEvent — the daily email cap", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("sends nothing when no attendee has opted in", async () => {
+  it("leaves out attendees who have not opted in", async () => {
     registration.findMany.mockResolvedValueOnce([
       { user: { email: "a@b.no", allowEmailFromArranger: false } },
     ]);
 
     await service.sendUpdateToEventParticipants("user-1", "event-1", dto);
 
-    /* The old check read `toEmails.to.length`, a hardcoded 1-element array,
-       so an empty BCC still produced a send. */
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: [] }));
   });
 
   it("attaches the provider message id to the reserved row", async () => {
