@@ -35,7 +35,11 @@ describe("EventInvitationsService — invitation revocation", () => {
     trx.event.findUnique.mockResolvedValue(futureEvent);
     trx.user.findUnique.mockResolvedValue({ id: "user-1" });
     registration.updateMany.mockResolvedValue({ count: 1 });
-    service = new EventInvitationsService(prisma, userRegistrationsService);
+    service = new EventInvitationsService(
+      prisma,
+      userRegistrationsService,
+      {} as any,
+    );
   });
 
   describe("accepting", () => {

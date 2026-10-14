@@ -183,6 +183,7 @@ describe("endpoints that return other people's users", () => {
         await new EventInvitationsService(
           prisma,
           {} as any,
+          {} as any,
         ).findAllPendingInvitationsToUser("user-1");
         return calls;
       },
@@ -204,6 +205,7 @@ describe("endpoints that return other people's users", () => {
 
         await new EventInvitationsService(
           prisma,
+          {} as any,
           {} as any,
         ).findAllInvitationsForEventIncludingUsers("event-1");
         return calls;

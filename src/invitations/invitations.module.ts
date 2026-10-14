@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { EventAccessModule } from "../event-access/event-access.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { RegistrationsModule } from "../registrations/registrations.module";
 import { EventCoOrganizerInvitationsService } from "./services/eventCoOrganizerInvitations.service";
@@ -6,7 +7,7 @@ import { EventInvitationsService } from "./services/eventInvitations.service";
 import { OrganizationInvitationsService } from "./services/organizationInvitations.service";
 
 @Module({
-  imports: [PrismaModule, RegistrationsModule],
+  imports: [PrismaModule, RegistrationsModule, EventAccessModule],
   controllers: [],
   providers: [
     EventInvitationsService,

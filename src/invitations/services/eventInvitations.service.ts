@@ -4,10 +4,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  EventVisibility,
   InvitationStatus,
   OrganizationRole,
   RegStatus,
 } from "../../generated/prisma/client";
+import { EventAccessService } from "../../event-access/event-access.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { UserRegistrationService } from "../../registrations/services";
 import { assertRegistrationWindowOpen } from "../../registrations/registration-window";
@@ -20,6 +22,7 @@ export class EventInvitationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userRegistrationsService: UserRegistrationService,
+    private readonly eventAccess: EventAccessService,
   ) {}
 
   async findOne(invitationId: string) {
@@ -129,6 +132,7 @@ export class EventInvitationsService {
           regStart: true,
           regEnd: true,
           registrationMode: true,
+          visibility: true,
         },
       });
 
@@ -161,7 +165,16 @@ export class EventInvitationsService {
         },
       });
 
-      if (!isDirectArranger && !isOrganizationAdmin) {
+      if (
+        !isDirectArranger &&
+        !isOrganizationAdmin &&
+        (event.visibility === EventVisibility.PRIVATE ||
+          !(await this.eventAccess.canView(
+            eventId,
+            event.visibility,
+            fromUserId,
+          )))
+      ) {
         throw new ForbiddenException(
           "User is not allowed to invite users to this event",
         );
