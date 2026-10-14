@@ -39,7 +39,8 @@ describe("buildWaitlistedToGoingHtmlEmail", () => {
       urlId: "ABCDEFGH",
     } as Event;
 
-    const html = buildWaitlistedToGoingHtmlEmail(event);
+    const { html: body, footer } = buildWaitlistedToGoingHtmlEmail(event);
+    const html = body + footer;
 
     /* The words survive as inert text - what must not survive is the tag
        that would make the browser act on them. */
@@ -54,9 +55,21 @@ describe("buildWaitlistedToGoingHtmlEmail", () => {
       urlId: 'A" onclick="alert(1)',
     } as Event;
 
-    const html = buildWaitlistedToGoingHtmlEmail(event);
+    const { html: body, footer } = buildWaitlistedToGoingHtmlEmail(event);
+    const html = body + footer;
 
     expect(html).not.toContain('onmouseover="');
     expect(html).not.toContain('onclick="');
+  });
+
+  it("keeps the fine print below the sign-off", () => {
+    const event = { title: "Quiz", urlId: "ABCDEFGH" } as Event;
+
+    const { html, footer } = buildWaitlistedToGoingHtmlEmail(event);
+
+    expect(html).toContain("Du har fått plass på Quiz");
+    expect(footer).toContain("Du kan ikke svare på denne eposten.");
+    expect(footer).toContain("https://peoply.app/events/ABCDEFGH");
+    expect(html).not.toContain("https://peoply.app/events/ABCDEFGH");
   });
 });

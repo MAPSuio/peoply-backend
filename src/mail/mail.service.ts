@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { type CreateBatchRequestOptions, Resend } from "resend";
 import { AbuseBudgetService } from "../abuse-budget/abuse-budget.service";
 import { currentIdentities } from "../abuse-budget/principal-context";
+import { DEFAULT_FRONTEND_URL } from "../util/url";
+import { emailLayout } from "./templates";
 
 const SENDER = "Peoply <no-reply@peoply.app>";
 const BATCH_SIZE = 100;
@@ -12,6 +14,7 @@ const REQUEST_TIMEOUT_MS = 10_000;
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly client: Resend | null;
+  private readonly assets: string;
 
   constructor(
     config: ConfigService,
@@ -22,12 +25,14 @@ export class MailService {
       this.logger.warn("RESEND_API_KEY is not set; email sending is disabled.");
     }
     this.client = apiKey ? new Resend(apiKey) : null;
+    this.assets = `${config.get<string>("FRONTEND_URL") ?? DEFAULT_FRONTEND_URL}/email`;
   }
 
   async send(mail: {
     to: string[];
     subject: string;
     html: string;
+    footer?: string;
     replyTo?: string;
   }): Promise<{ id: string } | null> {
     const recipients = [...new Set(mail.to)];
@@ -42,6 +47,7 @@ export class MailService {
       );
     }
 
+    const html = emailLayout(mail, this.assets);
     const ids: string[] = [];
     for (let start = 0; start < recipients.length; start += BATCH_SIZE) {
       const options: CreateBatchRequestOptions & Pick<RequestInit, "signal"> = {
@@ -52,7 +58,7 @@ export class MailService {
           from: SENDER,
           to,
           subject: mail.subject,
-          html: mail.html,
+          html,
           ...(mail.replyTo && { replyTo: mail.replyTo }),
         })),
         options,

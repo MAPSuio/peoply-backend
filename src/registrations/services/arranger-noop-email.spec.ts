@@ -42,6 +42,9 @@ describe("ArrangerRegistrationService.update — mail on no-op", () => {
     } as any);
 
     expect(send).toHaveBeenCalledTimes(1);
+    const { html, footer } = send.mock.calls[0][0];
+    expect(footer).toContain("fordi du var påmeldt");
+    expect(html).not.toContain("fordi du var påmeldt");
   });
 
   it("sends nothing when no branch matched", async () => {
