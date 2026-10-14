@@ -92,7 +92,7 @@ describe("EventsService.sendUpdateToEvent — the daily email cap", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("sends nothing when no attendee has opted in", async () => {
+  it("leaves out attendees who have not opted in", async () => {
     registration.findMany.mockResolvedValueOnce([
       { user: { email: "a@b.no", allowEmailFromArranger: false } },
     ]);
