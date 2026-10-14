@@ -93,7 +93,7 @@ describe("MailService", () => {
     const positions = order.map((part) => html.indexOf(part));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    for (const asset of ["background.png", "peoply.png", "maps.png"]) {
+    for (const asset of ["background.svg", "peoply.svg", "maps.svg"]) {
       expect(html).toContain(`https://peoply.app/email/${asset}`);
     }
   });
@@ -104,7 +104,7 @@ describe("MailService", () => {
     await service.send(mailTo(["a@example.com"]));
 
     const html: string = batchSend.mock.calls[0][0][0].html;
-    expect(html).toContain("https://staging.peoply.app/email/peoply.png");
+    expect(html).toContain("https://staging.peoply.app/email/peoply.svg");
     expect(html).not.toContain("https://peoply.app/email/");
   });
 

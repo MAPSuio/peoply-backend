@@ -21,10 +21,10 @@ p:last-child{margin-bottom:0}
 a{color:#4D21F7}
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#24107A;background-image:url('${assets}/background.png')">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#24107A" style="background-color:#24107A;background-image:url('${assets}/background.png')">
+<body style="margin:0;padding:0;background-color:#24107A;background-image:url('${assets}/background.svg')">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#24107A" style="background-color:#24107A;background-image:url('${assets}/background.svg')">
 <tr>
-<td align="center" background="${assets}/background.png" bgcolor="#24107A" style="padding:40px 12px">
+<td align="center" background="${assets}/background.svg" bgcolor="#24107A" style="padding:40px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px">
 <tr>
 <td bgcolor="#FFFFFF" style="background-color:#FFFFFF;border-radius:16px;padding:32px 28px;font-family:${FONT};font-size:16px;line-height:1.5;color:#1E2630">
@@ -32,8 +32,8 @@ ${html}
 <p style="margin:24px 0 0">Mvh<br>Peoply-teamet</p>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">
 <tr>
-<td style="padding-right:20px"><a href="https://peoply.app" target="_blank"><img src="${assets}/peoply.png" width="96" height="34" alt="Peoply" style="display:block;border:0"></a></td>
-<td><a href="https://foreninger.uio.no/maps/" target="_blank"><img src="${assets}/maps.png" width="56" height="32" alt="MAPS" style="display:block;border:0"></a></td>
+<td style="padding-right:20px"><a href="https://peoply.app" target="_blank"><img src="${assets}/peoply.svg" width="91" height="28" alt="Peoply" style="display:block;border:0"></a></td>
+<td><a href="https://foreninger.uio.no/maps/" target="_blank"><img src="${assets}/maps.svg" width="56" height="32" alt="MAPS" style="display:block;border:0"></a></td>
 </tr>
 </table>
 ${footer ? `<div style="margin-top:24px;padding-top:16px;border-top:1px solid #E6E3F2;font-size:13px;line-height:1.5;color:#5B6472">${footer}</div>` : ""}
