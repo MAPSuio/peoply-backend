@@ -29,6 +29,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Throttle } from "@nestjs/throttler";
 import { imageUploadOptionsFor } from "../images/image-upload";
 import { OrganizationRoles } from "../../decorators/organizationRoles.decorator";
 import { EventArrangerRoles } from "../../decorators/eventArrangerRoles.decorator";
@@ -209,8 +210,7 @@ export class EventsController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.ADMIN, OrganizationRole.OWNER)
-  @UseGuards(EventRolesGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post(":id/invitations")
   async sendInvitations(
     @Req() req: any,
