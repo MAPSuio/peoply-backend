@@ -7,8 +7,7 @@ import { PrismaError } from "../prisma/prisma.constants";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_FRONTEND_URL } from "../util/url";
 
-export const EMAIL_LOGIN_LINK_TTL_MINUTES = 15;
-export const EMAIL_LOGIN_LINK_TTL_MS = EMAIL_LOGIN_LINK_TTL_MINUTES * 60 * 1000;
+export const EMAIL_LOGIN_LINK_TTL_MS = 15 * 60 * 1000;
 export const EMAIL_LOGIN_COOLDOWN_MS = 60 * 1000;
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -17,11 +16,17 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-function buildLoginLinkHtmlEmail(link: string) {
+const OSLO_CLOCK = new Intl.DateTimeFormat("nb-NO", {
+  timeZone: "Europe/Oslo",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function buildLoginLinkHtmlEmail(link: string, expiresAt: string) {
   return `<p>Hei!</p>
 <p>Trykk på lenken for å logge inn på Peoply:</p>
 <p><a href="${link}">Logg inn på Peoply</a></p>
-<p>Lenken virker i ${EMAIL_LOGIN_LINK_TTL_MINUTES} minutter og kan bare brukes én gang. Har du ikke bedt om å logge inn, kan du se bort fra denne e-posten.</p>`;
+<p>Lenken virker til kl. ${expiresAt} og kan bare brukes én gang. Har du ikke bedt om å logge inn, kan du se bort fra denne e-posten.</p>`;
 }
 
 @Injectable()
@@ -53,6 +58,7 @@ export class EmailLoginService {
     if (!user) return;
 
     const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(now.getTime() + EMAIL_LOGIN_LINK_TTL_MS);
 
     const created = await this.prisma.$transaction(async (trx) => {
       await trx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
@@ -71,13 +77,13 @@ export class EmailLoginService {
           tokenHash: hashToken(token),
           userId: user.id,
           createdAt: now,
-          expiresAt: new Date(now.getTime() + EMAIL_LOGIN_LINK_TTL_MS),
+          expiresAt,
         },
       });
       return true;
     });
 
-    if (created) void this.sendLink(user.id, user.email, token);
+    if (created) void this.sendLink(user.id, user.email, token, expiresAt);
   }
 
   async consume(token: string, now = new Date()): Promise<string | null> {
@@ -100,16 +106,22 @@ export class EmailLoginService {
     }
   }
 
-  private async sendLink(userId: string, address: string, token: string) {
+  private async sendLink(
+    userId: string,
+    address: string,
+    token: string,
+    expiresAt: Date,
+  ) {
     const frontendUrl =
       this.config.get<string>("FRONTEND_URL") ?? DEFAULT_FRONTEND_URL;
     const link = `${frontendUrl}/login/email?token=${token}`;
+    const clock = OSLO_CLOCK.format(expiresAt);
 
     try {
       await this.mailer.send({
         to: [address],
-        subject: "Logg inn på Peoply",
-        html: buildLoginLinkHtmlEmail(link),
+        subject: `Logg inn på Peoply innen ${clock}`,
+        html: buildLoginLinkHtmlEmail(link, clock),
       });
     } catch (error) {
       this.logger.warn(

@@ -130,6 +130,23 @@ describe("EmailLoginService", () => {
       );
     });
 
+    it("puts the Oslo expiry time in the subject and body so Gmail never threads two links together", async () => {
+      await service.requestLink(user.email, now);
+      await flushMail();
+
+      const message = mailer.send.mock.calls[0][0];
+      expect(message.subject).toBe("Logg inn på Peoply innen 14:15");
+      expect(message.html).toContain("Lenken virker til kl. 14:15");
+      expect(message.html).not.toContain("minutter");
+
+      await service.requestLink(user.email, new Date("2026-01-15T12:00:00Z"));
+      await flushMail();
+
+      const winter = mailer.send.mock.calls[1][0];
+      expect(winter.subject).toBe("Logg inn på Peoply innen 13:15");
+      expect(winter.html).toContain("Lenken virker til kl. 13:15");
+    });
+
     it("sends at most one link per cooldown window", async () => {
       prisma.loginLink.findFirst.mockResolvedValue({ userId: user.id });
 
