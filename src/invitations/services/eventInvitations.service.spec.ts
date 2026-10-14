@@ -1,4 +1,4 @@
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { EventInvitationsService } from "./eventInvitations.service";
 
 describe("EventInvitationsService", () => {
@@ -7,10 +7,12 @@ describe("EventInvitationsService", () => {
       visibility,
       isArranger,
       canView,
+      archivedAt = null,
     }: {
       visibility: string;
       isArranger: boolean;
       canView: boolean;
+      archivedAt?: Date | null;
     }) => {
       const trx = {
         user: {
@@ -23,6 +25,7 @@ describe("EventInvitationsService", () => {
             regEnd: null,
             registrationMode: "PEOPLY",
             visibility,
+            archivedAt,
           }),
         },
         eventArranger: {
@@ -94,6 +97,20 @@ describe("EventInvitationsService", () => {
       await expect(
         service.createInvitations("event-1", "user-1", ["user-2"]),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(trx.eventInvitation.createMany).not.toHaveBeenCalled();
+    });
+
+    it("treats an archived event as missing", async () => {
+      const { service, trx } = setup({
+        visibility: "PUBLIC",
+        isArranger: true,
+        canView: true,
+        archivedAt: new Date("2026-01-01"),
+      });
+
+      await expect(
+        service.createInvitations("event-1", "user-1", ["user-2"]),
+      ).rejects.toBeInstanceOf(NotFoundException);
       expect(trx.eventInvitation.createMany).not.toHaveBeenCalled();
     });
 

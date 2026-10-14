@@ -133,10 +133,11 @@ export class EventInvitationsService {
           regEnd: true,
           registrationMode: true,
           visibility: true,
+          archivedAt: true,
         },
       });
 
-      if (!event) {
+      if (!event || event.archivedAt) {
         throw new NotFoundException("Event not found");
       }
 
