@@ -27,11 +27,18 @@ function mailTo(to: string[]) {
   return { to, subject: "subject", html: "<p>body</p>" };
 }
 
-function buildService(apiKey: string | undefined = "re_test") {
+function buildService(
+  apiKey: string | undefined = "re_test",
+  frontendUrl?: string,
+) {
   const budget = new AbuseBudgetService(new InMemoryBudgetStore(), {
     now: () => 0,
   });
-  const config = { get: () => apiKey } as unknown as ConfigService;
+  const env: Record<string, string | undefined> = {
+    RESEND_API_KEY: apiKey,
+    FRONTEND_URL: frontendUrl,
+  };
+  const config = { get: (key: string) => env[key] } as unknown as ConfigService;
 
   return { service: new MailService(config, budget), budget };
 }
@@ -60,17 +67,45 @@ describe("MailService", () => {
         from: "Peoply <no-reply@peoply.app>",
         to: "a@example.com",
         subject: "Hei",
-        html: "<p>body</p>",
+        html: expect.stringContaining("<p>body</p>"),
         replyTo: "arranger@example.com",
       },
       {
         from: "Peoply <no-reply@peoply.app>",
         to: "b@example.com",
         subject: "Hei",
-        html: "<p>body</p>",
+        html: expect.stringContaining("<p>body</p>"),
         replyTo: "arranger@example.com",
       },
     ]);
+  });
+
+  it("signs every email from the Peoply team above the fine print", async () => {
+    const { service } = buildService();
+
+    await service.send({
+      ...mailTo(["a@example.com"]),
+      footer: "<p>fine print</p>",
+    });
+
+    const html: string = batchSend.mock.calls[0][0][0].html;
+    const order = ["<p>body</p>", "Mvh", "Peoply-teamet", "<p>fine print</p>"];
+    const positions = order.map((part) => html.indexOf(part));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    for (const asset of ["background.svg", "peoply.svg", "maps.svg"]) {
+      expect(html).toContain(`https://peoply.app/email/${asset}`);
+    }
+  });
+
+  it("loads the artwork from the configured frontend", async () => {
+    const { service } = buildService("re_test", "https://staging.peoply.app");
+
+    await service.send(mailTo(["a@example.com"]));
+
+    const html: string = batchSend.mock.calls[0][0][0].html;
+    expect(html).toContain("https://staging.peoply.app/email/peoply.svg");
+    expect(html).not.toContain("https://peoply.app/email/");
   });
 
   it("returns the id of the first email", async () => {

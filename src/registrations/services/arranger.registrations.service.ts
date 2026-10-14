@@ -13,7 +13,7 @@ import { EventNotFoundException } from "../../events/exceptions";
 import { escapeHtml } from "../../util/html";
 import { ArrangerUpdateRegistrationDto } from "../dto";
 import { UserDoesNotExistException } from "../../users/exceptions";
-import { EMAIL_DIVIDER, eventEmailFooter } from "../../mail/templates";
+import { eventEmailFooter } from "../../mail/templates";
 import { PUBLIC_USER_SELECT } from "../../users/user.select";
 import { searchPageOptionsOf } from "../../util/pagination";
 
@@ -179,7 +179,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
           await this.mailService.send({
             to: [user.email],
             subject: `Peoply: Du har blitt avmeldt "${event.title}"`,
-            html: this.buildEventUnregisterHtmlEmail(event),
+            ...this.buildEventUnregisterHtmlEmail(event),
           });
           break;
 
@@ -187,7 +187,7 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
           await this.mailService.send({
             to: [user.email],
             subject: `Peoply: Du har blitt utestengt fra "${event.title}"`,
-            html: this.buildEventBannedHtmlEmail(event),
+            ...this.buildEventBannedHtmlEmail(event),
           });
           break;
 
@@ -201,22 +201,22 @@ export class ArrangerRegistrationService extends CommonRegistrationService {
   private buildEventUnregisterHtmlEmail(event: Partial<Event>) {
     const title = escapeHtml(event.title);
 
-    return (
-      `<h1>Du har blitt avmeldt fra ${title}</h1>\n` +
-      `<p>Arrangøren har meldt deg av arrangementet, og du må melde deg på nytt hvis de skal være påmeldt. Da kan det være du havner på venteliste.</p>\n` +
-      EMAIL_DIVIDER +
-      eventEmailFooter(event, { pastTense: true })
-    );
+    return {
+      html:
+        `<h1>Du har blitt avmeldt fra ${title}</h1>\n` +
+        `<p>Arrangøren har meldt deg av arrangementet, og du må melde deg på nytt hvis de skal være påmeldt. Da kan det være du havner på venteliste.</p>\n`,
+      footer: eventEmailFooter(event, { pastTense: true }),
+    };
   }
 
   private buildEventBannedHtmlEmail(event: Partial<Event>) {
     const title = escapeHtml(event.title);
 
-    return (
-      `<h1>Du har blitt utestengt fra ${title}</h1>\n` +
-      `<p>Arrangøren har utestengt deg fra arrangementet, og du kan ikke melde deg på på nytt.</p>\n` +
-      EMAIL_DIVIDER +
-      eventEmailFooter(event, { pastTense: true })
-    );
+    return {
+      html:
+        `<h1>Du har blitt utestengt fra ${title}</h1>\n` +
+        `<p>Arrangøren har utestengt deg fra arrangementet, og du kan ikke melde deg på på nytt.</p>\n`,
+      footer: eventEmailFooter(event, { pastTense: true }),
+    };
   }
 }

@@ -196,7 +196,7 @@ export class CommonRegistrationService {
         await this.mailService.send({
           to: [nextGoingUser.email],
           subject: `Peoply: Du har fått plass på "${event.title}"`,
-          html: buildWaitlistedToGoingHtmlEmail(event),
+          ...buildWaitlistedToGoingHtmlEmail(event),
         });
       }
     } catch (error) {

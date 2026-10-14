@@ -29,7 +29,7 @@ import {
   Prisma,
   RegStatus,
 } from "../generated/prisma/client";
-import { EMAIL_DIVIDER, eventEmailFooter } from "../mail/templates";
+import { eventEmailFooter } from "../mail/templates";
 import { SendUpdateDto } from "./dto/send-update.dto";
 import { MailService } from "../mail/mail.service";
 import { createUuid, isUUID } from "../util/uuid";
@@ -741,7 +741,7 @@ export class EventsService {
       const sendResult = await this.mailService.send({
         to: registrations.map(({ user }) => user.email),
         subject: `Peoply: Oppdatering for "${event.title}"`,
-        html: this.buildEventUpdateHtmlEmail(updateDto, event),
+        ...this.buildEventUpdateHtmlEmail(updateDto, event),
         replyTo: updateDto.replyTo,
       });
       azureMessageId = sendResult?.id ?? null;
@@ -864,23 +864,19 @@ export class EventsService {
     const subject = escapeHtml(updateDto.subject);
     const replyTo = escapeHtml(updateDto.replyTo);
 
-    return (
-      `<h1>${subject}</h1>\n` +
-      `${updateDto.body
-        .split("\n")
-        .map((p) => `<p>${escapeHtml(p)}</p>`)
-        .join("")}\n` +
-      EMAIL_DIVIDER +
-      `<p>
-      ${
-        updateDto.replyTo
-          ? "Svar på denne mailen eller send mail til e-posten under for å sende svar til arrangøren.\n" +
+    return {
+      html:
+        `<h1>${subject}</h1>\n` +
+        `${updateDto.body
+          .split("\n")
+          .map((p) => `<p>${escapeHtml(p)}</p>`)
+          .join("")}\n`,
+      footer:
+        (updateDto.replyTo
+          ? "<p>Svar på denne mailen eller send mail til e-posten under for å sende svar til arrangøren.\n" +
             "<br>" +
-            `<a href="mailto:${replyTo}?subject=SV: ${subject}">${replyTo}</a>`
-          : ""
-      }
-    </p>` +
-      eventEmailFooter(event)
-    );
+            `<a href="mailto:${replyTo}?subject=SV: ${subject}">${replyTo}</a></p>`
+          : "") + eventEmailFooter(event),
+    };
   }
 }
