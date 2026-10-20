@@ -8,9 +8,7 @@ export class VippsGuard extends AuthGuard("vipps") {
 
   handleRequest(err: any, user: any, info: any, context: any, status?: any) {
     if (err || !user) {
-      this.logger.warn(
-        `Vipps login failed: err=${err?.name ?? ""} ${err?.message ?? ""} | info=${info?.name ?? ""} ${info?.message ?? info ?? ""}`,
-      );
+      this.logger.warn(`Vipps login failed: err=${err} | info=${info}`);
     }
     return super.handleRequest(err, user, info, context, status);
   }
