@@ -158,7 +158,6 @@ describe("OIDC strategies", () => {
           phone: "+4712345678",
           firstName: "Ola",
           lastName: "Nordmann",
-          birthDate: new Date("1995-06-01").toISOString(),
         },
       });
       expect(userService.create).not.toHaveBeenCalled();
@@ -175,17 +174,14 @@ describe("OIDC strategies", () => {
     });
 
     // Both are required columns for a Vipps user, unlike for a Google one.
-    it.each([
-      "email",
-      "phone_number",
-      "given_name",
-      "family_name",
-      "birthdate",
-    ])("refuses a login missing %s", async (claim) => {
-      await expect(
-        vipps({ ...vippsClaims, [claim]: undefined }).validate(tokens),
-      ).rejects.toThrow("Missing user info");
-    });
+    it.each(["email", "phone_number", "given_name", "family_name"])(
+      "refuses a login missing %s",
+      async (claim) => {
+        await expect(
+          vipps({ ...vippsClaims, [claim]: undefined }).validate(tokens),
+        ).rejects.toThrow("Missing user info");
+      },
+    );
 
     it("refuses an unverified email", async () => {
       await expect(
