@@ -74,7 +74,6 @@ describe("OIDC strategies", () => {
     phone_number: "+4712345678",
     given_name: "Ola",
     family_name: "Nordmann",
-    birthdate: "1995-06-01",
   };
 
   const google = (claims: Record<string, unknown>) => {
