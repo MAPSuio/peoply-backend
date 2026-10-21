@@ -18,6 +18,10 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["node", "multer"]
+    "types": [
+      "node",
+      "multer",
+      "jest"
+    ]
   }
 }
