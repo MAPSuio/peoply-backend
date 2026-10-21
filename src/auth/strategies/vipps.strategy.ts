@@ -63,12 +63,11 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
       phone_number: phone,
       given_name: firstName,
       family_name: lastName,
-      birthdate: birthDate,
     } = userinfo;
 
     /* Vipps is the identity-verified provider, so it is the one asked for
        phone and birth date - both are required columns for a Vipps user. */
-    if (!(email && phone && firstName && lastName && birthDate)) {
+    if (!(email && phone && firstName && lastName)) {
       throw new UnauthorizedException("Missing user info");
     }
 
@@ -85,7 +84,6 @@ export class VippsStrategy extends PassportStrategy(Strategy, "vipps") {
         phone,
         firstName,
         lastName,
-        birthDate: new Date(birthDate).toISOString(),
       },
     );
   }
