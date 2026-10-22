@@ -79,7 +79,7 @@ describe("AuthController OIDC callback linking", () => {
   const configService = {
     get: jest.fn((key: string) =>
       key === "VIPPS_OIDC_POST_LOGIN_REDIRECT_URI" ||
-        key === "GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI"
+      key === "GOOGLE_OIDC_POST_LOGIN_REDIRECT_URI"
         ? "https://peoply.app/login/callback"
         : undefined,
     ),
@@ -90,7 +90,7 @@ describe("AuthController OIDC callback linking", () => {
     configService,
     usersService,
     accessSession,
-    {} as any, // mock object to satisfy 
+    {} as any, // mock object to satisfy
   );
 
   beforeEach(() => {
@@ -101,8 +101,7 @@ describe("AuthController OIDC callback linking", () => {
     (usersService.findById as jest.Mock).mockResolvedValue({ id: "linker-1" });
     (usersService.create as jest.Mock).mockResolvedValue(user);
     (usersService.linkProvider as jest.Mock).mockResolvedValue(undefined);
-    (usersService.updateProviderSub as
-      jest.Mock).mockResolvedValue(undefined);
+    (usersService.updateProviderSub as jest.Mock).mockResolvedValue(undefined);
     (usersService.getLinkedProviders as jest.Mock).mockResolvedValue([
       { provider: Provider.VIPPS, createdAt: new Date() },
     ]);
