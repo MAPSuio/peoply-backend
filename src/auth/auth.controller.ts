@@ -58,7 +58,7 @@ export class AuthController {
     private usersService: UsersService,
     private accessSession: AccessSessionService,
     private emailLogin: EmailLoginService,
-  ) {}
+  ) { }
 
   private isLocalRequest(req: Request) {
     // The peer address is the one thing here the caller cannot choose: Host,
@@ -188,7 +188,7 @@ export class AuthController {
    * by this very session, leaves it alive.
    */
   private destroyOauthSession(req: any, res: Response) {
-    req.session?.destroy?.(() => {});
+    req.session?.destroy?.(() => { });
     res.clearCookie("connect.sid");
   }
 
@@ -374,6 +374,15 @@ export class AuthController {
         await this.usersService.getLinkedProviders(emailOwner.id)
       ).map((linked) => linked.provider);
 
+      // If the user already holds an identity from Vipps and is logging in with
+      // Vipps, the client keys / sales unis was rotated (MAPS key migration).
+      // Ipdate their sub to the new one and complete the login directly:
+      if (provider === Provider.VIPPS &&
+        linkedProviders.includes(Provider.VIPPS)) {
+        await this.usersService.updateProviderSub(emailOwner.id, provider, sub);
+        return this.completeLogin(req, res, emailOwner.id, redirectUriConfigKey);
+      }
+
       /* Two dead ends where a pending link could never be satisfied: an
          account that already holds an identity from this provider (one per
          provider per user, so confirming can only end in in_use), and an
@@ -443,13 +452,13 @@ export class AuthController {
   @UseGuards(FreshLoginSessionGuard, VippsGuard)
   @Public()
   @Get("/login")
-  async login() {}
+  async login() { }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(FreshLoginSessionGuard, GoogleGuard)
   @Public()
   @Get("/login/google")
-  async loginGoogle() {}
+  async loginGoogle() { }
 
   /* The confirm re-auth of the link modal. Same flow as a plain login, but it
      is the one login allowed to keep a parked link, so it has its own door
@@ -458,13 +467,13 @@ export class AuthController {
   @UseGuards(ConfirmLinkGuard, VippsGuard)
   @Public()
   @Get("/confirm-link")
-  async confirmLinkVipps() {}
+  async confirmLinkVipps() { }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(ConfirmLinkGuard, GoogleGuard)
   @Public()
   @Get("/confirm-link/google")
-  async confirmLinkGoogle() {}
+  async confirmLinkGoogle() { }
 
   /* The link endpoints are the login endpoints with an intent: guard order is
      load-bearing. AuthenticatedGuard puts the user on the request,
@@ -474,13 +483,13 @@ export class AuthController {
   @UseGuards(LinkIntentGuard, VippsGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/link")
-  async linkVipps() {}
+  async linkVipps() { }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(LinkIntentGuard, GoogleGuard)
   @UseFilters(RedirectOnUnauthorizedFilter)
   @Get("/link/google")
-  async linkGoogle() {}
+  async linkGoogle() { }
 
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @UseGuards(RefreshGuard)
