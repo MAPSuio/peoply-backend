@@ -70,6 +70,7 @@ describe("AuthController OIDC callback linking", () => {
     findById: jest.fn().mockResolvedValue({ id: "linker-1" }),
     create: jest.fn().mockResolvedValue(user),
     linkProvider: jest.fn().mockResolvedValue(undefined),
+    updateProviderSub: jest.fn().mockResolvedValue(undefined),
     getLinkedProviders: jest
       .fn()
       .mockResolvedValue([{ provider: Provider.VIPPS, createdAt: new Date() }]),
@@ -89,6 +90,7 @@ describe("AuthController OIDC callback linking", () => {
     configService,
     usersService,
     accessSession,
+    {} as any, // mock object to satisfy
   );
 
   beforeEach(() => {
@@ -99,6 +101,7 @@ describe("AuthController OIDC callback linking", () => {
     (usersService.findById as jest.Mock).mockResolvedValue({ id: "linker-1" });
     (usersService.create as jest.Mock).mockResolvedValue(user);
     (usersService.linkProvider as jest.Mock).mockResolvedValue(undefined);
+    (usersService.updateProviderSub as jest.Mock).mockResolvedValue(undefined);
     (usersService.getLinkedProviders as jest.Mock).mockResolvedValue([
       { provider: Provider.VIPPS, createdAt: new Date() },
     ]);
@@ -222,6 +225,27 @@ describe("AuthController OIDC callback linking", () => {
       expect(redirectedTo()).toBe(
         "https://peoply.app/login/callback?link_error=email_in_use",
       );
+    });
+    /* When an existing Vipps user shows up with rotated keys (e.g. after
+       reinstalling the app), the provider row already exists but the sub is
+       new. We treat this as a login-completion case and update the sub in
+       place — there’s no pending-link ambiguity because Vipps doesn’t carry
+       email. */
+    it("updates sub and completes login directly when an existing Vipps user arrives with rotated keys", async () => {
+      (usersService.getLinkedProviders as jest.Mock).mockResolvedValue([
+        { provider: Provider.VIPPS, createdAt: new Date() },
+      ]);
+      await controller.loginCallback(
+        { user: newVippsIdentity, session, cookies: {} },
+        res,
+      );
+      expect(usersService.updateProviderSub).toHaveBeenCalledWith(
+        "matched-1",
+        Provider.VIPPS,
+        newVippsIdentity.sub,
+      );
+      expect(sessionCookiesIssued()).toBe(true);
+      expect(redirectedTo()).toBe("https://peoply.app/login/callback");
     });
 
     /* Only dev-seeded accounts can lack provider rows, but a pending link

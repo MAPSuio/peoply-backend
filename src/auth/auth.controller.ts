@@ -374,6 +374,22 @@ export class AuthController {
         await this.usersService.getLinkedProviders(emailOwner.id)
       ).map((linked) => linked.provider);
 
+      // If the user already holds an identity from Vipps and is logging in with
+      // Vipps, the client keys / sales unis was rotated (MAPS key migration).
+      // Ipdate their sub to the new one and complete the login directly:
+      if (
+        provider === Provider.VIPPS &&
+        linkedProviders.includes(Provider.VIPPS)
+      ) {
+        await this.usersService.updateProviderSub(emailOwner.id, provider, sub);
+        return this.completeLogin(
+          req,
+          res,
+          emailOwner.id,
+          redirectUriConfigKey,
+        );
+      }
+
       /* Two dead ends where a pending link could never be satisfied: an
          account that already holds an identity from this provider (one per
          provider per user, so confirming can only end in in_use), and an
