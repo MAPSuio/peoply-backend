@@ -492,6 +492,26 @@ export class UsersService {
     });
   }
 
+  /**
+   * Updates the providers subjekt identifier (`sub`) for an existing user.
+   *
+   * Used when an identity provider rotates its client credentials/ sales unit
+   * (example Vipps chaning the keys (in this case to MAPS account)) wich uses pairwise `sub`s to change
+   * for exisiting verified users without their account owenrship having changed
+   */
+
+  async updateProviderSub(userId: string, provider: Provider, sub: string) {
+    return await this.prisma.providerUser.update({
+      where: {
+        id_provider: {
+          id: userId,
+          provider,
+        },
+      },
+      data: { sub },
+    });
+  }
+
   async findByProviderSub(provider: Provider, sub: string) {
     const user = await this.prisma.providerUser.findUnique({
       where: {
