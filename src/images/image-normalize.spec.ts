@@ -169,6 +169,50 @@ describe("normalizeImage", () => {
     expect(result.buffer).toBe(input);
     expect(result.format).toBe("jpeg");
   });
+
+  it.each(["webp", "gif", "avif"] as const)(
+    "stores a %s as a JPEG without enlarging it",
+    async (format) => {
+      const input = await solid(800, 600).toFormat(format).toBuffer();
+
+      const result = await normalizeImage(input);
+
+      expect(result.format).toBe("jpeg");
+      expect((await sharp(result.buffer).metadata()).format).toBe("jpeg");
+      expect(result.after.width).toBe(800);
+      expect(result.changed).toBe(true);
+    },
+  );
+
+  it("stores a transparent WebP as a PNG", async () => {
+    const input = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .webp()
+      .toBuffer();
+
+    const { buffer, format } = await normalizeImage(input);
+
+    expect(format).toBe("png");
+    expect((await sharp(buffer).metadata()).hasAlpha).toBe(true);
+  });
+
+  it.each([
+    [
+      "an SVG",
+      Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>',
+      ),
+    ],
+    ["a file that is not an image", Buffer.from("MZ\x90\x00")],
+  ])("refuses %s", async (_, input) => {
+    await expect(normalizeImage(input)).rejects.toThrow(ImageRejectedError);
+  });
 });
 
 describe("needsDownscaling", () => {

@@ -130,15 +130,13 @@ export class EventsService {
     }
 
     const eventId = createUuid();
-    const eventImageFileName = `${eventId}.${
-      eventImage?.mimetype.split("/")[1]
-    }`;
+    let imageUrl: string | null = null;
 
     try {
-      const imageUrl = eventImage
+      imageUrl = eventImage
         ? (
             await this.imageStorageService.upload(
-              eventImageFileName,
+              eventId,
               eventImage.buffer,
               ImageContainer.EVENT_IMAGES,
             )
@@ -229,9 +227,9 @@ export class EventsService {
       // so a failed transaction would otherwise orphan it in blob storage.
       // The Prisma code mapping that used to live here is gone —
       // PrismaExceptionFilter turns P2003 into 400 and P2002 into 409.
-      if (eventImage) {
+      if (imageUrl) {
         await this.imageStorageService.deleteUploadedImageQuietly(
-          eventImageFileName,
+          imageUrl,
           ImageContainer.EVENT_IMAGES,
           "Event creation",
         );
@@ -568,10 +566,7 @@ export class EventsService {
         //upload new image
         newImageUrl = (
           await this.imageStorageService.upload(
-            this.imageStorageService.generateFileNameById(
-              oldEvent.id,
-              newImage,
-            ),
+            this.imageStorageService.generateFileNameById(oldEvent.id),
             newImage.buffer,
             ImageContainer.EVENT_IMAGES,
           )

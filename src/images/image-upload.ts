@@ -33,6 +33,13 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png"] as const;
 
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
+const UPLOADABLE_MIME_TYPES: readonly string[] = [
+  ...ALLOWED_MIME_TYPES,
+  "image/webp",
+  "image/gif",
+  "image/avif",
+];
+
 /**
  * `file.mimetype` is the Content-Type of the multipart part - a header the
  * uploader writes. It says what the client claims, so it is worth rejecting on
@@ -54,9 +61,11 @@ const rejectAnythingButAnImage: MulterOptions["fileFilter"] = (
   file,
   callback,
 ) => {
-  if (!ALLOWED_MIME_TYPES.includes(file.mimetype as AllowedMimeType)) {
+  if (!UPLOADABLE_MIME_TYPES.includes(file.mimetype)) {
     callback(
-      new BadRequestException("Only .jpeg and .png files are allowed!"),
+      new BadRequestException(
+        "Only JPEG, PNG, WebP, GIF and AVIF images are allowed.",
+      ),
       false,
     );
     return;

@@ -1,5 +1,5 @@
 import { ConfigService } from "@nestjs/config";
-import { BadRequestException, HttpException } from "@nestjs/common";
+import { HttpException } from "@nestjs/common";
 import { ImageStorageService } from "./image-storage.service";
 import { ImageContainer } from "./image-storage.constants";
 import { MAX_QUEUED_DECODES } from "../images/decode-slot";
@@ -26,7 +26,6 @@ const configService = {
 const fileWith = (buffer: Buffer) => ({ buffer }) as any;
 
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
 
 describe("ImageStorageService.generateFileNameById", () => {
   let service: ImageStorageService;
@@ -35,24 +34,9 @@ describe("ImageStorageService.generateFileNameById", () => {
     service = new ImageStorageService(configService);
   });
 
-  it("derives the extension from the content, not the claimed type", () => {
-    expect(service.generateFileNameById("abc", fileWith(png))).toMatch(
-      /\.png$/,
-    );
-    expect(service.generateFileNameById("abc", fileWith(jpeg))).toMatch(
-      /\.jpg$/,
-    );
-  });
-
-  it("refuses to name a blob for a non-image, so it is never uploaded", () => {
-    expect(() =>
-      service.generateFileNameById("abc", fileWith(Buffer.from("MZ\x90\x00"))),
-    ).toThrow(BadRequestException);
-  });
-
   it("uses a full UUID as the unguessable part", () => {
-    expect(service.generateFileNameById("abc", fileWith(png))).toMatch(
-      /^abc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/,
+    expect(service.generateFileNameById("abc")).toMatch(
+      /^abc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
   });
 
@@ -62,17 +46,13 @@ describe("ImageStorageService.generateFileNameById", () => {
     // URL is the only thing guarding a private image, since nothing issues a
     // SAS token.
     const names = new Set(
-      Array.from({ length: 10_000 }, () =>
-        service.generateFileNameById("abc", fileWith(png)),
-      ),
+      Array.from({ length: 10_000 }, () => service.generateFileNameById("abc")),
     );
     expect(names.size).toBe(10_000);
   });
 
   it("keeps the caller-supplied id as the prefix", () => {
-    expect(service.generateFileNameById("event-123", fileWith(png))).toMatch(
-      /^event-123-/,
-    );
+    expect(service.generateFileNameById("event-123")).toMatch(/^event-123-/);
   });
 });
 
@@ -207,7 +187,19 @@ describe("ImageStorageService.upload refusals", () => {
     const tooWide = await strip(MAX_IMAGE_INPUT_EDGE_PX + 1, 10);
 
     await expect(
-      statusOf(service.upload("x.png", tooWide, ImageContainer.EVENT_IMAGES)),
+      statusOf(service.upload("x", tooWide, ImageContainer.EVENT_IMAGES)),
+    ).resolves.toBe(400);
+  });
+
+  it("answers 400 for a file that is not an image", async () => {
+    await expect(
+      statusOf(
+        service.upload(
+          "x",
+          Buffer.from("MZ\x90\x00"),
+          ImageContainer.EVENT_IMAGES,
+        ),
+      ),
     ).resolves.toBe(400);
   });
 
@@ -218,7 +210,7 @@ describe("ImageStorageService.upload refusals", () => {
     );
 
     const status = await statusOf(
-      service.upload("y.png", image, ImageContainer.EVENT_IMAGES),
+      service.upload("y", image, ImageContainer.EVENT_IMAGES),
     );
 
     await Promise.all(saturate);
@@ -251,7 +243,7 @@ describe("ImageStorageService against Spaces", () => {
 
   it("stores the image under its container as a public object with its real type", async () => {
     await service.upload(
-      "owner-1-a.png",
+      "owner-1-a",
       await image(),
       ImageContainer.PROFILE_IMAGES,
     );
@@ -268,12 +260,32 @@ describe("ImageStorageService against Spaces", () => {
 
   it("answers with the public URL rather than the API endpoint", async () => {
     const { url } = await service.upload(
-      "owner-1-a.png",
+      "owner-1-a",
       await image(),
       ImageContainer.EVENT_IMAGES,
     );
 
     expect(url).toBe("https://cdn.example.com/event-images/owner-1-a.png");
+  });
+
+  it("stores a WebP as a JPEG under a .jpg key", async () => {
+    const webp = await sharp({
+      create: { width: 4, height: 4, channels: 3, background: "#fd7b03" },
+    })
+      .webp()
+      .toBuffer();
+
+    const { url } = await service.upload(
+      "owner-1-a",
+      webp,
+      ImageContainer.EVENT_IMAGES,
+    );
+
+    expect((sent[0] as PutObjectCommand).input).toMatchObject({
+      Key: "event-images/owner-1-a.jpg",
+      ContentType: "image/jpeg",
+    });
+    expect(url).toBe("https://cdn.example.com/event-images/owner-1-a.jpg");
   });
 
   it("deletes the object under its container", async () => {

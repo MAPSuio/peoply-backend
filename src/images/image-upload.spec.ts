@@ -102,16 +102,20 @@ describe("imageUploadOptionsFor", () => {
     expect(typicalPhonePhotoBytes).toBeLessThan(MAX_IMAGE_BYTES);
   });
 
-  it("accepts the two image content types", () => {
-    expect(runFilter("image/png")).toHaveBeenCalledWith(null, true);
-    expect(runFilter("image/jpeg")).toHaveBeenCalledWith(null, true);
-  });
+  it.each(["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"])(
+    "accepts %s",
+    (mimetype) => {
+      expect(runFilter(mimetype)).toHaveBeenCalledWith(null, true);
+    },
+  );
 
-  it("rejects any other content type before a byte is buffered", () => {
-    const callback = runFilter("application/octet-stream");
-    expect(callback).toHaveBeenCalledWith(
-      expect.any(BadRequestException),
-      false,
-    );
-  });
+  it.each(["application/octet-stream", "image/svg+xml"])(
+    "rejects %s before a byte is buffered",
+    (mimetype) => {
+      expect(runFilter(mimetype)).toHaveBeenCalledWith(
+        expect.any(BadRequestException),
+        false,
+      );
+    },
+  );
 });
