@@ -79,6 +79,16 @@ export class ImageTooLargeError extends ImageRejectedError {
   }
 }
 
+class ImageUnsupportedError extends ImageRejectedError {
+  constructor() {
+    super(
+      "This file is not an image we can use. Upload a JPEG, PNG, WebP, GIF " +
+        "or AVIF image.",
+    );
+    this.name = "ImageUnsupportedError";
+  }
+}
+
 /** Thrown when one edge is long enough to hurt on its own. */
 export class ImageTooWideError extends ImageRejectedError {
   constructor(
@@ -155,9 +165,30 @@ async function usesTransparency(
   }
 }
 
+function isUploadableFormat({ format, compression }: Metadata) {
+  return (
+    format === "jpeg" ||
+    format === "png" ||
+    format === "webp" ||
+    format === "gif" ||
+    (format === "heif" && compression === "av1")
+  );
+}
+
+function isStoredFormat(format: Metadata["format"]) {
+  return format === "jpeg" || format === "png";
+}
+
 /** Refuses an image whose decoded size the caller cannot afford. */
 async function assertDecodable(input: Buffer, maxInputPixels: number) {
-  const probe = await sharp(input, { limitInputPixels: false }).metadata();
+  const probe = await sharp(input, { limitInputPixels: false })
+    .metadata()
+    .catch(() => undefined);
+
+  if (!probe || !isUploadableFormat(probe)) {
+    throw new ImageUnsupportedError();
+  }
+
   const width = probe.width ?? 0;
   const height = probe.height ?? 0;
   const longestEdge = Math.max(width, height);
@@ -182,17 +213,12 @@ function dimensionsOf(metadata: Metadata, bytes: number): ImageDimensions {
 }
 
 function downscale(input: Buffer, maxInputPixels: number) {
-  return (
-    sharp(input, { limitInputPixels: maxInputPixels })
-      .rotate()
-      /* No `withoutEnlargement`: the caller only gets here when an edge is
-         already over the limit, so `inside` can only shrink. */
-      .resize({
-        width: MAX_IMAGE_EDGE_PX,
-        height: MAX_IMAGE_EDGE_PX,
-        fit: "inside",
-      })
-  );
+  return sharp(input, { limitInputPixels: maxInputPixels }).rotate().resize({
+    width: MAX_IMAGE_EDGE_PX,
+    height: MAX_IMAGE_EDGE_PX,
+    fit: "inside",
+    withoutEnlargement: true,
+  });
 }
 
 function flattenToJpeg(pipeline: ReturnType<typeof downscale>) {
@@ -295,12 +321,15 @@ async function normalizeOnSlot(
   }).metadata();
   const before = dimensionsOf(metadata, input.length);
 
-  /* An image inside the limit is left exactly as it arrived. Re-encoding it
+  /* A JPEG or PNG inside the limit is left exactly as it arrived. Re-encoding it
      would burn CPU on every upload to produce a file that is no better and
      frequently worse, and `metadata()` reads headers only, so deciding this
      costs no pixel work - which matters, because everything below decodes the
      whole image. */
-  if (!needsDownscaling(before.width, before.height)) {
+  if (
+    !needsDownscaling(before.width, before.height) &&
+    isStoredFormat(metadata.format)
+  ) {
     return {
       buffer: input,
       before,

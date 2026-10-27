@@ -84,14 +84,15 @@ export class ImageStorageService {
       );
     }
 
-    const key = `${containerName}/${fileName}`;
+    const contentType = assertIsImage(image.buffer);
+    const key = `${containerName}/${fileName}.${extensionFor(contentType)}`;
     await this.s3.send(
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
         Body: image.buffer,
         ACL: "public-read",
-        ContentType: assertIsImage(image.buffer),
+        ContentType: contentType,
         CacheControl: "public, max-age=31536000, immutable",
       }),
     );
@@ -197,7 +198,7 @@ export class ImageStorageService {
 
     if (newImage) {
       const { url, colors } = await this.upload(
-        this.generateFileNameById(ownerId, newImage),
+        this.generateFileNameById(ownerId),
         newImage.buffer,
         container,
       );
@@ -226,11 +227,9 @@ export class ImageStorageService {
    * standing between a profile photo and anyone who guesses it. The id prefix
    * is already public through the API.
    *
-   * The extension comes from the sniffed content rather than the uploader's
-   * Content-Type, so it cannot be anything but jpg or png.
+   * The extension is added by `upload`, from the content it stores.
    */
-  generateFileNameById(id: string, file: Express.Multer.File) {
-    const mimeType = assertIsImage(file.buffer);
-    return `${id}-${randomUUID()}.${extensionFor(mimeType)}`;
+  generateFileNameById(id: string) {
+    return `${id}-${randomUUID()}`;
   }
 }
