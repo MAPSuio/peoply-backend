@@ -66,7 +66,7 @@
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
     "ioredis": "6.0.0",
-    "joi": "^18.2.9",
+    "joi": "^18.3.1",
     "node-ical": "^0.27.2",
     "openid-client": "^6.8.8",
     "passport": "^0.7.0",
@@ -78,7 +78,7 @@
     "rimraf": "^6.1.3",
     "rxjs": "^7.8.2",
     "sharp": "0.35.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
@@ -142,7 +142,7 @@
     "cookie": "^0.7.2",
     "cookiejar": "^2.1.4",
     "deepmerge-ts": "^8.0.0",
-    "fast-uri": "^4.2.1",
+    "fast-uri": "^4.2.3",
     "find-my-way": "^9.9.0",
     "form-data": "^4.0.6",
     "formidable": "^3.5.4",
@@ -151,14 +151,14 @@
     "json5": "^2.2.3",
     "jws": "^4.0.1",
     "lodash": "^4.18.1",
-    "multer": "^2.4.0",
+    "multer": "^2.5.0",
     "mysql2": "^3.23.1",
     "on-headers": "^1.1.0",
     "picomatch": "^4.0.7",
     "postcss": {
       "nanoid": "^3.3.18"
     },
-    "qs": "^6.16.0",
+    "qs": "^6.17.1",
     "tough-cookie": "^6.0.2",
     "undici": "^7.29.0",
     "uuid": "^11.1.1",
