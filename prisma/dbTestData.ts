@@ -115,41 +115,6 @@ export const eventIDs = [
   "6e9521c0-e08d-4a14-b0fc-93ba16119c66",
 ];
 
-// ORGANISATION NUMBERS
-
-export const organisationNumbers = [
-  "635424747",
-  "319588365",
-  "275406448",
-  "621476107",
-  "493337024",
-  "453132839",
-  "826352905",
-  "256810900",
-  "497383811",
-  "376939590",
-  "963838113",
-  "804735553",
-  "545677701",
-  "118225256",
-  "655058146",
-  "901487557",
-  "936901093",
-  "695974681",
-  "279867912",
-  "416318891",
-  "442855410",
-  "180973978",
-  "917461306",
-  "938805408",
-  "900055194",
-  "730817981",
-  "428364509",
-  "372319170",
-  "457083608",
-  "896185506",
-];
-
 //tlf numbers
 
 export const phoneNumbers = [
@@ -330,20 +295,6 @@ export const eventDescriptions = [
   "this is live",
 ];
 
-export const companyNames = [
-  "Walmart	Retail",
-  "State Grid	Electricity",
-  "Amazon	Retail, Information Technology",
-  "Apple	Electronics",
-  "China National Petroleum	Oil and gas",
-  "Sinopec Group	Oil and gas",
-  "CVS Health	Healthcare",
-  "UnitedHealth	Healthcare",
-  "Toyota	Automotive",
-  "Volkswagen	Automotive",
-  "Berkshire Hathaway",
-];
-
 export const birthDates = [
   "1995-06-08T14:00:00.434Z",
   "1994-07-03T14:00:00.434Z",
@@ -357,34 +308,4 @@ export const birthDates = [
   "1995-07-08T14:00:00.434Z",
 ];
 
-export const regDates = [
-  "2017-06-07T14:00:00.434Z",
-  "2021-07-02T14:00:00.434Z",
-  "2020-09-03T14:00:00.434Z",
-  "2021-07-06T14:00:00.434Z",
-  "2022-09-22T14:00:00.434Z",
-  "2018-07-01T14:00:00.434Z",
-  "2019-03-05T14:00:00.434Z",
-  "2020-06-01T14:00:00.434Z",
-  "2021-05-07T14:00:00.434Z",
-  "2021-07-07T14:00:00.434Z",
-];
-
 export const capacities = [200, 150, 300, 50, 120, 70, 400, 325, 80, 30];
-
-export const allergens = [
-  { name: "Gluten" },
-  { name: "Skalldyr" },
-  { name: "Egg" },
-  { name: "Fisk" },
-  { name: "Peanøtter" },
-  { name: "Soya" },
-  { name: "Melk" },
-  { name: "Nøtter" },
-  { name: "Selleri" },
-  { name: "Sennep" },
-  { name: "Sesamfrø" },
-  { name: "Svoveldioksid og sulfitter" },
-  { name: "Lupin" },
-  { name: "Bløtdyr" },
-];

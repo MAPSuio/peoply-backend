@@ -40,9 +40,11 @@ describe("DiscordAlertService", () => {
     const service = new DiscordAlertService(config, alwaysMentions());
     service.onModuleInit();
 
-    await service.sendAlert("Ny tilbakemelding", [
-      { name: "IP", value: "1.2.3.4" },
-    ]);
+    await service.send({
+      title: "Ny tilbakemelding",
+      fields: [{ name: "IP", value: "1.2.3.4" }],
+      color: 0xff0000,
+    });
 
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
@@ -51,6 +53,7 @@ describe("DiscordAlertService", () => {
     expect(requests).toHaveLength(1);
     expect(requests[0]).toContain("Ny tilbakemelding");
     expect(requests[0]).toContain("1.2.3.4");
+    expect(JSON.parse(requests[0]).embeds[0].color).toBe(0xff0000);
   });
 });
 

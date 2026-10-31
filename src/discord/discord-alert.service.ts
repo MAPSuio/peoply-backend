@@ -84,21 +84,6 @@ export class DiscordAlertService implements OnModuleInit {
     return !!this.webhookUrl;
   }
 
-  async sendAlert(
-    title: string,
-    fields: EmbedField[],
-    color = 0xff0000,
-  ): Promise<void> {
-    /* Logged as well as posted so the notice survives a Discord outage.
-       `log`, not `warn`: what is left calling this is a feedback submission
-       and an organization awaiting approval. Neither is a fault. */
-    this.logger.log(
-      `${title} | ${fields.map((f) => `${f.name}: ${f.value}`).join(", ")}`,
-    );
-
-    await this.send({ title, fields, color, context: "Discord alert" });
-  }
-
   /**
    * Posts one embed to the alert webhook. Failures are logged, never thrown —
    * a Discord outage must not fail the request that triggered the message.

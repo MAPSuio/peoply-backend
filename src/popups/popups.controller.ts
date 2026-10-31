@@ -10,7 +10,6 @@ import {
   Patch,
   Post,
   Req,
-  UseGuards,
 } from "@nestjs/common";
 import { BROWSER_CACHE_TTL, BrowserCacheFor } from "../util/browser-cache";
 import { AdministrationService } from "../administration/administration.service";

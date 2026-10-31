@@ -29,7 +29,6 @@ import {
 } from "./dto/email-login.dto";
 import { ConfigService } from "@nestjs/config";
 import {
-  AuthenticatedGuard,
   ConfirmLinkGuard,
   FreshLoginSessionGuard,
   LinkIntentGuard,

@@ -77,45 +77,4 @@ describe("EventInvitationsService — invitation revocation", () => {
       expect(userRegistrationsService.update).not.toHaveBeenCalled();
     });
   });
-
-  describe("cancelling", () => {
-    beforeEach(() => {
-      eventInvitation.update.mockResolvedValue({
-        id: "inv-1",
-        eventId: "event-1",
-        toUserId: "user-1",
-        invitationStatus: "CANCELLED",
-      });
-    });
-
-    it("clears a registration still sitting at INVITED", async () => {
-      await service.cancelInvitation("inv-1");
-
-      /* EventAccessService.canView treats INVITED as permission to read the event, so
-         leaving it behind meant cancelling revoked nothing. */
-      expect(registration.updateMany).toHaveBeenCalledWith({
-        where: {
-          eventId: "event-1",
-          userId: "user-1",
-          regStatus: "INVITED",
-        },
-        data: { regStatus: "NOT_GOING" },
-      });
-    });
-
-    it("scopes the reset to INVITED so answered invitees are untouched", async () => {
-      await service.cancelInvitation("inv-1");
-
-      /* Without the status filter a stray cancel would drop a GOING attendee
-         or quietly un-ban a BANNED one. */
-      const [[call]] = registration.updateMany.mock.calls;
-      expect(call.where.regStatus).toBe("INVITED");
-    });
-
-    it("cancels and resets in one transaction", async () => {
-      await service.cancelInvitation("inv-1");
-
-      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    });
-  });
 });

@@ -337,38 +337,4 @@ export class EventInvitationsService {
       },
     });
   }
-
-  async cancelInvitation(invitationId: string) {
-    return this.prisma.$transaction(async (trx) => {
-      const invitation = await trx.eventInvitation.update({
-        where: {
-          id: invitationId,
-        },
-        data: {
-          invitationStatus: InvitationStatus.CANCELLED,
-        },
-      });
-
-      /* Inviting someone writes an INVITED registration alongside the
-         invitation, and EventAccessService.canView counts INVITED as permission to read the
-         event. Cancelling only the invitation therefore revoked nothing - the
-         uninvited user kept reading a private event indefinitely.
-
-         Scoped to INVITED so an invitee who already answered is untouched: a
-         GOING attendee is not silently removed by a stray cancel, and a
-         BANNED one is not quietly un-banned. */
-      await trx.registration.updateMany({
-        where: {
-          eventId: invitation.eventId,
-          userId: invitation.toUserId,
-          regStatus: RegStatus.INVITED,
-        },
-        data: {
-          regStatus: RegStatus.NOT_GOING,
-        },
-      });
-
-      return invitation;
-    });
-  }
 }
