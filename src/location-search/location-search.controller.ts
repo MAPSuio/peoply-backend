@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query } from "@nestjs/common";
 import { LocationSearchQueryDto } from "./dto/location-search-query.dto";
 import { LocationSearchService } from "./location-search.service";
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, Req } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { CreateFeedbackDto } from "./dto/create-feedback.dto";
 import { FeedbackService } from "./feedback.service";

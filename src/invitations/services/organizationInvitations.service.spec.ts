@@ -46,14 +46,6 @@ describe("OrganizationInvitationsService", () => {
     expect(prisma.organizationInvitation.createMany).not.toHaveBeenCalled();
   });
 
-  it("refuses owner through the singular invitation path", async () => {
-    await expect(
-      service.createInvitation(ORG, SENDER, TARGET, OrganizationRole.OWNER),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-
-    expect(prisma.organizationInvitation.create).not.toHaveBeenCalled();
-  });
-
   it("refuses the whole batch when any entry asks for owner", async () => {
     await expect(
       service.createInvitations(ORG, SENDER, [

@@ -74,27 +74,6 @@ export class OrganizationInvitationsService {
     });
   }
 
-  async createInvitation(
-    organizationId: string,
-    fromUserId: string,
-    toUserId: string,
-    role: OrganizationRole,
-  ) {
-    if (role === OrganizationRole.OWNER) {
-      throw new ForbiddenException("Cannot invite a user as owner");
-    }
-
-    return this.prisma.organizationInvitation.create({
-      data: {
-        organizationId,
-        fromUserId,
-        toUserId,
-        organizationRole: role,
-        invitationStatus: InvitationStatus.PENDING,
-      },
-    });
-  }
-
   async createInvitations(
     organizationId: string,
     fromUserId: string,
