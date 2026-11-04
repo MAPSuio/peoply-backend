@@ -7,18 +7,19 @@ NestJS API for [peoply.app](https://peoply.app), on Postgres via Prisma.
 | Backend | you are here | `http://localhost:3000` | `https://api.peoply.app` |
 | Frontend | [`MAPSuio/peoply-frontend`](https://github.com/MAPSuio/peoply-frontend) | `http://localhost:3001` | `https://peoply.app` |
 
-Node >= 24 < 25, npm >= 11 < 12. `.nvmrc` pins 24.18.0. Docker needed for the local database.
+Node >= 24 < 27, npm >= 11 < 13. Docker needed for the local database.
 
 ## Run the backend
 
 ```bash
-nvm use
 npm ci
 cp .env.example .env
 docker compose -f dev-db/docker-compose.yml up -d
 npx prisma migrate deploy
 npm run seed:dev-db     # local users, organizations, events
 npm run dev             # http://localhost:3000
+
+npm ci && cp .env.example .env && docker compose -f dev-db/docker-compose.yml up -d && npx prisma migrate deploy && npm run seed:dev-db && npm run dev
 ```
 
 `npm run init:dev-db` replaces the docker/migrate/seed steps, but it recreates the database and shells out to `sudo`.
@@ -35,10 +36,15 @@ API reference: <http://localhost:3000/api>, rendered by [Scalar](https://scalar.
 
 ```bash
 git clone https://github.com/MAPSuio/peoply-frontend.git
-cd peoply-frontend && npm ci && npm run dev   # http://localhost:3001
+cd peoply-frontend
+npm ci
+cp .env.example .env.development
+npm run dev   # http://localhost:3001
+
+git clone https://github.com/MAPSuio/peoply-frontend.git && cd peoply-frontend && npm ci && cp .env.example .env.development && npm run dev
 ```
 
-No config needed — the frontend's committed `.env.development` already points at `http://localhost:3000`.
+`.env.example` already points at `http://localhost:3000`.
 
 The ports aren't interchangeable. Auth cookies are cross-origin, so the backend must trust the frontend's origin (both already in `.env.example`):
 
@@ -49,17 +55,16 @@ FRONTEND_URL="http://localhost:3001"   # redirect target after login
 
 Change both and restart the backend if you move the frontend off 3001.
 
-## Log in locally
+## Log in locally (dummy user)
 
-Set `LOCAL_AUTH_ENABLED=true` in `.env` before `npm run dev` — this skips Vipps/Google and uses localhost-safe cookies. Disabled in production.
-
-Open in the **browser** to log in as a seeded user (sets the cookie, redirects to the frontend):
+1. Make sure `LOCAL_AUTH_ENABLED=true` is set in `.env` (already enabled in `.env.example`; restart `npm run dev` if you edited `.env`) and that the database is seeded (`npm run seed:dev-db`).
+2. Open this URL in your **browser** to log in as a dummy user (sets the session cookies and redirects to the frontend at `http://localhost:3001`):
 
 ```text
 http://localhost:3000/auth/dev-login?email=Kristian@gmail.com
 ```
 
-From the terminal:
+To see all available seeded dummy users, open <http://localhost:3000/auth/dev-users> in your browser or run from the terminal:
 
 ```bash
 curl http://localhost:3000/auth/dev-users                    # seeded users
@@ -69,7 +74,7 @@ curl -X POST http://localhost:3000/auth/dev-login \
 curl http://localhost:3000/auth/user -b cookies.txt
 ```
 
-`curl -c cookies.txt` logs in `curl`, not your browser — use the URL above for the frontend.
+`curl -c cookies.txt` logs in `curl`, not your browser — use the browser URL above for the frontend.
 
 ## Change the schema
 
@@ -77,6 +82,8 @@ curl http://localhost:3000/auth/user -b cookies.txt
 npx prisma format
 npx prisma migrate dev --name what_you_changed
 npx prisma generate    # skipping this is why dev fails after a schema change
+
+npx prisma format && npx prisma migrate dev --name what_you_changed && npx prisma generate
 ```
 
 `generate` writes TypeScript to `src/generated/prisma`, which is git-ignored
