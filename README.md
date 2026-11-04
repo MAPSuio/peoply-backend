@@ -14,9 +14,9 @@ Node >= 24 < 25, npm >= 11 < 12. `.nvmrc` pins 24.18.0. Docker needed for the lo
 ```bash
 nvm use
 npm ci
-cp .env.example .env    # DATABASE_URL="postgresql://pg:pg@localhost:5432/pg?schema=public"
+cp .env.example .env
 docker compose -f dev-db/docker-compose.yml up -d
-npx prisma migrate dev
+npx prisma migrate deploy
 npm run seed:dev-db     # local users, organizations, events
 npm run dev             # http://localhost:3000
 ```

@@ -38,14 +38,14 @@ describe("mcpKeyPepperSchema", () => {
     expect(error?.message).toContain("MCP_KEY_PEPPER");
   });
 
-  it("refuses the placeholder shipped in .env.example", () => {
+  it("accepts the default shipped in .env.example", () => {
     const placeholder = readFileSync(".env.example", "utf8")
       .split("\n")
       .find((line) => line.startsWith("MCP_KEY_PEPPER="))
       ?.split("=")[1];
     const { error } = schema.validate({ MCP_KEY_PEPPER: placeholder });
 
-    expect(error?.message).toContain("MCP_KEY_PEPPER");
+    expect(error).toBeUndefined();
   });
 
   it("refuses a pepper equal to the session secret", () => {

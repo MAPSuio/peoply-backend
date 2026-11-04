@@ -23,9 +23,9 @@ The API does not boot without Postgres — Prisma and the session store both
 connect during startup. Bring up the local database before anything else:
 
 ```bash
-cp .env.example .env                       # set DATABASE_URL as described in README.md
+cp .env.example .env
 npm run start:dev-db                       # docker-compose in dev-db/
-npx prisma migrate dev                     # apply migrations
+npx prisma migrate deploy                  # apply migrations
 npm run seed:dev-db                        # local users, organizations, events
 npm run dev                                # http://localhost:3000
 ```
