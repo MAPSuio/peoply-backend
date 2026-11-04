@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { createPrismaAdapter } from "../src/prisma/prisma.adapter";
 import { allergens, categories } from "./dbProdData";
